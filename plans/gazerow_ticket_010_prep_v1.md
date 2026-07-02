@@ -2,6 +2,7 @@
 
 ## 변경 이력
 - v1: TICKET-010 Baseline Evaluation Run 착수 전, 평가 환경과 절차를 준비하기 위한 체크리스트를 분리.
+- v2: 내부 사용자 3명 평가 runbook 준비 상태를 반영.
 
 ## 1. 목적
 
@@ -18,7 +19,7 @@
 | TICKET-008 Local Logging and Debug Export | done | interaction log/export core |
 | TICKET-009 First-Run UX and Known Limitations | done | README 기준 |
 | 평가 템플릿 | done | `gazerow_evaluation_template_v1.md` |
-| 평가자 3명 확보 | TBD | ED-001 |
+| 평가자 3명 확보 | TBD | ED-001, `gazerow_internal_user_evaluation_v1.md` 기준으로 실행 |
 | 평가 macOS version 확정 | TBD | ED-001 checkpoint |
 | Xcode toolchain 정상화 | done | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` 통과 |
 
@@ -75,6 +76,7 @@ TICKET-010 평가 중 아래 TICKET-008 로그/export 항목을 실제 값으로
 ## 7. 완료 기준
 
 - `gazerow_evaluation_template_v1.md`가 존재한다.
+- `gazerow_internal_user_evaluation_v1.md`가 존재한다.
 - 5개 앱별 고정 task가 명시되어 있다.
 - go/no-go 조건이 한 문서에서 확인 가능하다.
 - TICKET-008 완료 후 어떤 로그 값을 채울지 명시되어 있다.

@@ -38,6 +38,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - runtime click attempt/completed interaction log wiring
 - Settings Accessibility 권한 요청 버튼
 - Show Overlay 권한 실패 시 Accessibility 요청/설정 이동
+- Command+Shift+Space overlay activation shortcut
 - `--request-accessibility` 런치 옵션
 - `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션
 - `--print-overlay-label-map` 로컬 평가용 label map 출력 옵션
@@ -53,6 +54,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - `gazerow_known_limitations_v1.md`
 - `gazerow_ticket_010_prep_v1.md`
 - `gazerow_ticket_010_result_v1.md`
+- `gazerow_internal_user_evaluation_v1.md`
 - `gazerow_mvp_freeze_package_v1.md`
 
 현재 기준 문서:
@@ -112,11 +114,13 @@ Deferred:
 | --- | --- | --- |
 | Xcode toolchain | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`로 검증 | SwiftPM AppKit build/test |
 | Runtime activation/wiring | 완료 | TICKET-010 5개 앱 task 수행 전제 |
+| Overlay activation shortcut | 완료 | Command+Shift+Space 또는 메뉴바 Show Overlay |
 | 권한 요청 UX | 완료 | Settings `Request Permission`, Show Overlay 권한 실패 경로, `--request-accessibility` 런치 옵션 |
 | Accessibility 권한 | granted | scanner/overlay 대상 조회와 AXPress 실행 |
 | 5개 앱 overlay activation smoke | 완료 | Finder 19, Safari 35, Chrome 46, VS Code 3, System Settings 11 labels |
 | 5개 앱 실제 click task | 완료 | Safari/Chrome/System Settings pass, Finder/VS Code fail |
 | 30분 crash-free session | 완료 | 2026-07-02 20:46:31~21:16:31 KST, 1800초 crash 0건 |
+| 내부 사용자 평가 runbook | 완료 | `gazerow_internal_user_evaluation_v1.md` |
 | 평가자 3명 | TBD | TICKET-010 완료 조건 |
 | 평가 macOS version | TBD | 평가표 필수 기록 |
 | 초기 5개 앱 실행 가능 여부 | 3/5 task pass | Finder sidebar row, VS Code Activity Bar candidate 미수집 |
@@ -125,9 +129,9 @@ Deferred:
 
 추천 순서:
 
-1. 내부 사용자 3명 평가 기록
-2. go/no-go 결론 작성
-3. TICKET-011 freeze package 최종 갱신
+1. `gazerow_internal_user_evaluation_v1.md` 기준으로 내부 사용자 3명 평가 실행
+2. `gazerow_ticket_010_result_v1.md`에 평가자별 요약과 go/no-go 결론 작성
+3. `gazerow_mvp_freeze_package_v1.md`와 README 상태 최종 갱신
 
 ## 7. 작업 중 지켜야 할 제한
 

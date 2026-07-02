@@ -16,6 +16,7 @@
 - v13: Accessibility 권한 승인 후 5개 앱 overlay activation smoke를 통과했고, click task는 계속 pending으로 기록.
 - v14: 5개 앱 실제 click task를 수행해 Safari/Chrome/System Settings pass, Finder/VS Code fail을 기록.
 - v15: 30분 crash-free manual session 통과 결과를 기록.
+- v16: 내부 사용자 3명 평가 runbook 준비 상태를 기록.
 
 ## 1. 상태
 
@@ -38,6 +39,8 @@
 2026-07-02 20:20 KST에는 실제 click task를 수행했다. `--print-overlay-label-map` 평가 옵션으로 GazeRow가 부여한 label과 candidate를 확인했고, keyboard label jump 후 Return confirm으로 Safari, Chrome, System Settings task가 성공했다. Finder는 sidebar row가 candidate로 수집되지 않았고, VS Code는 Activity Bar item이 candidate로 수집되지 않아 task 실패로 기록한다. 초기 5개 앱 중 3개 task 성공 기준은 충족했지만, 이 시점에는 30분 crash-free session과 내부 사용자 3명 평가가 아직 남아 있었다.
 
 2026-07-02 20:46:31 KST부터 21:16:31 KST까지 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow`로 30분 crash-free session을 수행했다. 1분 간격으로 프로세스 생존을 확인했고 1800초 동안 crash 없이 유지됐다. 세션 종료 시 `SIGINT`로 정상 정리했으며 잔여 `GazeRow` 프로세스는 없었다.
+
+2026-07-02에는 내부 사용자 3명 평가를 직접 대체하지 않고, `gazerow_internal_user_evaluation_v1.md`에 평가 실행 절차와 기록지를 준비했다. 실제 User 1/User 2/User 3 결과가 입력되기 전까지 go/no-go 최종 판정은 보류한다.
 
 ## 2. 평가 전 체크리스트
 
@@ -86,6 +89,7 @@
 | freeze verification after click task docs/support update | `scripts/verify_mvp_freeze.sh` | pass, 141 tests, 0 failures |
 | 30min crash-free session | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow` with 1-minute process checks | pass, 1800 seconds, 0 crashes |
 | freeze verification after 30min session docs | `scripts/verify_mvp_freeze.sh` | pass, 141 tests, 0 failures |
+| internal user evaluation runbook | `plans/gazerow_internal_user_evaluation_v1.md` | ready, awaiting User 1/User 2/User 3 results |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -362,6 +366,7 @@ Next ticket: 내부 사용자 3명 평가 후 TICKET-011 freeze 최종 확정
   - result: pass, toolbar Back button moved pane without toggling settings
 - [x] 30분 crash-free manual session 기록
   - result: 2026-07-02 20:46:31~21:16:31 KST, 1800초, crash 0건
+- [x] 내부 사용자 3명 평가 runbook 작성
 - [ ] 내부 사용자 3명 평가 기록
 - [ ] go/no-go 결론 작성
 

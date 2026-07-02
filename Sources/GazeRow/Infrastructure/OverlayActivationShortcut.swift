@@ -1,0 +1,81 @@
+import AppKit
+
+/// overlay activation 단축키 정의와 매칭 규칙.
+///
+/// @author suho.do
+/// @since 2026-07-02
+struct OverlayActivationShortcut: Equatable {
+    static let defaultShortcut = OverlayActivationShortcut(
+        keyCode: OverlayActivationKeyCode.space,
+        requiredModifiers: [.command, .shift]
+    )
+
+    let keyCode: UInt16
+    let requiredModifiers: NSEvent.ModifierFlags
+
+    func matches(_ input: OverlayActivationShortcutInput) -> Bool {
+        !input.isRepeat
+            && input.keyCode == keyCode
+            && input.normalizedModifiers == normalizedRequiredModifiers
+    }
+
+    var displayName: String {
+        "Command+Shift+Space"
+    }
+
+    private var normalizedRequiredModifiers: NSEvent.ModifierFlags {
+        requiredModifiers.intersection(Self.activationModifierMask)
+    }
+
+    private static let activationModifierMask: NSEvent.ModifierFlags = [
+        .command,
+        .shift,
+        .option,
+        .control
+    ]
+}
+
+/// keyDown event에서 단축키 판정에 필요한 값만 분리한 입력 모델.
+///
+/// @author suho.do
+/// @since 2026-07-02
+struct OverlayActivationShortcutInput: Equatable {
+    let keyCode: UInt16
+    let modifiers: NSEvent.ModifierFlags
+    let isRepeat: Bool
+
+    init(
+        keyCode: UInt16,
+        modifiers: NSEvent.ModifierFlags,
+        isRepeat: Bool = false
+    ) {
+        self.keyCode = keyCode
+        self.modifiers = modifiers
+        self.isRepeat = isRepeat
+    }
+
+    init(event: NSEvent) {
+        self.init(
+            keyCode: event.keyCode,
+            modifiers: event.modifierFlags,
+            isRepeat: event.isARepeat
+        )
+    }
+
+    var normalizedModifiers: NSEvent.ModifierFlags {
+        modifiers.intersection([
+            .command,
+            .shift,
+            .option,
+            .control
+        ])
+    }
+}
+
+/// macOS hardware key code 상수.
+///
+/// @author suho.do
+/// @since 2026-07-02
+enum OverlayActivationKeyCode {
+    static let space: UInt16 = 49
+}

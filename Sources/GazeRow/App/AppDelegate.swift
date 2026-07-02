@@ -18,6 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// kill switch 메뉴 항목. 세션 상태에 따라 타이틀을 갱신한다.
     private var sessionMenuItem: NSMenuItem?
 
+    /// overlay activation global keyDown monitor token.
+    private var globalShortcutMonitor: Any?
+
+    /// overlay activation local keyDown monitor token.
+    private var localShortcutMonitor: Any?
+
     /// onboarding 완료 여부 판정용 상태.
     private let onboarding = OnboardingState()
 
@@ -37,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
 
         setupStatusItem()
+        installOverlayActivationShortcut()
         AppLogger.lifecycle.info("app launched")
 
         // 첫 실행이면 Settings를 열어 onboarding 시트가 뜨게 한다.
@@ -49,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        removeOverlayActivationShortcut()
         AppLogger.lifecycle.info("app terminated")
     }
 
@@ -85,8 +93,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let showOverlay = NSMenuItem(
             title: "Show Overlay",
             action: #selector(showOverlay),
-            keyEquivalent: ""
+            keyEquivalent: " "
         )
+        showOverlay.keyEquivalentModifierMask = [.command, .shift]
         showOverlay.target = self
         menu.addItem(showOverlay)
 
@@ -162,6 +171,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 OverlayLaunchReporter.failure(logCode: failure.logCode)
             )
             requestAccessibilityPermissionIfNeeded(for: failure)
+        }
+    }
+
+    /// 앱 안팎에서 동작하는 overlay activation shortcut monitor를 설치한다.
+    private func installOverlayActivationShortcut() {
+        globalShortcutMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let input = OverlayActivationShortcutInput(event: event)
+            guard OverlayActivationShortcut.defaultShortcut.matches(input) else {
+                return
+            }
+
+            Task { @MainActor in
+                self?.showOverlay()
+            }
+        }
+
+        localShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let input = OverlayActivationShortcutInput(event: event)
+
+            guard OverlayActivationShortcut.defaultShortcut.matches(input) else {
+                return event
+            }
+
+            Task { @MainActor in
+                self?.showOverlay()
+            }
+            return nil
+        }
+    }
+
+    /// overlay activation shortcut monitor를 제거한다.
+    private func removeOverlayActivationShortcut() {
+        if let globalShortcutMonitor {
+            NSEvent.removeMonitor(globalShortcutMonitor)
+            self.globalShortcutMonitor = nil
+        }
+
+        if let localShortcutMonitor {
+            NSEvent.removeMonitor(localShortcutMonitor)
+            self.localShortcutMonitor = nil
         }
     }
 
