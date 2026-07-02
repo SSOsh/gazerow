@@ -8,6 +8,7 @@ import SwiftUI
 @MainActor
 final class OverlayWindowController {
     private var panel: OverlayPanel?
+    private var currentLayout: OverlayLayout?
     private let layoutEngine: OverlayLayoutEngine
     private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
 
@@ -28,7 +29,7 @@ final class OverlayWindowController {
         candidates: [ClickableCandidate],
         labels: [String] = [],
         onEscape: @escaping () -> Void = {},
-        onKeyboardCommand: @escaping (FocusKeyboardCommand) -> Void = { _ in }
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) -> OverlayLayout {
         let layout = layoutEngine.makeLayout(
             targetFrame: targetFrame,
@@ -48,7 +49,7 @@ final class OverlayWindowController {
     func show(
         layout: OverlayLayout,
         onEscape: @escaping () -> Void = {},
-        onKeyboardCommand: @escaping (FocusKeyboardCommand) -> Void = { _ in }
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) {
         close()
 
@@ -69,16 +70,35 @@ final class OverlayWindowController {
         panel.hasShadow = false
         panel.ignoresMouseEvents = true
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.contentView = NSHostingView(rootView: OverlayView(layout: layout))
 
         self.panel = panel
+        currentLayout = layout
+        render(layout: layout, focusedLabelID: nil)
         panel.orderFrontRegardless()
         panel.makeKey()
+    }
+
+    func updateFocus(focusedLabelID: Int?) {
+        guard let currentLayout else {
+            return
+        }
+
+        render(layout: currentLayout, focusedLabelID: focusedLabelID)
     }
 
     func close() {
         panel?.orderOut(nil)
         panel = nil
+        currentLayout = nil
+    }
+
+    private func render(layout: OverlayLayout, focusedLabelID: Int?) {
+        panel?.contentView = NSHostingView(
+            rootView: OverlayView(
+                layout: layout,
+                focusedLabelID: focusedLabelID
+            )
+        )
     }
 
     static func defaultDisplayInfo(for targetFrame: CGRect) -> OverlayDisplayInfo {
@@ -95,7 +115,7 @@ final class OverlayWindowController {
 
 private final class OverlayPanel: NSPanel {
     var onEscape: () -> Void = {}
-    var onKeyboardCommand: (FocusKeyboardCommand) -> Void = { _ in }
+    var onKeyboardCommand: @MainActor (FocusKeyboardCommand) -> Void = { _ in }
     private let keyboardCommandMapper = FocusKeyboardCommandMapper()
 
     override var canBecomeKey: Bool {

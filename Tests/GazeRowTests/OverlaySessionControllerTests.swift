@@ -66,6 +66,8 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(scanner.scanCallCount, 1)
         XCTAssertEqual(scanner.receivedContext, context)
         XCTAssertEqual(presenter.closeCallCount, 0)
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 0)
+        XCTAssertEqual(presenter.focusUpdates, [0])
 
         let request = try XCTUnwrap(presenter.showRequests.first)
         XCTAssertEqual(request.targetFrame, context.window.frame)
@@ -138,6 +140,101 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertTrue(presenter.showRequests.isEmpty)
     }
 
+    func test_handleKeyboardCommand_moveNext는_focusEngine상태를_갱신() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
+
+        // when
+        let event = sut.handleKeyboardCommand(.move(.next))
+
+        // then
+        XCTAssertEqual(event, .focusChanged(from: 0, to: 1, method: .tab))
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+        XCTAssertEqual(presenter.focusUpdates, [0, 1])
+    }
+
+    func test_handleKeyboardCommand_typeLabel은_labelJump로_focus를_갱신() {
+        // given
+        let sut = makeStartedSessionController()
+
+        // when
+        let event = sut.handleKeyboardCommand(.typeLabel("B"))
+
+        // then
+        XCTAssertEqual(event, .labelJump(typedLabel: "B", matched: true, to: 1))
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+    }
+
+    func test_handleKeyboardCommand_clearLabelBuffer는_buffer만_초기화() {
+        // given
+        let sut = makeStartedSessionController()
+        _ = sut.handleKeyboardCommand(.typeLabel("A"))
+
+        // when
+        let event = sut.handleKeyboardCommand(.clearLabelBuffer)
+
+        // then
+        XCTAssertNil(event)
+        XCTAssertEqual(sut.activeSession?.focusEngine.labelBuffer, "")
+    }
+
+    func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
+        // given
+        let sut = makeStartedSessionController()
+        _ = sut.handleKeyboardCommand(.move(.next))
+
+        // when
+        let event = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(event, .dryRunConfirm(index: 1))
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+    }
+
+    func test_overlayKeyboardCallback은_controller_focus상태를_갱신() throws {
+        // given
+        let context = makeContext()
+        let resolver = StubOverlayTargetResolver(result: .success(context))
+        let scanner = StubOverlayScanner(
+            result: .success(
+                makeScanResult(
+                    candidates: [
+                        makeCandidate(frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                        makeCandidate(frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+                    ]
+                )
+            )
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: resolver,
+            scanner: scanner,
+            overlayPresenter: presenter
+        )
+        _ = sut.start()
+
+        // when
+        try XCTUnwrap(presenter.keyboardCommandHandler)(.move(.next))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+    }
+
+    func test_handleKeyboardCommand_closeOverlay는_session을_정리() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
+
+        // when
+        let event = sut.handleKeyboardCommand(.closeOverlay)
+
+        // then
+        XCTAssertNil(event)
+        XCTAssertNil(sut.activeSession)
+        XCTAssertEqual(presenter.closeCallCount, 1)
+    }
+
     func test_failureLogCode는_windowTitle과_상세reason을_포함하지_않음() {
         // given
         let context = makeContext()
@@ -164,6 +261,30 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
         XCTAssertFalse(logCodes.joined(separator: " ").contains("Finder"))
         XCTAssertFalse(logCodes.joined(separator: " ").contains("raw"))
+    }
+
+    private func makeStartedSessionController(
+        presenter: StubOverlayPresenter = StubOverlayPresenter()
+    ) -> OverlaySessionController {
+        let context = makeContext()
+        let resolver = StubOverlayTargetResolver(result: .success(context))
+        let scanner = StubOverlayScanner(
+            result: .success(
+                makeScanResult(
+                    candidates: [
+                        makeCandidate(frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                        makeCandidate(frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+                    ]
+                )
+            )
+        )
+        let sut = OverlaySessionController(
+            targetResolver: resolver,
+            scanner: scanner,
+            overlayPresenter: presenter
+        )
+        _ = sut.start()
+        return sut
     }
 
     private func makeContext() -> TargetContext {
@@ -242,13 +363,15 @@ private final class StubOverlayScanner: OverlaySessionScanning {
 private final class StubOverlayPresenter: OverlaySessionPresenting {
     private(set) var showRequests: [ShowRequest] = []
     private(set) var closeCallCount = 0
+    private(set) var keyboardCommandHandler: ((FocusKeyboardCommand) -> Void)?
+    private(set) var focusUpdates: [Int?] = []
 
     func show(
         targetFrame: CGRect,
         candidates: [ClickableCandidate],
         labels: [String],
         onEscape: @escaping () -> Void,
-        onKeyboardCommand: @escaping (FocusKeyboardCommand) -> Void
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void
     ) -> OverlayLayout {
         showRequests.append(
             ShowRequest(
@@ -257,6 +380,7 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
                 labels: labels
             )
         )
+        keyboardCommandHandler = onKeyboardCommand
         return OverlayLayoutEngine().makeLayout(
             targetFrame: targetFrame,
             candidates: candidates,
@@ -266,6 +390,10 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
 
     func close() {
         closeCallCount += 1
+    }
+
+    func updateFocus(focusedLabelID: Int?) {
+        focusUpdates.append(focusedLabelID)
     }
 }
 

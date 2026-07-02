@@ -14,7 +14,7 @@ TICKET-010 수동 평가를 재시도하려면 현재 개별 구성요소로만 
 - [x] 1.2 activation 실패 사유를 raw title/text 없이 로그로 기록
 
 ### Phase 2: Keyboard Focus Wiring
-- [ ] 2.1 overlay keyboard command를 `FocusEngine`에 연결
+- [x] 2.1 overlay keyboard command를 `FocusEngine`에 연결
 - [ ] 2.2 focus/label jump 이벤트를 interaction log에 연결
 
 ### Phase 3: Click Execution Wiring

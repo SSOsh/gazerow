@@ -16,7 +16,7 @@
 ## 2. 현재 상태
 
 현재는 TICKET-001부터 TICKET-009까지 구현됐고, TICKET-010 사전 검증과 TICKET-011 freeze 준비 산출물이 완료된 상태다.
-TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했다. TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정은 focus/click wiring 구현 후 재시도해야 한다.
+TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정은 interaction/click wiring 구현 후 재시도해야 한다.
 
 완료된 구현/문서:
 
@@ -29,6 +29,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - MVP freeze 기본값 자동 감사
 - MVP freeze 사전 검증 스크립트
 - runtime overlay session 1차 wiring(menu activation, target resolve, scan, overlay show)
+- runtime keyboard focus wiring(FocusEngine, label jump, focused label highlight)
 - TICKET-011 freeze package / distribution checklist 초안
 - first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
@@ -96,7 +97,7 @@ Deferred:
 | 항목 | 현재 상태 | 필요 이유 |
 | --- | --- | --- |
 | Xcode toolchain | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`로 검증 | SwiftPM AppKit build/test |
-| Runtime activation/wiring | overlay show까지 부분 연결 | TICKET-010 5개 앱 task 수행 전제 |
+| Runtime activation/wiring | overlay show/focus까지 부분 연결 | TICKET-010 5개 앱 task 수행 전제 |
 | Accessibility 권한 | 평가 환경에서 직접 부여 필요 | scanner/overlay 대상 조회 |
 | 평가자 3명 | TBD | TICKET-010 완료 조건 |
 | 평가 macOS version | TBD | 평가표 필수 기록 |
@@ -106,7 +107,7 @@ Deferred:
 
 추천 순서:
 
-1. Keyboard focus/click wiring 구현: overlay keyboard command, FocusEngine, label jump, focused label confirm, AXPress click execution, interaction logging
+1. Interaction/click wiring 구현: focus/label jump event logging, focused label confirm, AXPress click execution
 2. `scripts/verify_mvp_freeze.sh` 재확인
 3. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
 4. Accessibility 권한 부여 및 Settings/onboarding 확인

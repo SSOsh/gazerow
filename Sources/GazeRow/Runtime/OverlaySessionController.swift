@@ -13,6 +13,7 @@ final class OverlaySessionController {
     private let scanner: any OverlaySessionScanning
     private let overlayPresenter: any OverlaySessionPresenting
     private let isSessionEnabled: () -> Bool
+    private(set) var activeSession: OverlaySessionState?
 
     init(
         targetResolver: any OverlaySessionTargetResolving = TargetResolver(),
@@ -28,7 +29,7 @@ final class OverlaySessionController {
 
     func start() -> OverlaySessionStartResult {
         guard isSessionEnabled() else {
-            overlayPresenter.close()
+            close()
             return .failure(.sessionDisabled)
         }
 
@@ -37,7 +38,7 @@ final class OverlaySessionController {
         case .success(let resolvedContext):
             context = resolvedContext
         case .failure(let failure):
-            overlayPresenter.close()
+            close()
             return .failure(.targetResolutionFailed(failure))
         }
 
@@ -46,12 +47,12 @@ final class OverlaySessionController {
         case .success(let result):
             scanResult = result
         case .failure(let failure):
-            overlayPresenter.close()
+            close()
             return .failure(.scanFailed(failure))
         }
 
         guard !scanResult.candidates.isEmpty else {
-            overlayPresenter.close()
+            close()
             return .failure(.noCandidates(context: context, scanResult: scanResult))
         }
 
@@ -59,17 +60,57 @@ final class OverlaySessionController {
             targetFrame: context.window.frame,
             candidates: scanResult.candidates,
             labels: [],
-            onEscape: {},
-            onKeyboardCommand: { _ in }
+            onEscape: { [weak self] in
+                self?.close()
+            },
+            onKeyboardCommand: { [weak self] command in
+                _ = self?.handleKeyboardCommand(command)
+            }
         )
 
-        return .success(
-            OverlaySessionSnapshot(
-                context: context,
-                scanResult: scanResult,
-                layout: layout
-            )
+        let snapshot = OverlaySessionSnapshot(
+            context: context,
+            scanResult: scanResult,
+            layout: layout
         )
+        activeSession = OverlaySessionState(
+            snapshot: snapshot,
+            focusEngine: FocusEngine(layout: layout)
+        )
+        overlayPresenter.updateFocus(focusedLabelID: activeSession?.focusEngine.focusedItemID)
+
+        return .success(snapshot)
+    }
+
+    func handleKeyboardCommand(_ command: FocusKeyboardCommand) -> FocusEngineEvent? {
+        guard var session = activeSession else {
+            return nil
+        }
+
+        let event: FocusEngineEvent?
+        switch command {
+        case .move(let moveCommand):
+            event = session.focusEngine.move(moveCommand)
+        case .typeLabel(let character):
+            event = session.focusEngine.typeLabelCharacter(character).event
+        case .clearLabelBuffer:
+            session.focusEngine.clearLabelBuffer()
+            event = nil
+        case .dryRunConfirm:
+            event = session.focusEngine.dryRunConfirm().event
+        case .closeOverlay:
+            close()
+            return nil
+        }
+
+        activeSession = session
+        overlayPresenter.updateFocus(focusedLabelID: session.focusEngine.focusedItemID)
+        return event
+    }
+
+    func close() {
+        overlayPresenter.close()
+        activeSession = nil
     }
 }
 
@@ -107,10 +148,12 @@ protocol OverlaySessionPresenting {
         candidates: [ClickableCandidate],
         labels: [String],
         onEscape: @escaping () -> Void,
-        onKeyboardCommand: @escaping (FocusKeyboardCommand) -> Void
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void
     ) -> OverlayLayout
 
     func close()
+
+    func updateFocus(focusedLabelID: Int?)
 }
 
 extension OverlayWindowController: OverlaySessionPresenting {}
@@ -123,6 +166,15 @@ struct OverlaySessionSnapshot: Equatable {
     let context: TargetContext
     let scanResult: AccessibilityScanResult
     let layout: OverlayLayout
+}
+
+/// overlay session의 runtime 상태.
+///
+/// @author suho.do
+/// @since 2026-07-02
+struct OverlaySessionState: Equatable {
+    let snapshot: OverlaySessionSnapshot
+    var focusEngine: FocusEngine
 }
 
 /// overlay session activation 결과.
