@@ -55,6 +55,10 @@ struct ClickExecutor<Client: ClickExecutionClient> {
             return AccessibilityAction.press
         }
 
+        if target.actions.contains(AccessibilityAction.confirm) {
+            return AccessibilityAction.confirm
+        }
+
         if target.actions.contains(AccessibilityAction.open) {
             return AccessibilityAction.open
         }

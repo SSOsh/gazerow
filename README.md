@@ -317,6 +317,7 @@ scripts/verify_mvp_freeze.sh
 - [x] Command+Shift+Space overlay activation shortcut 연결
 - [x] Finder / VS Code candidate coverage 보강 및 label map smoke 확인
 - [x] Finder sidebar candidate용 `AXOpen` click execution 지원
+- [x] `AXConfirm` candidate click execution 지원
 - [x] `--request-accessibility` 런치 옵션 연결
 - [x] Accessibility 권한 부여와 Settings/onboarding 확인
 - [x] 5개 앱 overlay activation smoke

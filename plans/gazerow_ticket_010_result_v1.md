@@ -20,6 +20,7 @@
 - v17: Finder/VS Code candidate coverage 보강 후 fixed task 재평가 필요 상태를 기록.
 - v18: scanner 기본 depth 확장 후 Finder/VS Code label map smoke 개선 결과를 기록.
 - v19: Finder sidebar candidate용 `AXOpen` click execution 지원을 기록.
+- v20: `AXConfirm` candidate click execution 지원을 기록.
 
 ## 1. 상태
 
@@ -100,6 +101,8 @@
 | freeze verification after scanner depth update | `scripts/verify_mvp_freeze.sh` | pass, 183 tests, 0 failures, MVP-excluded check passed |
 | AXOpen click execution focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'ClickExecutorTests\|ClickRiskClassifierTests'` | pass, 15 tests, 0 failures |
 | freeze verification after AXOpen update | `scripts/verify_mvp_freeze.sh` | pass, 186 tests, 0 failures, MVP-excluded check passed |
+| AXConfirm click execution focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'ClickExecutorTests'` | pass, 10 tests, 0 failures |
+| freeze verification after AXConfirm update | `scripts/verify_mvp_freeze.sh` | pass, 187 tests, 0 failures, MVP-excluded check passed |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -122,6 +125,7 @@
 - Finder label map은 19개에서 63개로 증가했고 `AXRow` / `AXCell` 후보가 수집된다.
 - VS Code label map은 3개에서 29개로 증가했고 Activity Bar `AXRadioButton` 후보가 수집된다.
 - Finder sidebar candidate용 `AXOpen` 실행을 지원한다.
+- `AXConfirm`으로만 노출되는 candidate 실행도 지원한다.
 - Finder sidebar row와 VS Code Activity Bar item fixed task는 보강 후 재평가가 필요하다.
 
 ## 3.2 5개 앱 overlay activation smoke
@@ -383,6 +387,7 @@ Next ticket: Finder/VS Code 재평가와 내부 사용자 3명 평가 후 TICKET
 - [x] 내부 사용자 3명 평가 runbook 작성
 - [x] Finder/VS Code candidate coverage 보강
 - [x] Finder sidebar candidate용 `AXOpen` click execution 지원
+- [x] `AXConfirm` candidate click execution 지원
 - [ ] Finder fixed task 재평가
 - [ ] VS Code fixed task 재평가
 - [ ] 내부 사용자 3명 평가 기록
