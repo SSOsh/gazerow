@@ -48,6 +48,10 @@ enum InteractionEventKind: Equatable {
     /// 포커스 대상이 바뀜. `method`는 포커스 이동 방식 코드(예: "keyboard").
     case focusChanged(method: String)
 
+    /// label typing으로 candidate에 jump 시도. `matched`는 입력 label이
+    /// 후보와 매칭됐는지(true) 아닌지(false). TICKET-006의 label jump match/miss 기록용.
+    case labelJump(matched: Bool)
+
     /// click 시도. `risk`는 위험 class 코드(예: "safeNavigation").
     case clickAttempt(risk: String)
 
@@ -59,6 +63,8 @@ enum InteractionEventKind: Equatable {
         switch self {
         case .focusChanged:
             "focusChanged"
+        case .labelJump:
+            "labelJump"
         case .clickAttempt:
             "clickAttempt"
         case .clickCompleted:
@@ -91,6 +97,9 @@ struct InteractionLogRecord: Encodable, Equatable {
     /// click 성공 여부. 해당 없으면 `nil`.
     let success: Bool?
 
+    /// label jump 매칭 여부. 해당 없으면 `nil`.
+    let matched: Bool?
+
     /// window title hash. 없으면 `nil`.
     let windowTitleHash: String?
 
@@ -113,14 +122,22 @@ struct InteractionLogRecord: Encodable, Equatable {
             self.method = method
             self.risk = nil
             self.success = nil
+            self.matched = nil
+        case let .labelJump(matched):
+            self.method = nil
+            self.risk = nil
+            self.success = nil
+            self.matched = matched
         case let .clickAttempt(risk):
             self.method = nil
             self.risk = risk
             self.success = nil
+            self.matched = nil
         case let .clickCompleted(risk, success):
             self.method = nil
             self.risk = risk
             self.success = success
+            self.matched = nil
         }
     }
 }
