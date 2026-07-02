@@ -3,9 +3,10 @@
 macOS 키보드 클릭 유틸리티 (Homerow 스타일). 화면 위의 클릭 가능한 UI 요소를
 자동으로 찾아 label을 붙이고, 사용자가 키보드로 focus와 click을 수행하게 한다.
 
-> **현재 상태**: TICKET-002 (Permission UX and PermissionManager) 구현.
-> 메뉴바 앱 shell + Settings window + lifecycle 로깅 + Accessibility 권한 상태 UX.
-> AX tree 조회, overlay, hotkey, 실제 click은 아직 없다.
+> **현재 상태**: TICKET-001부터 TICKET-005까지 core 구현 완료, TICKET-009 UX/문서 구현.
+> 메뉴바 앱 shell + Settings window + Accessibility 권한 UX + target resolver
+> + Accessibility scanner + overlay layout/window 기반 + kill switch + onboarding.
+> global hotkey, keyboard focus engine, 실제 click 실행은 아직 없다(TICKET-006+).
 
 ## MVP 포지셔닝
 
@@ -35,13 +36,39 @@ gazerow/
       GazeRowApp.swift      # @main 진입점, Settings scene
       AppDelegate.swift     # AppKit lifecycle, 메뉴바 status item
     UI/
-      SettingsView.swift    # Settings window 본문
+      SettingsView.swift      # Settings window 본문
+      OnboardingView.swift    # 첫 실행 안내 시트
+      KnownLimitationsView.swift # 제한사항/앱 지원 열람 시트
     Infrastructure/
       AppState.swift          # 앱 메타데이터, MVP 상태, 권한 안내 문구
-      AppLogger.swift         # OSLog wrapper (lifecycle)
+      AppLogger.swift         # OSLog wrapper (lifecycle / session)
       PermissionManager.swift # Accessibility 권한 조회/요청/재확인
+      SessionController.swift # kill switch 세션 상태 (메뉴바/Settings 공유)
+      OnboardingState.swift   # 첫 실행 완료 여부 (UserDefaults)
+      AppContent.swift        # 사용자 노출 정적 콘텐츠 (문구/제한/앱 지원)
+    Targeting/
+      TargetResolver.swift    # frontmost app + focused window resolve
+      TargetModels.swift      # target app/window/context/failure 모델
+      AccessibilityTargetClient.swift
+      FrontmostApplicationProvider.swift
+    Scanning/
+      AccessibilityScanner.swift
+      AccessibilityScanModels.swift
+      AccessibilityElementClient.swift
+      AXAccessibilityElementClient.swift
+    Overlay/
+      OverlayWindowController.swift
+      OverlayView.swift
+      OverlayLayoutEngine.swift
+      OverlayCoordinateMapper.swift
+      OverlayModels.swift
   Tests/GazeRowTests/
     PermissionManagerTests.swift
+    SessionControllerTests.swift
+    OnboardingStateTests.swift
+    TargetResolverTests.swift
+    AccessibilityScannerTests.swift
+    OverlayLayoutEngineTests.swift
   plans/                      # 계획/티켓/결정 문서
 ```
 
@@ -88,15 +115,57 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 - [x] 창 표시 / 앱 활성화 시 자동 refresh + Recheck 버튼
 - [x] 단위 테스트 5건 통과, crash 없이 실행 확인
 
+## TICKET-003 완료 기준
+
+- [x] `TargetResolver` 생성 (frontmost app + focused window 기반)
+- [x] `NSWorkspace.frontmostApplication` provider 분리
+- [x] `AXUIElementCreateApplication` 기반 focused window 조회 client 추가
+- [x] window frame/title 런타임 조회
+- [x] 권한 없음 / window 없음 / frame 없음 / invalid frame 실패 reason 분리
+- [x] `TargetContextDebugView` 추가
+- [x] `TargetResolverTests`로 성공/실패 경로 검증
+
+## TICKET-004 완료 기준
+
+- [x] `AccessibilityScanner` 생성
+- [x] AX children traversal abstraction과 production AX client 추가
+- [x] role/subrole/title/value/help/frame/actions runtime snapshot 모델 추가
+- [x] max depth / max nodes / timeout 설정 추가
+- [x] clickable role/action 필터
+- [x] duplicate 제거
+- [x] secure field 및 frame 없는 요소 제외
+- [x] candidate count / scan duration / node count / child read failure 계측
+- [x] `AccessibilityScannerTests`로 필터, 제한, 실패 경로 검증
+
+## TICKET-005 완료 기준
+
+- [x] `OverlayWindowController` 추가 (transparent borderless `NSPanel`)
+- [x] `OverlayView` 추가 (target boundary + label rendering)
+- [x] screen coordinate → target-local coordinate mapping
+- [x] label layout engine 추가
+- [x] collision mitigation v1
+- [x] label count / collision count / occlusion count / display scale 기록
+- [x] Retina 여부 판단용 display info 모델 추가
+- [x] `OverlayLayoutEngineTests`로 좌표 변환, label 생성, bounds clamp, collision, occlusion 검증
+
+## TICKET-009 완료 기준
+
+- [x] kill switch(`SessionController`): 메뉴바 · Settings에서 세션 즉시 중단/재개
+- [x] 첫 실행 Onboarding 시트(`OnboardingState` + `OnboardingView`): 접근 범위 설명 → setup 안내 → non-medical disclaimer
+- [x] Known Limitations 열람 시트(`KnownLimitationsView`): 제한사항 / Click Safety / 앱 지원 등급
+- [x] 사용자 노출 문구 단일 출처(`AppContent`)로 통합
+- [x] Known Limitations 문서화(`plans/gazerow_known_limitations_v1.md`)
+- [x] 단위 테스트 9건 통과(Session 5 + Onboarding 4)
+
 ## 하지 않는 것 (현재 범위 외)
 
-- AXUIElement 접근, AX tree 조회 (TICKET-003+)
-- overlay window, global hotkey / event tap (TICKET-005+)
+- global hotkey / event tap (TICKET-006+)
+- keyboard focus navigation / label jump (TICKET-006)
 - 실제 click 실행 (TICKET-007+)
 - Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
 
 ## 다음 티켓
 
-- **TICKET-003**: Target Resolver (frontmost app + focused window 조회)
+- **TICKET-006**: Label Generation and Focus Engine
 
 자세한 계획은 `plans/` 폴더 참조.

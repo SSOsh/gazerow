@@ -13,6 +13,15 @@ struct SettingsView: View {
     /// Accessibility 권한 상태를 조회/요청하는 매니저.
     @State private var permissionManager = PermissionManager()
 
+    /// kill switch 세션 상태(메뉴바와 공유).
+    @State private var session = SessionController.shared
+
+    /// 첫 실행 안내 시트 상태.
+    @State private var onboarding = OnboardingState()
+
+    /// Known Limitations 시트 표시 여부.
+    @State private var showLimitations = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
@@ -27,17 +36,32 @@ struct SettingsView: View {
 
             Divider()
 
+            sessionSection
+
+            Divider()
+
             privacySection
+
+            footer
 
             Spacer(minLength: 0)
         }
         .padding(24)
-        .frame(width: 420, height: 480)
-        .onAppear { permissionManager.refresh() }
+        .frame(width: 420, height: 560)
+        .onAppear {
+            permissionManager.refresh()
+            onboarding.presentIfNeeded()
+        }
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
         ) { _ in
             permissionManager.refresh()
+        }
+        .sheet(isPresented: $onboarding.isPresenting) {
+            OnboardingView(onboarding: onboarding)
+        }
+        .sheet(isPresented: $showLimitations) {
+            KnownLimitationsView()
         }
     }
 
@@ -119,6 +143,43 @@ struct SettingsView: View {
             .foregroundStyle(granted ? Color.green : Color.orange)
     }
 
+    /// kill switch 상태와 토글 버튼을 표시하는 섹션.
+    private var sessionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Session")
+                    .font(.headline)
+                Spacer()
+                sessionBadge
+            }
+
+            HStack(spacing: 8) {
+                Button(session.isEnabled ? "Disable" : "Enable") {
+                    session.toggle()
+                }
+                Text("Kill switch stops overlay activation immediately.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .controlSize(.small)
+        }
+    }
+
+    /// 세션 활성 여부 배지.
+    private var sessionBadge: some View {
+        let active = session.isEnabled
+        return Text(active ? "Active" : "Disabled")
+            .font(.caption)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(
+                (active ? Color.green : Color.secondary).opacity(0.18),
+                in: Capsule()
+            )
+            .foregroundStyle(active ? Color.green : Color.secondary)
+    }
+
     private var privacySection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Privacy")
@@ -128,6 +189,14 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Known Limitations 열람 진입점.
+    private var footer: some View {
+        Button("Known Limitations…") {
+            showLimitations = true
+        }
+        .controlSize(.small)
     }
 
     // MARK: - Helpers
