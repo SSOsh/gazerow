@@ -105,6 +105,7 @@ gazerow/
 - `plans/gazerow_evaluation_template_v1.md`: TICKET-010 Baseline Evaluation 기록 양식
 - `plans/gazerow_ticket_010_prep_v1.md`: TICKET-010 착수 전 평가 환경/절차 준비 체크리스트
 - `plans/gazerow_ticket_010_result_v1.md`: TICKET-010 사전 검증 결과와 수동 평가 기록지
+- `plans/gazerow_mvp_freeze_package_v1.md`: TICKET-011 MVP freeze package 초안
 
 ## 빌드 / 실행
 
@@ -234,7 +235,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 
 - end-to-end overlay session wiring
 - TICKET-010 실제 5개 앱 수동 평가와 go/no-go 판정
-- TICKET-011 MVP freeze package
+- TICKET-011 MVP freeze 확정(TICKET-010 결과 필요)
 - Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
 
 ## 다음 티켓
