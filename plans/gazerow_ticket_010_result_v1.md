@@ -3,12 +3,15 @@
 ## 변경 이력
 - v1: TICKET-010 Baseline Evaluation Run의 사전 검증 결과와 수동 평가 기록지를 생성.
 - v2: 수동 평가 착수 중 현재 빌드에 end-to-end overlay activation/click runtime 진입점이 없어 5개 앱 task를 수행할 수 없음을 기록.
+- v3: 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 runtime wiring이 완료됐고, keyboard focus/click wiring이 다음 차단 항목임을 기록.
 
 ## 1. 상태
 
 현재 상태: `BLOCKED_RUNTIME_WIRING_REQUIRED`
 
-자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 현재 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않다. 따라서 5개 앱 task 수행, 내부 사용자 3명 평가, 30분 crash-free 세션은 runtime wiring 구현 후 재시도해야 한다.
+자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 당시 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않았다.
+
+이후 1차 runtime wiring으로 메뉴바 activation에서 target resolve, scan, overlay show까지 연결했다. 5개 앱 task 수행, 내부 사용자 3명 평가, 30분 crash-free 세션은 keyboard focus/click wiring까지 완료한 뒤 재시도해야 한다.
 
 ## 2. 평가 전 체크리스트
 
@@ -51,14 +54,14 @@
 
 - `GazeRow` 프로세스가 `.build/arm64-apple-macosx/debug/GazeRow`로 실행됨.
 - 메뉴바/Settings/권한/세션 UI는 앱 런타임에 연결되어 있음.
-- `TargetResolver`, `AccessibilityScanner`, `OverlayWindowController`, `FocusEngine`, `ClickExecutor`는 단위 테스트와 개별 구성요소로 존재하지만, 실제 사용자 activation 경로에서 함께 호출되지 않음.
-- AppDelegate/GazeRowApp 주석과 코드 기준으로 global hotkey/event tap/overlay/click은 런타임 범위에 연결되어 있지 않음.
+- `TargetResolver`, `AccessibilityScanner`, `OverlayWindowController`, `FocusEngine`, `ClickExecutor`는 단위 테스트와 개별 구성요소로 존재하지만, 실제 사용자 activation 경로에서 함께 호출되지 않았음.
+- 이후 메뉴바 `Show Overlay` 액션에서 target resolve, scan, overlay show까지 연결됨.
 
 결론:
 
-- 현재 빌드에서는 Finder/Safari/Chrome/VS Code/System Settings의 고정 task를 GazeRow로 수행할 수 없다.
-- 이는 앱별 AX 지원성 실패가 아니라 end-to-end overlay session wiring 부재로 인한 평가 차단이다.
-- TICKET-010은 runtime activation/wiring 구현 후 재시도해야 한다.
+- 현재 빌드는 overlay 표시 진입점까지 갖췄지만, keyboard focus/label jump와 AXPress click execution runtime wiring이 아직 없어 Finder/Safari/Chrome/VS Code/System Settings의 고정 task를 완료할 수 없다.
+- 이는 앱별 AX 지원성 실패가 아니라 end-to-end focus/click wiring 미완료로 인한 평가 차단이다.
+- TICKET-010은 focus/click wiring 구현 후 재시도해야 한다.
 
 ## 4. 앱별 평가 기록
 
@@ -273,8 +276,8 @@ AppSupportReport
 
 ```text
 Decision: PENDING_MANUAL_EVALUATION
-Reason: 5개 앱 task를 수행할 runtime activation path가 현재 빌드에 없다.
-Required fixes before freeze: end-to-end overlay session wiring(global activation or menu action, target resolve, scan, overlay show, keyboard focus/label jump, AXPress click execution, interaction logging)
+Reason: 5개 앱 task를 완료할 keyboard focus/click runtime path가 현재 빌드에 없다.
+Required fixes before freeze: keyboard focus/label jump, AXPress click execution, interaction logging runtime wiring
 Known limitations to document: TICKET-010 재시도 후 확정
 Next ticket: runtime activation/wiring 구현 후 TICKET-010 재시도. TICKET-011 최종 확정은 그 이후에만 가능
 ```
@@ -282,7 +285,9 @@ Next ticket: runtime activation/wiring 구현 후 TICKET-010 재시도. TICKET-0
 ## 8. 남은 수동 작업
 
 - [x] `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
-- [ ] runtime activation/wiring 구현
+- [x] menu activation / target resolve / scan / overlay show wiring 구현
+- [ ] keyboard focus / label jump wiring 구현
+- [ ] AXPress click execution wiring 구현
 - [ ] Accessibility 권한 부여와 Settings/onboarding 확인
 - [ ] Finder task 수행
 - [ ] Safari task 수행

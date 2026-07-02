@@ -88,6 +88,8 @@ gazerow/
       SessionSalt.swift
       DebugExportManager.swift
       LogDirectory.swift
+    Runtime/
+      OverlaySessionController.swift # 메뉴바 activation → target resolve → scan → overlay show
   Tests/GazeRowTests/
     PermissionManagerTests.swift
     SessionControllerTests.swift
@@ -95,6 +97,7 @@ gazerow/
     TargetResolverTests.swift
     AccessibilityScannerTests.swift
     OverlayLayoutEngineTests.swift
+    OverlaySessionControllerTests.swift
     LabelGeneratorTests.swift
     FocusEngineTests.swift
     FocusKeyboardCommandMapperTests.swift
@@ -283,7 +286,10 @@ scripts/verify_mvp_freeze.sh
 - [x] build/test/run smoke 사전 검증 기록
 - [x] freeze verification script 통과 기록
 - [x] 수동 평가 착수: 현재 빌드에서 runtime activation/click wiring 부재 확인
-- [ ] end-to-end overlay session wiring 구현
+- [x] 메뉴바 activation에서 target resolve / scan / overlay show 연결
+- [x] activation 실패 사유 sanitized log code 기록
+- [ ] overlay keyboard focus / label jump wiring
+- [ ] focused label AXPress click wiring
 - [ ] Finder / Safari / Chrome / VS Code / System Settings 수동 평가
 - [ ] 30분 crash-free manual session 기록
 - [ ] 내부 사용자 3명 평가
@@ -310,7 +316,7 @@ scripts/verify_mvp_freeze.sh
 
 ## 다음 티켓
 
-- **runtime activation/wiring**: global/menu activation에서 target resolve → scan → overlay → keyboard focus/label jump → AXPress click까지 end-to-end 연결
+- **runtime focus/click wiring**: overlay keyboard input → FocusEngine → focused label confirm → AXPress click까지 연결
 - 이후 **TICKET-010**: Baseline Evaluation Run 수동 평가 재시도
 - 이후 **TICKET-011**: MVP Freeze Package 최종 확정
 

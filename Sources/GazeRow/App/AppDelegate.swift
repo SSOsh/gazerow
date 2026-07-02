@@ -21,6 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// onboarding 완료 여부 판정용 상태.
     private let onboarding = OnboardingState()
 
+    /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
+    private let overlaySessionController = OverlaySessionController()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 메뉴바 앱: Dock 아이콘 없이 accessory 모드로 동작.
         NSApp.setActivationPolicy(.accessory)
@@ -67,6 +70,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         openSettings.target = self
         menu.addItem(openSettings)
+
+        let showOverlay = NSMenuItem(
+            title: "Show Overlay",
+            action: #selector(showOverlay),
+            keyEquivalent: ""
+        )
+        showOverlay.target = self
+        menu.addItem(showOverlay)
 
         menu.addItem(.separator())
 
@@ -121,6 +132,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func toggleSession() {
         SessionController.shared.toggle()
         sessionMenuItem?.title = sessionMenuTitle()
+    }
+
+    /// 현재 frontmost window를 기준으로 overlay session을 시작한다.
+    @objc private func showOverlay() {
+        switch overlaySessionController.start() {
+        case .success(let snapshot):
+            AppLogger.overlay.info(
+                "overlay shown bundle=\(snapshot.context.application.bundleIdentifier, privacy: .public) labels=\(snapshot.layout.metrics.labelCount, privacy: .public)"
+            )
+        case .failure(let failure):
+            AppLogger.overlay.info("overlay start failed reason=\(failure.logCode, privacy: .public)")
+        }
     }
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.
