@@ -3,11 +3,12 @@
 macOS 키보드 클릭 유틸리티 (Homerow 스타일). 화면 위의 클릭 가능한 UI 요소를
 자동으로 찾아 label을 붙이고, 사용자가 키보드로 focus와 click을 수행하게 한다.
 
-> **현재 상태**: TICKET-001부터 TICKET-007까지 core 구현 완료, TICKET-009 UX/문서 구현.
+> **현재 상태**: TICKET-001부터 TICKET-009까지 MVP core/UX 구현 완료.
 > 메뉴바 앱 shell + Settings window + Accessibility 권한 UX + target resolver
 > + Accessibility scanner + overlay layout/window 기반 + focus engine
-> + AXPress click executor + kill switch + onboarding.
-> global hotkey, end-to-end overlay session wiring, interaction logging은 아직 없다(TICKET-008+).
+> + AXPress click executor + local interaction logging/debug export
+> + kill switch + onboarding + known limitations 문서화.
+> 다음 단계는 TICKET-010 Baseline Evaluation Run이다.
 
 ## MVP 포지셔닝
 
@@ -74,6 +75,13 @@ gazerow/
       ClickRiskClassifier.swift
       ClickExecutionClient.swift
       AXClickExecutionClient.swift
+    Logging/
+      InteractionEvent.swift
+      InteractionLogStore.swift
+      WindowTitleHasher.swift
+      SessionSalt.swift
+      DebugExportManager.swift
+      LogDirectory.swift
   Tests/GazeRowTests/
     PermissionManagerTests.swift
     SessionControllerTests.swift
@@ -86,8 +94,16 @@ gazerow/
     FocusKeyboardCommandMapperTests.swift
     ClickExecutorTests.swift
     ClickRiskClassifierTests.swift
+    InteractionLogStoreTests.swift
+    WindowTitleHasherTests.swift
+    DebugExportManagerTests.swift
   plans/                      # 계획/티켓/결정 문서
 ```
+
+## 평가 준비 문서
+
+- `plans/gazerow_evaluation_template_v1.md`: TICKET-010 Baseline Evaluation 기록 양식
+- `plans/gazerow_ticket_010_prep_v1.md`: TICKET-010 착수 전 평가 환경/절차 준비 체크리스트
 
 ## 빌드 / 실행
 
@@ -193,6 +209,17 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 - [x] `AXClickExecutionClient` 추가
 - [x] `ClickExecutorTests`, `ClickRiskClassifierTests`로 안전 정책 검증
 
+## TICKET-008 완료 기준
+
+- [x] local interaction event 모델 추가
+- [x] interaction 파일 저장 opt-in 기본 off 유지
+- [x] focus/click 이벤트 JSON Lines 기록 구조 추가
+- [x] session salt 기반 `windowTitleHash` 생성
+- [x] raw window title / text value 미저장 정책 반영
+- [x] debug export 수동 생성/삭제 관리자 추가
+- [x] interaction 로그 삭제 동작 추가
+- [x] `InteractionLogStoreTests`, `WindowTitleHasherTests`, `DebugExportManagerTests`로 opt-in/삭제/민감정보 제외 검증
+
 ## TICKET-009 완료 기준
 
 - [x] kill switch(`SessionController`): 메뉴바 · Settings에서 세션 즉시 중단/재개
@@ -205,11 +232,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ## 하지 않는 것 (현재 범위 외)
 
 - end-to-end overlay session wiring
-- interaction log 파일 저장 / debug export (TICKET-008)
+- TICKET-010 실제 5개 앱 수동 평가와 go/no-go 판정
+- TICKET-011 MVP freeze package
 - Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
 
 ## 다음 티켓
 
-- **TICKET-008**: Local Logging and Debug Export
+- **TICKET-010**: Baseline Evaluation Run
 
 자세한 계획은 `plans/` 폴더 참조.

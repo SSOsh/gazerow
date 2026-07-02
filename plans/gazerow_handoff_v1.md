@@ -10,23 +10,29 @@
 목표:
 
 - 어떤 파일을 어떤 순서로 읽어야 하는지 명확히 한다.
-- 현재 결정된 정책과 아직 결정되지 않은 값을 구분한다.
-- 다음 작업자가 `TICKET-001` 착수 전 무엇을 확인해야 하는지 알 수 있게 한다.
+- 현재 구현된 MVP 범위와 아직 남은 평가 작업을 구분한다.
+- 다음 작업자가 `TICKET-010` 평가를 바로 준비할 수 있게 한다.
 
 ## 2. 현재 상태
 
-현재는 구현 전 계획 정리 단계다.
+현재는 TICKET-001부터 TICKET-009까지 구현된 뒤, TICKET-010 Baseline Evaluation Run 착수 전 단계다.
 
-완료된 문서:
+완료된 구현/문서:
 
-- `gazerow_mvp_v1.md`부터 `gazerow_mvp_v5.md`
+- Swift Package 기반 macOS 메뉴바 앱 shell
+- Accessibility 권한 UX, target resolver, scanner, overlay, focus engine
+- AXPress click executor와 안전 정책
+- local interaction logging/debug export core
+- first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
 - `gazerow_evaluation_template_v1.md`
 - `gazerow_decisions_v1.md`
+- `gazerow_known_limitations_v1.md`
+- `gazerow_ticket_010_prep_v1.md`
 
 현재 기준 문서:
 
-- 최신 MVP 계획: `gazerow_mvp_v5.md`
+- 최신 MVP 계획: `gazerow_mvp_v2.md`
 - 구현 티켓: `gazerow_tickets_v1.md`
 - 결정 로그: `gazerow_decisions_v1.md`
 - 평가 양식: `gazerow_evaluation_template_v1.md`
@@ -35,21 +41,17 @@
 
 처음 이어받는 경우:
 
-1. `gazerow_handoff_v1.md`
-2. `gazerow_decisions_v1.md`
+1. `README.md`
+2. `gazerow_handoff_v1.md`
 3. `gazerow_tickets_v1.md`
-4. `gazerow_mvp_v5.md`
+4. `gazerow_decisions_v1.md`
+5. `gazerow_mvp_v2.md`
 
 평가 단계에서만 추가로 읽을 파일:
 
 1. `gazerow_evaluation_template_v1.md`
-
-과거 변경 흐름을 확인할 때만 읽을 파일:
-
-1. `gazerow_mvp_v1.md`
-2. `gazerow_mvp_v2.md`
-3. `gazerow_mvp_v3.md`
-4. `gazerow_mvp_v4.md`
+2. `gazerow_ticket_010_prep_v1.md`
+3. `gazerow_known_limitations_v1.md`
 
 ## 4. 핵심 결정 요약
 
@@ -76,32 +78,30 @@ Deferred:
 - notarization
 - updater
 
-## 5. 구현 착수 전 반드시 결정할 것
-
-`gazerow_decisions_v1.md`의 Next Decision Checkpoint 기준으로 아래 항목을 확정해야 한다.
+## 5. 평가 전 반드시 확인할 것
 
 | 항목 | 현재 상태 | 필요 이유 |
 | --- | --- | --- |
-| 앱 이름 | TBD | bundle id, UI, 권한 안내 문구에 필요 |
-| 저장소 위치 | TBD | Swift app 생성 위치 필요 |
-| 앱 형태 | Proposed: 메뉴바 앱 + Settings window | TICKET-001 구현 방향 |
-| 기본 단축키 | Proposed: Command + Shift + Space | ShortcutManager 구현 |
-| 최소 macOS 버전 | TBD | Xcode target/API 범위 |
+| Xcode toolchain | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`로 검증 | SwiftPM AppKit build/test |
+| Accessibility 권한 | 평가 환경에서 직접 부여 필요 | scanner/overlay 대상 조회 |
+| 평가자 3명 | TBD | TICKET-010 완료 조건 |
+| 평가 macOS version | TBD | 평가표 필수 기록 |
+| 초기 5개 앱 실행 가능 여부 | TBD | Finder/Safari/Chrome/VS Code/System Settings task |
 
 ## 6. 바로 다음 작업
 
 추천 순서:
 
-1. `gazerow_decisions_v1.md`에서 TICKET-001 착수 전 결정값 확정
-2. Swift app 저장소 생성
-3. `TICKET-001: Project Shell and App Lifecycle` 착수
-4. `TICKET-002: Permission UX and PermissionManager` 착수
-5. `TICKET-003` 완료 후 AX 접근 가능성 중간 판단
-6. `TICKET-004` 완료 후 Baseline MVP 가능성 중간 판단
+1. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` 재확인
+2. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
+3. Accessibility 권한 부여 및 Settings/onboarding 확인
+4. `gazerow_evaluation_template_v1.md`를 복사해 평가 결과 기록
+5. Finder, Safari, Chrome, VS Code, System Settings 순서로 고정 task 수행
+6. go/no-go 결론과 TICKET-011 착수 가능 여부 기록
 
 ## 7. 작업 중 지켜야 할 제한
 
-- TICKET-007 전까지 실제 클릭을 수행하지 않는다.
+- 실제 클릭은 keyboard confirm 이후에만 수행한다.
 - fallback 좌표 클릭은 기본 off를 유지한다.
 - Camera 권한은 MVP baseline에서 요청하지 않는다.
 - Screen Recording 권한은 MVP에서 요청하지 않는다.
@@ -113,7 +113,7 @@ Deferred:
 모든 GazeRow 계획 문서는 아래 폴더에서 관리한다.
 
 ```text
-/Users/lotte/gitlab/plans/gazerow/
+/Users/suho/Github/gazerow/plans/
 ```
 
 현재 파일 목록:
@@ -122,11 +122,10 @@ Deferred:
 gazerow_decisions_v1.md
 gazerow_evaluation_template_v1.md
 gazerow_handoff_v1.md
-gazerow_mvp_v1.md
+gazerow_known_limitations_v1.md
 gazerow_mvp_v2.md
-gazerow_mvp_v3.md
-gazerow_mvp_v4.md
-gazerow_mvp_v5.md
+gazerow_ticket_001_spec_v1.md
+gazerow_ticket_010_prep_v1.md
 gazerow_tickets_v1.md
 ```
 
@@ -134,7 +133,5 @@ gazerow_tickets_v1.md
 
 필요할 때만 만든다.
 
-- `gazerow_ticket_001_spec_v1.md`: TICKET-001 상세 구현 명세
-- `gazerow_permission_copy_v1.md`: 권한 안내 문구 초안
-- `gazerow_known_limitations_v1.md`: 사용자 노출 제한사항 초안
-- `gazerow_readme_draft_v1.md`: MVP README 초안
+- `gazerow_ticket_010_result_v1.md`: 실제 TICKET-010 평가 결과
+- `gazerow_mvp_freeze_package_v1.md`: TICKET-011 freeze package

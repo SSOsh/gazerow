@@ -23,16 +23,17 @@ struct ClickExecutor<Client: ClickExecutionClient> {
         _ request: ClickExecutionRequest<Client.Element>
     ) -> Result<ClickExecutionSuccess, ClickExecutionFailure> {
         let target = request.target
+
+        guard target.actions.contains(AccessibilityAction.press) else {
+            return .failure(.missingPressAction)
+        }
+
         let riskClass = riskClassifier.classify(target)
 
         if configuration.requiresSecondConfirmForRiskyAction,
            riskClass.requiresSecondConfirm,
            !request.isSecondConfirmProvided {
             return .failure(.secondConfirmRequired(riskClass: riskClass))
-        }
-
-        guard target.actions.contains(AccessibilityAction.press) else {
-            return .failure(.missingPressAction)
         }
 
         switch client.performAXPress(on: target.element) {

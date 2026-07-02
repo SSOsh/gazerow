@@ -9,11 +9,11 @@ import SwiftUI
 final class OverlayWindowController {
     private var panel: OverlayPanel?
     private let layoutEngine: OverlayLayoutEngine
-    private let displayInfoProvider: (CGRect) -> OverlayDisplayInfo
+    private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
 
     init(
         layoutEngine: OverlayLayoutEngine = OverlayLayoutEngine(),
-        displayInfoProvider: @escaping (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo
+        displayInfoProvider: @escaping @MainActor (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo
     ) {
         self.layoutEngine = layoutEngine
         self.displayInfoProvider = displayInfoProvider

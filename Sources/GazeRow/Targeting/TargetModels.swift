@@ -70,7 +70,7 @@ enum TargetResolutionFailure: Error, Equatable, CustomStringConvertible {
 ///
 /// @author suho.do
 /// @since 2026-07-02
-enum AccessibilityReadFailure: Equatable {
+enum AccessibilityReadFailure: Error, Equatable {
     case permissionDenied
     case focusedWindowUnavailable(String)
     case frameUnavailable(String)

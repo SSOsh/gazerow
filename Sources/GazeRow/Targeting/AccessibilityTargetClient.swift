@@ -31,12 +31,14 @@ struct AXAccessibilityTargetClient: AccessibilityTargetClient {
         switch copyFocusedWindow(from: applicationElement) {
         case .success(let windowElement):
             return buildWindow(from: windowElement)
-        case .failure(let reason):
-            return .failure(.focusedWindowUnavailable(reason))
+        case .failure(let failure):
+            return .failure(failure)
         }
     }
 
-    private func copyFocusedWindow(from applicationElement: AXUIElement) -> Result<AXUIElement, String> {
+    private func copyFocusedWindow(
+        from applicationElement: AXUIElement
+    ) -> Result<AXUIElement, AccessibilityReadFailure> {
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(
             applicationElement,
@@ -47,7 +49,7 @@ struct AXAccessibilityTargetClient: AccessibilityTargetClient {
         guard error == .success,
               let windowElement = value,
               CFGetTypeID(windowElement) == AXUIElementGetTypeID() else {
-            return .failure(error.localizedDebugDescription)
+            return .failure(.focusedWindowUnavailable(error.localizedDebugDescription))
         }
 
         return .success(windowElement as! AXUIElement)
@@ -117,7 +119,7 @@ struct AXAccessibilityTargetClient: AccessibilityTargetClient {
             return nil
         }
 
-        return value as! AXValue
+        return (value as! AXValue)
     }
 
     private func copyStringAttribute(_ attribute: String, from element: AXUIElement) -> String? {

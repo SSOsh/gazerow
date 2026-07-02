@@ -136,7 +136,7 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
             return nil
         }
 
-        return value as! AXValue
+        return (value as! AXValue)
     }
 
     private func copyStringAttribute(_ attribute: String, from element: AXUIElement) -> String? {
