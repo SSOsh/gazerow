@@ -351,6 +351,19 @@ enum OverlaySessionStartFailure: Equatable {
     case scanFailed(AccessibilityScanFailure)
     case noCandidates(context: TargetContext, scanResult: AccessibilityScanResult)
 
+    var requiresAccessibilityPermission: Bool {
+        switch self {
+        case .targetResolutionFailed(.accessibilityPermissionDenied),
+             .scanFailed(.accessibilityPermissionDenied):
+            true
+        case .sessionDisabled,
+             .targetResolutionFailed,
+             .scanFailed,
+             .noCandidates:
+            false
+        }
+    }
+
     var logCode: String {
         switch self {
         case .sessionDisabled:

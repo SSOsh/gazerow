@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
     private let overlaySessionController = OverlaySessionController()
 
+    /// Accessibility 권한 요청/설정 이동을 담당한다.
+    private let permissionManager = PermissionManager()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 메뉴바 앱: Dock 아이콘 없이 accessory 모드로 동작.
         NSApp.setActivationPolicy(.accessory)
@@ -143,7 +146,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         case .failure(let failure):
             AppLogger.overlay.info("overlay start failed reason=\(failure.logCode, privacy: .public)")
+            requestAccessibilityPermissionIfNeeded(for: failure)
         }
+    }
+
+    /// Accessibility 권한 부족으로 overlay activation이 실패하면 권한 요청 동선을 연다.
+    private func requestAccessibilityPermissionIfNeeded(for failure: OverlaySessionStartFailure) {
+        guard failure.requiresAccessibilityPermission else {
+            return
+        }
+
+        permissionManager.requestAccessibilityPermission()
+        permissionManager.openAccessibilitySettings()
     }
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.

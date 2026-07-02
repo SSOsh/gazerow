@@ -18,7 +18,7 @@
 현재는 TICKET-001부터 TICKET-009까지 구현됐고, TICKET-010 사전 검증과 TICKET-011 freeze 준비 산출물이 완료된 상태다.
 TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 완료했다.
 
-2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결하고 freeze 검증을 통과했다. TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정은 Accessibility 권한 부여 후 재시도한다.
+2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결했고, 2026-07-02 19:42:19 KST에는 Show Overlay 권한 실패 시 권한 요청 프롬프트와 System Settings 이동을 연결했다. TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정은 Accessibility 권한 부여 후 재시도한다.
 
 완료된 구현/문서:
 
@@ -37,6 +37,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - runtime risky action second confirm flow
 - runtime click attempt/completed interaction log wiring
 - Settings Accessibility 권한 요청 버튼
+- Show Overlay 권한 실패 시 Accessibility 요청/설정 이동
 - TICKET-011 freeze package / distribution checklist 초안
 - first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
@@ -105,7 +106,7 @@ Deferred:
 | --- | --- | --- |
 | Xcode toolchain | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`로 검증 | SwiftPM AppKit build/test |
 | Runtime activation/wiring | 완료 | TICKET-010 5개 앱 task 수행 전제 |
-| Settings 권한 요청 UX | 완료 | `Request Permission` 버튼으로 시스템 권한 프롬프트 호출 |
+| 권한 요청 UX | 완료 | Settings `Request Permission` 버튼과 Show Overlay 권한 실패 경로 |
 | Accessibility 권한 | not granted | scanner/overlay 대상 조회와 AXPress 실행 |
 | 평가자 3명 | TBD | TICKET-010 완료 조건 |
 | 평가 macOS version | TBD | 평가표 필수 기록 |
