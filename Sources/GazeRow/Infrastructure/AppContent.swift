@@ -57,7 +57,9 @@ enum AppContent {
         "Clicks rely on AXPress; elements without a click action may not be actionable.",
         "Coordinate-click fallback is off by default and must be enabled in debug.",
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
-        "Gaze/camera features are Post-MVP and disabled in this build."
+        "Gaze/camera features are Post-MVP and disabled in this build.",
+        "Finder sidebar rows may be missing from click candidates.",
+        "VS Code Activity Bar items may be missing from click candidates."
     ]
 
     // MARK: - Diagnostics
@@ -79,10 +81,10 @@ enum AppContent {
 
     /// 지원/제한/미확인 앱 구분 목록.
     static let appSupport: [AppSupport] = [
-        AppSupport(name: "Finder", tier: .supported),
+        AppSupport(name: "Finder", tier: .limited),
         AppSupport(name: "Safari", tier: .supported),
         AppSupport(name: "Chrome", tier: .supported),
-        AppSupport(name: "VS Code", tier: .supported),
+        AppSupport(name: "VS Code", tier: .limited),
         AppSupport(name: "System Settings", tier: .supported),
         AppSupport(name: "Slack", tier: .unverified),
         AppSupport(name: "Notion", tier: .unverified)

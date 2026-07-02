@@ -14,10 +14,11 @@
 - v11: Show Overlay 권한 실패 시 Accessibility 요청 프롬프트와 System Settings 이동을 연결하고 freeze 검증 통과를 기록.
 - v12: `--request-accessibility` 런치 옵션을 추가하고 freeze 검증 통과를 기록.
 - v13: Accessibility 권한 승인 후 5개 앱 overlay activation smoke를 통과했고, click task는 계속 pending으로 기록.
+- v14: 5개 앱 실제 click task를 수행해 Safari/Chrome/System Settings pass, Finder/VS Code fail을 기록.
 
 ## 1. 상태
 
-현재 상태: `OVERLAY_ACTIVATION_SMOKE_PASS_PENDING_CLICK_TASKS`
+현재 상태: `CLICK_TASKS_COMPLETE_PENDING_30MIN_AND_INTERNAL_USER_EVALUATION`
 
 자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 당시 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않았다.
 
@@ -32,6 +33,8 @@
 2026-07-02 19:45:35 KST에는 `swift run GazeRow -- --request-accessibility` 실행 시 앱 시작 직후 권한 요청 프롬프트와 System Settings Accessibility 패널을 여는 런치 옵션을 추가했다.
 
 2026-07-02 19:57:41 KST에는 Codex 실행 컨텍스트의 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션, target window fallback(`AXFocusedWindow` -> `AXMainWindow` -> `AXWindows`), overlay launch reporter를 추가했고 Finder, Safari, Chrome, VS Code, System Settings에서 overlay activation smoke가 모두 통과했다. 실제 keyboard label jump/confirm click task, 30분 crash-free session, 내부 사용자 3명 평가는 남아 있다.
+
+2026-07-02 20:20 KST에는 실제 click task를 수행했다. `--print-overlay-label-map` 평가 옵션으로 GazeRow가 부여한 label과 candidate를 확인했고, keyboard label jump 후 Return confirm으로 Safari, Chrome, System Settings task가 성공했다. Finder는 sidebar row가 candidate로 수집되지 않았고, VS Code는 Activity Bar item이 candidate로 수집되지 않아 task 실패로 기록한다. 초기 5개 앱 중 3개 task 성공 기준은 충족했지만, 30분 crash-free session과 내부 사용자 3명 평가는 아직 남아 있다.
 
 ## 2. 평가 전 체크리스트
 
@@ -76,6 +79,8 @@
 | accessibility precheck after approval | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` | true |
 | target window fallback / launch reporter focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AppLaunchOptionsTests\|BundleIdentifierApplicationProviderTests\|TargetResolverTests\|TargetWindowCandidateSelectorTests\|OverlayLaunchReporterTests'` | pass, 16 tests, 0 failures |
 | freeze verification after overlay smoke support | `scripts/verify_mvp_freeze.sh` | pass, 136 tests, 0 failures |
+| label map focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AppContentTests\|AppLaunchOptionsTests\|OverlayLaunchReporterTests'` | pass, 14 tests, 0 failures |
+| freeze verification after click task docs/support update | `scripts/verify_mvp_freeze.sh` | pass, 141 tests, 0 failures |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -93,7 +98,8 @@
 - 현재 빌드는 overlay 표시, keyboard focus/label jump, focus interaction log, AXPress click execution, risky action second confirm, click attempt/completed interaction log 진입점까지 갖췄다.
 - 이전 차단 사유였던 runtime wiring 부재는 해소됐다.
 - Accessibility 권한과 5개 앱 overlay activation smoke는 통과했다.
-- TICKET-010 5개 앱 실제 click task는 아직 수행해야 한다.
+- TICKET-010 5개 앱 실제 click task는 3 pass / 2 fail이다.
+- Finder sidebar row와 VS Code Activity Bar item은 현재 scanner candidate로 수집되지 않아 known limitation으로 문서화해야 한다.
 
 ## 3.2 5개 앱 overlay activation smoke
 
@@ -113,35 +119,35 @@
 AppSupportReport
   appName: Finder
   bundleIdentifier: com.apple.finder
-  appVersion: PENDING_MANUAL_EVALUATION
+  appVersion: not measured
   macOSVersion: macOS 26.2 (25C56)
   task: sidebar item 클릭
-  taskSuccess: PENDING_MANUAL_EVALUATION
-  candidateCount: PENDING_MANUAL_EVALUATION
-  usefulCandidateCount: PENDING_MANUAL_EVALUATION
-  scanDurationMs: PENDING_MANUAL_EVALUATION
-  nodesVisited: PENDING_MANUAL_EVALUATION
-  labelCount: PENDING_MANUAL_EVALUATION
-  labelCollisionCount: PENDING_MANUAL_EVALUATION
-  labelOcclusionCount: PENDING_MANUAL_EVALUATION
-  overlayReadability: PENDING_MANUAL_EVALUATION
-  overlayMisaligned: PENDING_MANUAL_EVALUATION
-  focusMoveCount: PENDING_MANUAL_EVALUATION
-  labelJumpAttemptCount: PENDING_MANUAL_EVALUATION
-  labelJumpSuccessCount: PENDING_MANUAL_EVALUATION
-  correctionCount: PENDING_MANUAL_EVALUATION
-  abandonedAttemptCount: PENDING_MANUAL_EVALUATION
-  mouseBaselineSeconds: PENDING_MANUAL_EVALUATION
-  gazerowSeconds: PENDING_MANUAL_EVALUATION
-  clickAttemptCount: PENDING_MANUAL_EVALUATION
-  clickSuccessCount: PENDING_MANUAL_EVALUATION
-  clickMethod: PENDING_MANUAL_EVALUATION
-  fallbackRequired: PENDING_MANUAL_EVALUATION
-  criticalMisclickCount: PENDING_MANUAL_EVALUATION
-  missingImportantElements: PENDING_MANUAL_EVALUATION
-  noisyElements: PENDING_MANUAL_EVALUATION
-  permissionOrSetupFriction: PENDING_MANUAL_EVALUATION
-  notes:
+  taskSuccess: fail
+  candidateCount: 19
+  usefulCandidateCount: 0
+  scanDurationMs: not measured
+  nodesVisited: not measured
+  labelCount: 19
+  labelCollisionCount: not measured
+  labelOcclusionCount: not measured
+  overlayReadability: not scored
+  overlayMisaligned: not scored
+  focusMoveCount: 0
+  labelJumpAttemptCount: 0
+  labelJumpSuccessCount: 0
+  correctionCount: 0
+  abandonedAttemptCount: 1
+  mouseBaselineSeconds: not measured
+  gazerowSeconds: not measured
+  clickAttemptCount: 0
+  clickSuccessCount: 0
+  clickMethod: none
+  fallbackRequired: no
+  criticalMisclickCount: 0
+  missingImportantElements: sidebar rows not collected as clickable candidates
+  noisyElements: toolbar/window-title candidates only for this task
+  permissionOrSetupFriction: none after Accessibility approval
+  notes: Overlay activation passed, but Finder sidebar rows were absent from the candidate set, so the fixed sidebar item task could not be attempted safely.
 ```
 
 ### Safari
@@ -150,35 +156,35 @@ AppSupportReport
 AppSupportReport
   appName: Safari
   bundleIdentifier: com.apple.Safari
-  appVersion: PENDING_MANUAL_EVALUATION
+  appVersion: not measured
   macOSVersion: macOS 26.2 (25C56)
   task: toolbar button 클릭
-  taskSuccess: PENDING_MANUAL_EVALUATION
-  candidateCount: PENDING_MANUAL_EVALUATION
-  usefulCandidateCount: PENDING_MANUAL_EVALUATION
-  scanDurationMs: PENDING_MANUAL_EVALUATION
-  nodesVisited: PENDING_MANUAL_EVALUATION
-  labelCount: PENDING_MANUAL_EVALUATION
-  labelCollisionCount: PENDING_MANUAL_EVALUATION
-  labelOcclusionCount: PENDING_MANUAL_EVALUATION
-  overlayReadability: PENDING_MANUAL_EVALUATION
-  overlayMisaligned: PENDING_MANUAL_EVALUATION
-  focusMoveCount: PENDING_MANUAL_EVALUATION
-  labelJumpAttemptCount: PENDING_MANUAL_EVALUATION
-  labelJumpSuccessCount: PENDING_MANUAL_EVALUATION
-  correctionCount: PENDING_MANUAL_EVALUATION
-  abandonedAttemptCount: PENDING_MANUAL_EVALUATION
-  mouseBaselineSeconds: PENDING_MANUAL_EVALUATION
-  gazerowSeconds: PENDING_MANUAL_EVALUATION
-  clickAttemptCount: PENDING_MANUAL_EVALUATION
-  clickSuccessCount: PENDING_MANUAL_EVALUATION
-  clickMethod: PENDING_MANUAL_EVALUATION
-  fallbackRequired: PENDING_MANUAL_EVALUATION
-  criticalMisclickCount: PENDING_MANUAL_EVALUATION
-  missingImportantElements: PENDING_MANUAL_EVALUATION
-  noisyElements: PENDING_MANUAL_EVALUATION
-  permissionOrSetupFriction: PENDING_MANUAL_EVALUATION
-  notes:
+  taskSuccess: pass
+  candidateCount: 35
+  usefulCandidateCount: 1
+  scanDurationMs: not measured
+  nodesVisited: not measured
+  labelCount: 35
+  labelCollisionCount: not measured
+  labelOcclusionCount: not measured
+  overlayReadability: 4
+  overlayMisaligned: no
+  focusMoveCount: 0
+  labelJumpAttemptCount: 1
+  labelJumpSuccessCount: 1
+  correctionCount: 0
+  abandonedAttemptCount: 0
+  mouseBaselineSeconds: not measured
+  gazerowSeconds: not measured
+  clickAttemptCount: 1
+  clickSuccessCount: 1
+  clickMethod: AXPress
+  fallbackRequired: no
+  criticalMisclickCount: 0
+  missingImportantElements: none for selected toolbar task
+  noisyElements: start page content candidates also labeled
+  permissionOrSetupFriction: none after Accessibility approval
+  notes: Label BF targeted the Tab Overview toolbar button. Keyboard label jump plus Return opened tab overview.
 ```
 
 ### Chrome
@@ -187,35 +193,35 @@ AppSupportReport
 AppSupportReport
   appName: Chrome
   bundleIdentifier: com.google.Chrome
-  appVersion: PENDING_MANUAL_EVALUATION
+  appVersion: not measured
   macOSVersion: macOS 26.2 (25C56)
   task: 주소창 focus
-  taskSuccess: PENDING_MANUAL_EVALUATION
-  candidateCount: PENDING_MANUAL_EVALUATION
-  usefulCandidateCount: PENDING_MANUAL_EVALUATION
-  scanDurationMs: PENDING_MANUAL_EVALUATION
-  nodesVisited: PENDING_MANUAL_EVALUATION
-  labelCount: PENDING_MANUAL_EVALUATION
-  labelCollisionCount: PENDING_MANUAL_EVALUATION
-  labelOcclusionCount: PENDING_MANUAL_EVALUATION
-  overlayReadability: PENDING_MANUAL_EVALUATION
-  overlayMisaligned: PENDING_MANUAL_EVALUATION
-  focusMoveCount: PENDING_MANUAL_EVALUATION
-  labelJumpAttemptCount: PENDING_MANUAL_EVALUATION
-  labelJumpSuccessCount: PENDING_MANUAL_EVALUATION
-  correctionCount: PENDING_MANUAL_EVALUATION
-  abandonedAttemptCount: PENDING_MANUAL_EVALUATION
-  mouseBaselineSeconds: PENDING_MANUAL_EVALUATION
-  gazerowSeconds: PENDING_MANUAL_EVALUATION
-  clickAttemptCount: PENDING_MANUAL_EVALUATION
-  clickSuccessCount: PENDING_MANUAL_EVALUATION
-  clickMethod: PENDING_MANUAL_EVALUATION
-  fallbackRequired: PENDING_MANUAL_EVALUATION
-  criticalMisclickCount: PENDING_MANUAL_EVALUATION
-  missingImportantElements: PENDING_MANUAL_EVALUATION
-  noisyElements: PENDING_MANUAL_EVALUATION
-  permissionOrSetupFriction: PENDING_MANUAL_EVALUATION
-  notes:
+  taskSuccess: pass
+  candidateCount: 46
+  usefulCandidateCount: 1
+  scanDurationMs: not measured
+  nodesVisited: not measured
+  labelCount: 46
+  labelCollisionCount: not measured
+  labelOcclusionCount: not measured
+  overlayReadability: 4
+  overlayMisaligned: no
+  focusMoveCount: 0
+  labelJumpAttemptCount: 1
+  labelJumpSuccessCount: 1
+  correctionCount: 0
+  abandonedAttemptCount: 0
+  mouseBaselineSeconds: not measured
+  gazerowSeconds: not measured
+  clickAttemptCount: 2
+  clickSuccessCount: 1
+  clickMethod: AXPress
+  fallbackRequired: no
+  criticalMisclickCount: 0
+  missingImportantElements: none for address bar task
+  noisyElements: bookmarks and tab controls also labeled
+  permissionOrSetupFriction: none after Accessibility approval
+  notes: Label AE targeted the address/search field. Because the target was classified as unknownRisk, two Return confirms were used. Address bar text became selected/focused without navigation.
 ```
 
 ### VS Code
@@ -224,35 +230,35 @@ AppSupportReport
 AppSupportReport
   appName: VS Code
   bundleIdentifier: com.microsoft.VSCode
-  appVersion: PENDING_MANUAL_EVALUATION
+  appVersion: not measured
   macOSVersion: macOS 26.2 (25C56)
   task: Activity Bar item 이동
-  taskSuccess: PENDING_MANUAL_EVALUATION
-  candidateCount: PENDING_MANUAL_EVALUATION
-  usefulCandidateCount: PENDING_MANUAL_EVALUATION
-  scanDurationMs: PENDING_MANUAL_EVALUATION
-  nodesVisited: PENDING_MANUAL_EVALUATION
-  labelCount: PENDING_MANUAL_EVALUATION
-  labelCollisionCount: PENDING_MANUAL_EVALUATION
-  labelOcclusionCount: PENDING_MANUAL_EVALUATION
-  overlayReadability: PENDING_MANUAL_EVALUATION
-  overlayMisaligned: PENDING_MANUAL_EVALUATION
-  focusMoveCount: PENDING_MANUAL_EVALUATION
-  labelJumpAttemptCount: PENDING_MANUAL_EVALUATION
-  labelJumpSuccessCount: PENDING_MANUAL_EVALUATION
-  correctionCount: PENDING_MANUAL_EVALUATION
-  abandonedAttemptCount: PENDING_MANUAL_EVALUATION
-  mouseBaselineSeconds: PENDING_MANUAL_EVALUATION
-  gazerowSeconds: PENDING_MANUAL_EVALUATION
-  clickAttemptCount: PENDING_MANUAL_EVALUATION
-  clickSuccessCount: PENDING_MANUAL_EVALUATION
-  clickMethod: PENDING_MANUAL_EVALUATION
-  fallbackRequired: PENDING_MANUAL_EVALUATION
-  criticalMisclickCount: PENDING_MANUAL_EVALUATION
-  missingImportantElements: PENDING_MANUAL_EVALUATION
-  noisyElements: PENDING_MANUAL_EVALUATION
-  permissionOrSetupFriction: PENDING_MANUAL_EVALUATION
-  notes:
+  taskSuccess: fail
+  candidateCount: 3
+  usefulCandidateCount: 0
+  scanDurationMs: not measured
+  nodesVisited: not measured
+  labelCount: 3
+  labelCollisionCount: not measured
+  labelOcclusionCount: not measured
+  overlayReadability: not scored
+  overlayMisaligned: not scored
+  focusMoveCount: 0
+  labelJumpAttemptCount: 0
+  labelJumpSuccessCount: 0
+  correctionCount: 0
+  abandonedAttemptCount: 1
+  mouseBaselineSeconds: not measured
+  gazerowSeconds: not measured
+  clickAttemptCount: 0
+  clickSuccessCount: 0
+  clickMethod: none
+  fallbackRequired: no
+  criticalMisclickCount: 0
+  missingImportantElements: Activity Bar items not collected as clickable candidates
+  noisyElements: only window controls were labeled
+  permissionOrSetupFriction: none after Accessibility approval
+  notes: Label map contained only window control buttons, so the Activity Bar item task could not be attempted safely.
 ```
 
 ### System Settings
@@ -261,55 +267,55 @@ AppSupportReport
 AppSupportReport
   appName: System Settings
   bundleIdentifier: com.apple.SystemSettings
-  appVersion: PENDING_MANUAL_EVALUATION
+  appVersion: not measured
   macOSVersion: macOS 26.2 (25C56)
   task: button/toggle focus 및 실행
-  taskSuccess: PENDING_MANUAL_EVALUATION
-  candidateCount: PENDING_MANUAL_EVALUATION
-  usefulCandidateCount: PENDING_MANUAL_EVALUATION
-  scanDurationMs: PENDING_MANUAL_EVALUATION
-  nodesVisited: PENDING_MANUAL_EVALUATION
-  labelCount: PENDING_MANUAL_EVALUATION
-  labelCollisionCount: PENDING_MANUAL_EVALUATION
-  labelOcclusionCount: PENDING_MANUAL_EVALUATION
-  overlayReadability: PENDING_MANUAL_EVALUATION
-  overlayMisaligned: PENDING_MANUAL_EVALUATION
-  focusMoveCount: PENDING_MANUAL_EVALUATION
-  labelJumpAttemptCount: PENDING_MANUAL_EVALUATION
-  labelJumpSuccessCount: PENDING_MANUAL_EVALUATION
-  correctionCount: PENDING_MANUAL_EVALUATION
-  abandonedAttemptCount: PENDING_MANUAL_EVALUATION
-  mouseBaselineSeconds: PENDING_MANUAL_EVALUATION
-  gazerowSeconds: PENDING_MANUAL_EVALUATION
-  clickAttemptCount: PENDING_MANUAL_EVALUATION
-  clickSuccessCount: PENDING_MANUAL_EVALUATION
-  clickMethod: PENDING_MANUAL_EVALUATION
-  fallbackRequired: PENDING_MANUAL_EVALUATION
-  criticalMisclickCount: PENDING_MANUAL_EVALUATION
-  missingImportantElements: PENDING_MANUAL_EVALUATION
-  noisyElements: PENDING_MANUAL_EVALUATION
-  permissionOrSetupFriction: PENDING_MANUAL_EVALUATION
-  notes:
+  taskSuccess: pass
+  candidateCount: 13
+  usefulCandidateCount: 1
+  scanDurationMs: not measured
+  nodesVisited: not measured
+  labelCount: 13
+  labelCollisionCount: not measured
+  labelOcclusionCount: not measured
+  overlayReadability: 4
+  overlayMisaligned: no
+  focusMoveCount: 0
+  labelJumpAttemptCount: 1
+  labelJumpSuccessCount: 1
+  correctionCount: 0
+  abandonedAttemptCount: 0
+  mouseBaselineSeconds: not measured
+  gazerowSeconds: not measured
+  clickAttemptCount: 2
+  clickSuccessCount: 1
+  clickMethod: AXPress
+  fallbackRequired: no
+  criticalMisclickCount: 0
+  missingImportantElements: none for selected pane navigation task
+  noisyElements: security toggles were labeled but intentionally avoided
+  permissionOrSetupFriction: none after Accessibility approval
+  notes: Label H targeted the toolbar Back button. Two Return confirms moved from Screen & System Audio Recording back to Accessibility without changing any toggle.
 ```
 
 ## 5. 집계 표
 
 | 앱 | Task success | Candidate count | Useful candidates | Click success | Correction count | Abandoned attempts | Critical misclick |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Finder | PENDING | TBD | TBD | TBD | TBD | TBD | TBD |
-| Safari | PENDING | TBD | TBD | TBD | TBD | TBD | TBD |
-| Chrome | PENDING | TBD | TBD | TBD | TBD | TBD | TBD |
-| VS Code | PENDING | TBD | TBD | TBD | TBD | TBD | TBD |
-| System Settings | PENDING | TBD | TBD | TBD | TBD | TBD | TBD |
+| Finder | fail | 19 | 0 | 0 | 0 | 1 | 0 |
+| Safari | pass | 35 | 1 | 1 | 0 | 0 | 0 |
+| Chrome | pass | 46 | 1 | 1 | 0 | 0 | 0 |
+| VS Code | fail | 3 | 0 | 0 | 0 | 1 | 0 |
+| System Settings | pass | 13 | 1 | 1 | 0 | 0 | 0 |
 
-현재 값은 앱별 실패값이 아니라 실제 click task 평가 미실행값이다. overlay activation smoke는 5개 앱 모두 통과했지만, keyboard label jump/confirm click task는 별도로 수행해야 한다.
+초기 5개 앱 중 3개 앱에서 task success를 기록했다. Finder와 VS Code는 overlay activation은 성공했지만 고정 task target이 candidate로 수집되지 않아 실패로 판정한다.
 
 ## 6. Safety 결과
 
 | 항목 | 결과 |
 | --- | --- |
-| coordinate fallback off 유지 | pass by code/config default, manual confirmation pending |
-| critical misclick count | PENDING_MANUAL_EVALUATION |
+| coordinate fallback off 유지 | pass by code/config default and manual click tasks |
+| critical misclick count | 0 |
 | destructive/externalEffect/unknownRisk second confirm | pass by unit test |
 | secure/password field 후보 제외 | pass by unit test |
 | click history/file 저장에 원문 title 없음 | pass by unit test |
@@ -317,11 +323,11 @@ AppSupportReport
 ## 7. Go/No-Go 판정
 
 ```text
-Decision: PENDING_CLICK_TASK_EVALUATION
-Reason: Accessibility 권한과 5개 앱 overlay activation smoke는 통과했지만 실제 click task/30분 session/내부 사용자 평가가 남아 있다.
-Required fixes before freeze: TBD after manual evaluation retry
-Known limitations to document: TICKET-010 재시도 후 확정
-Next ticket: TICKET-010 5개 앱 실제 click task 수행. TICKET-011 최종 확정은 그 이후에만 가능
+Decision: CONDITIONAL_GO_PENDING_30MIN_AND_INTERNAL_USERS
+Reason: 5개 앱 중 3개 task가 성공했고 critical misclick은 0건이다. 다만 30분 crash-free session과 내부 사용자 3명 평가는 아직 필요하다.
+Required fixes before freeze: Finder sidebar row candidate 수집 개선 또는 limitation 문서화, VS Code Activity Bar candidate 수집 개선 또는 limitation 문서화
+Known limitations to document: Finder sidebar rows missing from candidates, VS Code Activity Bar items missing from candidates
+Next ticket: 30분 crash-free session과 내부 사용자 3명 평가 후 TICKET-011 freeze 최종 확정
 ```
 
 ## 8. 남은 수동 작업
@@ -339,11 +345,16 @@ Next ticket: TICKET-010 5개 앱 실제 click task 수행. TICKET-011 최종 확
 - [x] Accessibility 권한 부여와 Settings/onboarding 확인
   - 2026-07-02 19:57:41 KST precheck에서 `AXIsProcessTrusted()`가 true 반환
 - [x] 5개 앱 overlay activation smoke
-- [ ] Finder task 수행
-- [ ] Safari task 수행
-- [ ] Chrome task 수행
-- [ ] VS Code task 수행
-- [ ] System Settings task 수행
+- [x] Finder task 수행
+  - result: fail, sidebar row candidate 미수집
+- [x] Safari task 수행
+  - result: pass, Tab Overview toolbar button opened
+- [x] Chrome task 수행
+  - result: pass, address bar focused/selected after second confirm
+- [x] VS Code task 수행
+  - result: fail, Activity Bar item candidate 미수집
+- [x] System Settings task 수행
+  - result: pass, toolbar Back button moved pane without toggling settings
 - [ ] 30분 crash-free manual session 기록
 - [ ] 내부 사용자 3명 평가 기록
 - [ ] go/no-go 결론 작성

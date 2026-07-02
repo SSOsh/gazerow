@@ -22,6 +22,8 @@ GazeRow는 키보드 중심 사용자를 위한 **생산성 유틸리티**다.
 | 4 | 좌표 클릭 fallback은 기본 off이며 debug에서만 활성화 가능 | 오클릭(mis-click) 위험 최소화 |
 | 5 | 모든 클릭은 명시적 키보드 확인이 필요하며 자동 클릭은 없다 | 사용자 통제 우선(SD-006 kill switch 계열 원칙) |
 | 6 | gaze/카메라 기능은 Post-MVP이며 이 빌드에서 비활성 | Baseline MVP 범위 분리 |
+| 7 | Finder sidebar row는 현재 fixed task candidate로 수집되지 않는다 | TICKET-010 실제 click task에서 sidebar item task fail |
+| 8 | VS Code Activity Bar item은 현재 fixed task candidate로 수집되지 않는다 | TICKET-010 실제 click task에서 Activity Bar 이동 task fail |
 
 ## 3. Click Safety (좌표 클릭 fallback)
 
@@ -33,16 +35,16 @@ GazeRow는 키보드 중심 사용자를 위한 **생산성 유틸리티**다.
 
 ## 4. App Support Tiers (앱 지원 등급)
 
-TICKET-010 실제 평가 전까지 아래 등급은 provisional 상태다.
+TICKET-010 실제 click task 결과 기준이며, 30분 crash-free session과 내부 사용자 평가 전까지는 provisional 상태다.
 
 | 앱 | 등급 |
 | --- | --- |
-| Finder | Evaluation target |
-| Safari | Evaluation target |
-| Chrome | Evaluation target |
-| VS Code | Evaluation target |
-| System Settings | Evaluation target |
-| Limited apps | None confirmed yet |
+| Finder | Limited: sidebar row candidate 미수집 |
+| Safari | Evaluation pass |
+| Chrome | Evaluation pass |
+| VS Code | Limited: Activity Bar item candidate 미수집 |
+| System Settings | Evaluation pass |
+| Limited apps | Finder, VS Code |
 | Slack | Unverified |
 | Notion | Unverified |
 

@@ -83,4 +83,26 @@ final class AppLaunchOptionsTests: XCTestCase {
         // then
         XCTAssertNil(sut.targetBundleIdentifier)
     }
+
+    func test_init_printOverlayLabelMap_인자가있으면_true() {
+        // given
+        let arguments = ["GazeRow", "--print-overlay-label-map"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertTrue(sut.printsOverlayLabelMap)
+    }
+
+    func test_init_printOverlayLabelMap_인자가없으면_false() {
+        // given
+        let arguments = ["GazeRow"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertFalse(sut.printsOverlayLabelMap)
+    }
 }

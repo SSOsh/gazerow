@@ -7,6 +7,7 @@
 - v4: Show Overlay 권한 실패 시 권한 요청/설정 이동 경로와 검증 통과를 기록.
 - v5: `--request-accessibility` 런치 옵션과 검증 통과를 기록.
 - v6: target bundle launch option, target window fallback, 5개 앱 overlay activation smoke 통과를 기록.
+- v7: label map 평가 옵션과 5개 앱 실제 click task 결과를 기록.
 
 ## 1. 목적
 
@@ -35,9 +36,12 @@ TICKET-010 수동 평가를 재시도하려면 현재 개별 구성요소로만 
 - [x] 4.5 `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션 연결
 - [x] 4.6 target window fallback 연결
 - [x] 4.7 TICKET-010 5개 앱 overlay activation smoke
-- [!] 4.8 TICKET-010 5개 앱 실제 click task 재시도
-  - blocked: overlay activation은 통과했지만 실제 keyboard label jump/confirm click task가 아직 미수행
-- [x] 4.9 README, handoff, freeze package 상태 갱신
+- [x] 4.8 `--print-overlay-label-map` 로컬 평가 옵션 연결
+- [x] 4.9 TICKET-010 5개 앱 실제 click task 재시도
+  - result: Safari/Chrome/System Settings pass, Finder/VS Code fail
+- [!] 4.10 TICKET-010 30분 crash-free session / 내부 사용자 평가
+  - blocked: 앱별 click task는 완료됐지만 30분 session과 내부 사용자 3명 평가가 아직 미수행
+- [x] 4.11 README, handoff, freeze package 상태 갱신
 
 ## 3. 제한
 

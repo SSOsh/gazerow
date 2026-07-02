@@ -155,6 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             printOverlayLaunchResultIfNeeded(
                 OverlayLaunchReporter.success(labelCount: snapshot.layout.metrics.labelCount)
             )
+            printOverlayLabelMapIfNeeded(snapshot)
         case .failure(let failure):
             AppLogger.overlay.info("overlay start failed reason=\(failure.logCode, privacy: .public)")
             printOverlayLaunchResultIfNeeded(
@@ -217,6 +218,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         print(message)
+    }
+
+    /// 로컬 평가용 label map을 stdout에 출력한다.
+    private func printOverlayLabelMapIfNeeded(_ snapshot: OverlaySessionSnapshot) {
+        guard launchOptions.printsOverlayLabelMap else {
+            return
+        }
+
+        OverlayLaunchReporter
+            .labelMap(layout: snapshot.layout, candidates: snapshot.scanResult.candidates)
+            .forEach { print($0) }
     }
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.
