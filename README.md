@@ -46,6 +46,7 @@ gazerow/
       AppLogger.swift         # OSLog wrapper (lifecycle / session)
       DebugFeatureVisibility.swift # debug 전용 UI 기본 숨김 정책
       DiagnosticsActionFeedback.swift # diagnostics 수동 액션 결과 표시 상태
+      MVPDefaultPolicy.swift   # MVP freeze 기본값 자동 감사
       PermissionManager.swift # Accessibility 권한 조회/요청/재확인
       SessionController.swift # kill switch 세션 상태 (메뉴바/Settings 공유)
       OnboardingState.swift   # 첫 실행 완료 여부 (UserDefaults)
@@ -98,6 +99,7 @@ gazerow/
     ClickRiskClassifierTests.swift
     DebugFeatureVisibilityTests.swift
     DiagnosticsActionFeedbackTests.swift
+    MVPDefaultPolicyTests.swift
     InteractionLogStoreTests.swift
     WindowTitleHasherTests.swift
     DebugExportManagerTests.swift

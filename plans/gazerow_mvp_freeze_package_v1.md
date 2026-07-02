@@ -83,6 +83,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 | debug export UI | hidden by default | `DebugFeatureVisibility` |
 | automatic click | not supported | keyboard confirm 원칙 |
 | second confirm | enabled for risky action | destructive/externalEffect/unknownRisk 안전 정책 |
+| automated default audit | pass required | `MVPDefaultPolicy` |
 
 ## 6. Privacy / Log 삭제 동선
 
@@ -101,6 +102,7 @@ Freeze 전 확인:
 - [ ] Settings에서 interaction log opt-in 기본 off 확인
 - [x] Settings에서 debug export UI 기본 숨김 확인
 - [x] diagnostics 삭제/생성 액션의 상태 피드백 표시
+- [x] `MVPDefaultPolicy`로 자동 확인 가능한 freeze 기본값 테스트
 - [ ] interaction log 생성 후 삭제 확인
 - [ ] debug export 생성 후 삭제 확인
 - [ ] 생성 파일에 raw title/text value가 없는지 확인

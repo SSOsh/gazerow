@@ -25,6 +25,7 @@
 - local interaction logging/debug export core
 - debug export UI 기본 숨김 정책
 - diagnostics 삭제/생성 액션 상태 피드백
+- MVP freeze 기본값 자동 감사
 - first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
 - `gazerow_evaluation_template_v1.md`
