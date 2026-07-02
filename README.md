@@ -114,6 +114,7 @@ gazerow/
 - `plans/gazerow_ticket_010_prep_v1.md`: TICKET-010 착수 전 평가 환경/절차 준비 체크리스트
 - `plans/gazerow_ticket_010_result_v1.md`: TICKET-010 사전 검증 결과와 수동 평가 기록지
 - `plans/gazerow_mvp_freeze_package_v1.md`: TICKET-011 MVP freeze package 초안
+- `plans/gazerow_distribution_checklist_v1.md`: 외부 배포 전 signing/notarization 체크리스트 초안
 
 ## 앱 지원 범위
 

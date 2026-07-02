@@ -31,6 +31,7 @@
 - `gazerow_tickets_v1.md`
 - `gazerow_evaluation_template_v1.md`
 - `gazerow_decisions_v1.md`
+- `gazerow_distribution_checklist_v1.md`
 - `gazerow_known_limitations_v1.md`
 - `gazerow_ticket_010_prep_v1.md`
 - `gazerow_ticket_010_result_v1.md`
@@ -60,6 +61,7 @@
 3. `gazerow_known_limitations_v1.md`
 4. `gazerow_ticket_010_result_v1.md`
 5. `gazerow_mvp_freeze_package_v1.md`
+6. `gazerow_distribution_checklist_v1.md`
 
 ## 4. 핵심 결정 요약
 
@@ -128,6 +130,7 @@ Deferred:
 
 ```text
 gazerow_decisions_v1.md
+gazerow_distribution_checklist_v1.md
 gazerow_evaluation_template_v1.md
 gazerow_handoff_v1.md
 gazerow_known_limitations_v1.md

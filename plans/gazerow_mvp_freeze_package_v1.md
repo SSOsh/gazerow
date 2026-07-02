@@ -150,6 +150,8 @@ Freeze 진행 조건:
 
 현재는 로컬 MVP이므로 signing/notarization을 freeze 완료 조건으로 두지 않는다.
 
+상세 초안은 `gazerow_distribution_checklist_v1.md`에 둔다.
+
 외부 배포 전 필요한 항목:
 
 - [ ] Apple Developer Program 계정 확인
