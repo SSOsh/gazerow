@@ -181,7 +181,8 @@ final class OverlaySessionControllerTests: XCTestCase {
 
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
         // given
-        let sut = makeStartedSessionController()
+        let clickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 1)))
+        let sut = makeStartedSessionController(clickExecutor: clickExecutor)
         _ = sut.handleKeyboardCommand(.move(.next))
 
         // when
@@ -190,6 +191,57 @@ final class OverlaySessionControllerTests: XCTestCase {
         // then
         XCTAssertEqual(event, .dryRunConfirm(index: 1))
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+    }
+
+    func test_handleKeyboardCommand_dryRunConfirm은_focusedIndex를_clickExecutor에_전달() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(
+                    method: .axPress,
+                    riskClass: .safeNavigation,
+                    fallbackUsed: false
+                )
+            )
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor
+        )
+        _ = sut.handleKeyboardCommand(.move(.next))
+
+        // when
+        let event = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(event, .dryRunConfirm(index: 1))
+        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [1])
+        XCTAssertEqual(clickExecutor.requests.first?.isSecondConfirmProvided, false)
+        XCTAssertEqual(sut.lastClickResult, clickExecutor.result)
+        XCTAssertNil(sut.activeSession)
+        XCTAssertEqual(presenter.closeCallCount, 1)
+    }
+
+    func test_handleKeyboardCommand_click실패면_overlaySession을_유지() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.executionFailed(.missingPressAction))
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        let event = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(event, .dryRunConfirm(index: 0))
+        XCTAssertEqual(sut.lastClickResult, clickExecutor.result)
+        XCTAssertNotNil(sut.activeSession)
+        XCTAssertEqual(presenter.closeCallCount, 0)
     }
 
     func test_handleKeyboardCommand_focusChanged를_interactionLog에_기록() {
@@ -332,6 +384,7 @@ final class OverlaySessionControllerTests: XCTestCase {
     private func makeStartedSessionController(
         presenter: StubOverlayPresenter = StubOverlayPresenter(),
         recorder: StubInteractionRecorder = StubInteractionRecorder(),
+        clickExecutor: StubOverlayClickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt(value: "default-test-salt")),
         dateProvider: @escaping () -> Date = Date.init
     ) -> OverlaySessionController {
@@ -352,6 +405,7 @@ final class OverlaySessionControllerTests: XCTestCase {
             scanner: scanner,
             overlayPresenter: presenter,
             interactionRecorder: recorder,
+            clickExecutor: clickExecutor,
             windowTitleHasher: windowTitleHasher,
             dateProvider: dateProvider
         )
@@ -482,4 +536,35 @@ private final class StubInteractionRecorder: OverlaySessionInteractionRecording 
     func record(_ event: InteractionEvent) {
         events.append(event)
     }
+}
+
+@MainActor
+private final class StubOverlayClickExecutor: OverlaySessionClickExecuting {
+    let result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+    private(set) var requests: [ClickRequest] = []
+
+    init(result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>) {
+        self.result = result
+    }
+
+    func execute(
+        focusedIndex: Int,
+        context: TargetContext,
+        isSecondConfirmProvided: Bool
+    ) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure> {
+        requests.append(
+            ClickRequest(
+                focusedIndex: focusedIndex,
+                context: context,
+                isSecondConfirmProvided: isSecondConfirmProvided
+            )
+        )
+        return result
+    }
+}
+
+private struct ClickRequest: Equatable {
+    let focusedIndex: Int
+    let context: TargetContext
+    let isSecondConfirmProvided: Bool
 }

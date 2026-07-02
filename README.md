@@ -90,6 +90,7 @@ gazerow/
       LogDirectory.swift
     Runtime/
       OverlaySessionController.swift # 메뉴바 activation → target resolve → scan → overlay show
+      OverlaySessionClickExecutor.swift # focused label confirm → AXPress click execution
   Tests/GazeRowTests/
     PermissionManagerTests.swift
     SessionControllerTests.swift
@@ -97,6 +98,7 @@ gazerow/
     TargetResolverTests.swift
     AccessibilityScannerTests.swift
     OverlayLayoutEngineTests.swift
+    OverlaySessionClickTargetResolverTests.swift
     OverlaySessionControllerTests.swift
     LabelGeneratorTests.swift
     FocusEngineTests.swift
@@ -290,7 +292,9 @@ scripts/verify_mvp_freeze.sh
 - [x] activation 실패 사유 sanitized log code 기록
 - [x] overlay keyboard focus / label jump wiring
 - [x] focus / label jump interaction log wiring
-- [ ] focused label AXPress click wiring
+- [x] focused label AXPress click wiring
+- [ ] risky action second confirm runtime flow
+- [ ] click attempt/completed interaction log wiring
 - [ ] Finder / Safari / Chrome / VS Code / System Settings 수동 평가
 - [ ] 30분 crash-free manual session 기록
 - [ ] 내부 사용자 3명 평가
@@ -317,7 +321,7 @@ scripts/verify_mvp_freeze.sh
 
 ## 다음 티켓
 
-- **runtime click wiring**: focused label confirm → AXPress click까지 연결
+- **runtime click safety/logging**: risky action second confirm 흐름과 click attempt/completed log 연결
 - 이후 **TICKET-010**: Baseline Evaluation Run 수동 평가 재시도
 - 이후 **TICKET-011**: MVP Freeze Package 최종 확정
 

@@ -13,16 +13,19 @@ final class OverlaySessionController {
     private let scanner: any OverlaySessionScanning
     private let overlayPresenter: any OverlaySessionPresenting
     private let interactionRecorder: any OverlaySessionInteractionRecording
+    private let clickExecutor: any OverlaySessionClickExecuting
     private let windowTitleHasher: WindowTitleHasher
     private let dateProvider: () -> Date
     private let isSessionEnabled: () -> Bool
     private(set) var activeSession: OverlaySessionState?
+    private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
 
     init(
         targetResolver: any OverlaySessionTargetResolving = TargetResolver(),
         scanner: any OverlaySessionScanning = AccessibilityScanner(client: AXAccessibilityElementClient()),
         overlayPresenter: any OverlaySessionPresenting = OverlayWindowController(),
         interactionRecorder: any OverlaySessionInteractionRecording = InteractionLogStore(),
+        clickExecutor: any OverlaySessionClickExecuting = AXOverlaySessionClickExecutor(),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         dateProvider: @escaping () -> Date = Date.init,
         isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled }
@@ -31,12 +34,15 @@ final class OverlaySessionController {
         self.scanner = scanner
         self.overlayPresenter = overlayPresenter
         self.interactionRecorder = interactionRecorder
+        self.clickExecutor = clickExecutor
         self.windowTitleHasher = windowTitleHasher
         self.dateProvider = dateProvider
         self.isSessionEnabled = isSessionEnabled
     }
 
     func start() -> OverlaySessionStartResult {
+        lastClickResult = nil
+
         guard isSessionEnabled() else {
             close()
             return .failure(.sessionDisabled)
@@ -106,7 +112,10 @@ final class OverlaySessionController {
             session.focusEngine.clearLabelBuffer()
             event = nil
         case .dryRunConfirm:
-            event = session.focusEngine.dryRunConfirm().event
+            let confirmResult = session.focusEngine.dryRunConfirm()
+            activeSession = session
+            executeClickIfPossible(confirmResult: confirmResult, context: session.snapshot.context)
+            return confirmResult.event
         case .closeOverlay:
             close()
             return nil
@@ -116,6 +125,27 @@ final class OverlaySessionController {
         overlayPresenter.updateFocus(focusedLabelID: session.focusEngine.focusedItemID)
         record(event, context: session.snapshot.context)
         return event
+    }
+
+    private func executeClickIfPossible(
+        confirmResult: DryRunConfirmResult,
+        context: TargetContext
+    ) {
+        guard let focusedItemID = confirmResult.focusedItemID else {
+            lastClickResult = .failure(.missingFocusedTarget(index: -1))
+            return
+        }
+
+        let result = clickExecutor.execute(
+            focusedIndex: focusedItemID,
+            context: context,
+            isSecondConfirmProvided: false
+        )
+        lastClickResult = result
+
+        if case .success = result {
+            close()
+        }
     }
 
     func close() {
