@@ -44,6 +44,7 @@ gazerow/
     Infrastructure/
       AppState.swift          # 앱 메타데이터, MVP 상태, 권한 안내 문구
       AppLogger.swift         # OSLog wrapper (lifecycle / session)
+      DebugFeatureVisibility.swift # debug 전용 UI 기본 숨김 정책
       PermissionManager.swift # Accessibility 권한 조회/요청/재확인
       SessionController.swift # kill switch 세션 상태 (메뉴바/Settings 공유)
       OnboardingState.swift   # 첫 실행 완료 여부 (UserDefaults)
@@ -94,6 +95,7 @@ gazerow/
     FocusKeyboardCommandMapperTests.swift
     ClickExecutorTests.swift
     ClickRiskClassifierTests.swift
+    DebugFeatureVisibilityTests.swift
     InteractionLogStoreTests.swift
     WindowTitleHasherTests.swift
     DebugExportManagerTests.swift

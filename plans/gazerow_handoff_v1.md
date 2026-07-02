@@ -23,6 +23,7 @@
 - Accessibility 권한 UX, target resolver, scanner, overlay, focus engine
 - AXPress click executor와 안전 정책
 - local interaction logging/debug export core
+- debug export UI 기본 숨김 정책
 - first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
 - `gazerow_evaluation_template_v1.md`

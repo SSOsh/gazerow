@@ -28,6 +28,9 @@ struct SettingsView: View {
     /// AX debug export 매니저.
     @State private var debugExport = DebugExportManager()
 
+    /// debug 전용 기능 노출 정책.
+    private let debugFeatureVisibility = DebugFeatureVisibility()
+
     /// interaction 저장 opt-in 토글 바인딩 상태.
     @State private var isInteractionLoggingEnabled = false
 
@@ -227,19 +230,24 @@ struct SettingsView: View {
                 Button("Delete Logs") {
                     logStore.deleteAll()
                 }
-                Button("Create Debug Export") {
-                    _ = try? debugExport.createExport()
-                }
-                Button("Delete Export") {
-                    debugExport.deleteAll()
+
+                if debugFeatureVisibility.isDebugExportVisible {
+                    Button("Create Debug Export") {
+                        _ = try? debugExport.createExport()
+                    }
+                    Button("Delete Export") {
+                        debugExport.deleteAll()
+                    }
                 }
             }
             .controlSize(.small)
 
-            Text(AppContent.debugExportNotice)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            if debugFeatureVisibility.isDebugExportVisible {
+                Text(AppContent.debugExportNotice)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

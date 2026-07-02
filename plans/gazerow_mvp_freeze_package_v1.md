@@ -80,6 +80,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 | coordinate click fallback | off | 오클릭 위험 최소화 |
 | interaction log file | opt-in off | privacy 기본값 |
 | debug export | manual only | 사용자 명시 동작 |
+| debug export UI | hidden by default | `DebugFeatureVisibility` |
 | automatic click | not supported | keyboard confirm 원칙 |
 | second confirm | enabled for risky action | destructive/externalEffect/unknownRisk 안전 정책 |
 
@@ -97,6 +98,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 Freeze 전 확인:
 
 - [ ] Settings에서 interaction log opt-in 기본 off 확인
+- [x] Settings에서 debug export UI 기본 숨김 확인
 - [ ] interaction log 생성 후 삭제 확인
 - [ ] debug export 생성 후 삭제 확인
 - [ ] 생성 파일에 raw title/text value가 없는지 확인
