@@ -10,7 +10,11 @@ import CoreGraphics
 struct AXClickExecutionClient: ClickExecutionClient {
 
     func performAXPress(on element: AXUIElement) -> ClickClientResult {
-        let error = AXUIElementPerformAction(element, kAXPressAction as CFString)
+        performAXAction(AccessibilityAction.press, on: element)
+    }
+
+    func performAXAction(_ action: String, on element: AXUIElement) -> ClickClientResult {
+        let error = AXUIElementPerformAction(element, action as CFString)
 
         guard error == .success else {
             return .failure(error.localizedDebugDescription)

@@ -111,6 +111,7 @@ enum AccessibilityRole {
 enum AccessibilityAction {
     static let press = "AXPress"
     static let confirm = "AXConfirm"
+    static let open = "AXOpen"
     static let increment = "AXIncrement"
     static let decrement = "AXDecrement"
 }

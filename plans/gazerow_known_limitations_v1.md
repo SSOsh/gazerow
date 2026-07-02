@@ -22,7 +22,7 @@ GazeRow는 키보드 중심 사용자를 위한 **생산성 유틸리티**다.
 | 4 | 좌표 클릭 fallback은 기본 off이며 debug에서만 활성화 가능 | 오클릭(mis-click) 위험 최소화 |
 | 5 | 모든 클릭은 명시적 키보드 확인이 필요하며 자동 클릭은 없다 | 사용자 통제 우선(SD-006 kill switch 계열 원칙) |
 | 6 | gaze/카메라 기능은 Post-MVP이며 이 빌드에서 비활성 | Baseline MVP 범위 분리 |
-| 7 | Finder sidebar row는 candidate 수집 확인 후 fixed task 재평가가 필요하다 | TICKET-010 실제 click task에서 sidebar item task fail 후 label map 63개로 증가 |
+| 7 | Finder sidebar row는 candidate 수집 확인 후 fixed task 재평가가 필요하다 | TICKET-010 실제 click task에서 sidebar item task fail 후 label map 63개로 증가, `AXOpen` 실행 지원 추가 |
 | 8 | VS Code Activity Bar item은 candidate 수집 확인 후 fixed task 재평가가 필요하다 | TICKET-010 실제 click task에서 Activity Bar 이동 task fail 후 label map 29개, Activity Bar `AXRadioButton` 후보 수집 확인 |
 
 ## 3. Click Safety (좌표 클릭 fallback)

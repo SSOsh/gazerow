@@ -60,6 +60,7 @@ struct ClickTarget<Element> {
 /// @since 2026-07-02
 enum ClickExecutionMethod: Equatable {
     case axPress
+    case accessibilityAction(String)
     case coordinateFallback
 }
 

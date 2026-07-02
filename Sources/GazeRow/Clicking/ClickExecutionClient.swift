@@ -8,5 +8,16 @@ protocol ClickExecutionClient {
     associatedtype Element
 
     func performAXPress(on element: Element) -> ClickClientResult
+    func performAXAction(_ action: String, on element: Element) -> ClickClientResult
     func performCoordinateClick(at point: CGPoint) -> ClickClientResult
+}
+
+extension ClickExecutionClient {
+    func performAXAction(_ action: String, on element: Element) -> ClickClientResult {
+        guard action == AccessibilityAction.press else {
+            return .failure("Unsupported AX action: \(action).")
+        }
+
+        return performAXPress(on: element)
+    }
 }

@@ -23,6 +23,62 @@ final class ClickExecutorTests: XCTestCase {
             riskClass: .safeNavigation,
             fallbackUsed: false
         )
+        XCTAssertEqual(client.performedActions, [AccessibilityAction.press])
+    }
+
+    func test_execute_AXOpen_action만_있으면_AXOpen으로_성공() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.cell,
+            title: "Downloads",
+            frame: CGRect(x: 10, y: 20, width: 30, height: 40),
+            actions: [AccessibilityAction.open]
+        )
+        let client = FakeClickExecutionClient(actionResults: [AccessibilityAction.open: .success])
+        let sut = ClickExecutor(client: client)
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .accessibilityAction(AccessibilityAction.open),
+            riskClass: .safeNavigation,
+            fallbackUsed: false
+        )
+        XCTAssertEqual(client.performedActions, [AccessibilityAction.open])
+    }
+
+    func test_execute_AXPress와_AXOpen이_함께_있으면_AXPress를_우선한다() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.cell,
+            title: "Downloads",
+            frame: CGRect(x: 10, y: 20, width: 30, height: 40),
+            actions: [AccessibilityAction.open, AccessibilityAction.press]
+        )
+        let client = FakeClickExecutionClient(
+            actionResults: [
+                AccessibilityAction.press: .success,
+                AccessibilityAction.open: .failure("should not be used")
+            ]
+        )
+        let sut = ClickExecutor(client: client)
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .axPress,
+            riskClass: .safeNavigation,
+            fallbackUsed: false
+        )
+        XCTAssertEqual(client.performedActions, [AccessibilityAction.press])
     }
 
     func test_execute_AXPress_action이_없으면_missingPressAction() {
@@ -178,8 +234,9 @@ final class ClickExecutorTests: XCTestCase {
 }
 
 private final class FakeClickExecutionClient: ClickExecutionClient {
-    private let axPressResult: ClickClientResult
+    private let actionResults: [String: ClickClientResult]
     private let coordinateClickResult: ClickClientResult
+    private(set) var performedActions: [String] = []
     private(set) var didCoordinateClick = false
     private(set) var clickedPoint: CGPoint?
 
@@ -187,12 +244,25 @@ private final class FakeClickExecutionClient: ClickExecutionClient {
         axPressResult: ClickClientResult,
         coordinateClickResult: ClickClientResult = .success
     ) {
-        self.axPressResult = axPressResult
+        self.actionResults = [AccessibilityAction.press: axPressResult]
+        self.coordinateClickResult = coordinateClickResult
+    }
+
+    init(
+        actionResults: [String: ClickClientResult],
+        coordinateClickResult: ClickClientResult = .success
+    ) {
+        self.actionResults = actionResults
         self.coordinateClickResult = coordinateClickResult
     }
 
     func performAXPress(on element: Int) -> ClickClientResult {
-        axPressResult
+        performAXAction(AccessibilityAction.press, on: element)
+    }
+
+    func performAXAction(_ action: String, on element: Int) -> ClickClientResult {
+        performedActions.append(action)
+        return actionResults[action] ?? .failure("Unsupported AX action.")
     }
 
     func performCoordinateClick(at point: CGPoint) -> ClickClientResult {

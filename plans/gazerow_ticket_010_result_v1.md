@@ -19,6 +19,7 @@
 - v16: 내부 사용자 3명 평가 runbook 준비 상태를 기록.
 - v17: Finder/VS Code candidate coverage 보강 후 fixed task 재평가 필요 상태를 기록.
 - v18: scanner 기본 depth 확장 후 Finder/VS Code label map smoke 개선 결과를 기록.
+- v19: Finder sidebar candidate용 `AXOpen` click execution 지원을 기록.
 
 ## 1. 상태
 
@@ -97,6 +98,8 @@
 | scanner depth focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AccessibilityScannerTests\|OverlaySessionClickTargetResolverTests'` | pass, 17 tests, 0 failures |
 | VS Code label map smoke after depth update | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` | pass, 29 labels, Activity Bar `AXRadioButton` candidates visible |
 | freeze verification after scanner depth update | `scripts/verify_mvp_freeze.sh` | pass, 183 tests, 0 failures, MVP-excluded check passed |
+| AXOpen click execution focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'ClickExecutorTests\|ClickRiskClassifierTests'` | pass, 15 tests, 0 failures |
+| freeze verification after AXOpen update | `scripts/verify_mvp_freeze.sh` | pass, 186 tests, 0 failures, MVP-excluded check passed |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -118,6 +121,7 @@
 - 이후 Finder/VS Code candidate coverage는 selectable role 수집과 scanner 기본 depth 확장으로 개선했다.
 - Finder label map은 19개에서 63개로 증가했고 `AXRow` / `AXCell` 후보가 수집된다.
 - VS Code label map은 3개에서 29개로 증가했고 Activity Bar `AXRadioButton` 후보가 수집된다.
+- Finder sidebar candidate용 `AXOpen` 실행을 지원한다.
 - Finder sidebar row와 VS Code Activity Bar item fixed task는 보강 후 재평가가 필요하다.
 
 ## 3.2 5개 앱 overlay activation smoke
@@ -327,7 +331,7 @@ AppSupportReport
 | VS Code | fail | 3 | 0 | 0 | 0 | 1 | 0 |
 | System Settings | pass | 13 | 1 | 1 | 0 | 0 | 0 |
 
-초기 5개 앱 중 3개 앱에서 task success를 기록했다. Finder와 VS Code는 overlay activation은 성공했지만 고정 task target이 candidate로 수집되지 않아 실패로 판정했다. 이후 selectable container candidate coverage를 보강했으므로 Finder/VS Code fixed task는 재평가가 필요하다.
+초기 5개 앱 중 3개 앱에서 task success를 기록했다. Finder와 VS Code는 overlay activation은 성공했지만 고정 task target이 candidate로 수집되지 않아 실패로 판정했다. 이후 selectable container candidate coverage와 Finder sidebar candidate용 `AXOpen` 실행을 보강했으므로 Finder/VS Code fixed task는 재평가가 필요하다.
 
 ## 6. Safety 결과
 
@@ -378,6 +382,7 @@ Next ticket: Finder/VS Code 재평가와 내부 사용자 3명 평가 후 TICKET
   - result: 2026-07-02 20:46:31~21:16:31 KST, 1800초, crash 0건
 - [x] 내부 사용자 3명 평가 runbook 작성
 - [x] Finder/VS Code candidate coverage 보강
+- [x] Finder sidebar candidate용 `AXOpen` click execution 지원
 - [ ] Finder fixed task 재평가
 - [ ] VS Code fixed task 재평가
 - [ ] 내부 사용자 3명 평가 기록
