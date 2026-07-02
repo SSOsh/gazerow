@@ -21,14 +21,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// onboarding 완료 여부 판정용 상태.
     private let onboarding = OnboardingState()
 
-    /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
-    private let overlaySessionController = OverlaySessionController()
-
     /// Accessibility 권한 요청/설정 이동을 담당한다.
     private let permissionManager = PermissionManager()
 
     /// 실행 시 전달된 로컬 평가/복구 옵션.
     private let launchOptions = AppLaunchOptions.current
+
+    /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
+    private lazy var overlaySessionController = OverlaySessionController(
+        targetResolver: makeTargetResolver()
+    )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 메뉴바 앱: Dock 아이콘 없이 accessory 모드로 동작.
@@ -43,6 +45,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         requestAccessibilityPermissionIfRequested()
+        showOverlayIfRequested()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -149,8 +152,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.overlay.info(
                 "overlay shown bundle=\(snapshot.context.application.bundleIdentifier, privacy: .public) labels=\(snapshot.layout.metrics.labelCount, privacy: .public)"
             )
+            printOverlayLaunchResultIfNeeded(
+                OverlayLaunchReporter.success(labelCount: snapshot.layout.metrics.labelCount)
+            )
         case .failure(let failure):
             AppLogger.overlay.info("overlay start failed reason=\(failure.logCode, privacy: .public)")
+            printOverlayLaunchResultIfNeeded(
+                OverlayLaunchReporter.failure(logCode: failure.logCode)
+            )
             requestAccessibilityPermissionIfNeeded(for: failure)
         }
     }
@@ -174,6 +183,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         permissionManager.requestAccessibilityPermission()
         permissionManager.openAccessibilitySettings()
         AppLogger.permission.info("accessibility request launched from startup option")
+    }
+
+    /// TICKET-010 수동 평가에서 메뉴바 클릭 없이 overlay activation을 재현한다.
+    private func showOverlayIfRequested() {
+        guard launchOptions.showsOverlayOnLaunch else {
+            return
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(500))
+            showOverlay()
+        }
+    }
+
+    /// launch option에 명시 target이 있으면 해당 앱을 우선 대상으로 삼는다.
+    private func makeTargetResolver() -> TargetResolver {
+        guard let bundleIdentifier = launchOptions.targetBundleIdentifier else {
+            return TargetResolver()
+        }
+
+        return TargetResolver(
+            frontmostApplicationProvider: BundleIdentifierApplicationProvider(
+                bundleIdentifier: bundleIdentifier
+            )
+        )
+    }
+
+    /// 런치 옵션 기반 smoke 실행에서만 stdout 결과를 남긴다.
+    private func printOverlayLaunchResultIfNeeded(_ message: String) {
+        guard launchOptions.showsOverlayOnLaunch else {
+            return
+        }
+
+        print(message)
     }
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.

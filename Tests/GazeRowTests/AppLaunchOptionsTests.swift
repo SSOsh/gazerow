@@ -28,4 +28,59 @@ final class AppLaunchOptionsTests: XCTestCase {
         // then
         XCTAssertFalse(sut.requestsAccessibilityPermission)
     }
+
+    func test_init_showOverlayOnLaunch_인자가있으면_true() {
+        // given
+        let arguments = ["GazeRow", "--show-overlay-on-launch"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertTrue(sut.showsOverlayOnLaunch)
+    }
+
+    func test_init_showOverlayOnLaunch_인자가없으면_false() {
+        // given
+        let arguments = ["GazeRow"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertFalse(sut.showsOverlayOnLaunch)
+    }
+
+    func test_init_targetBundleId_값이있으면_반환() {
+        // given
+        let arguments = ["GazeRow", "--target-bundle-id", "com.apple.finder"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertEqual(sut.targetBundleIdentifier, "com.apple.finder")
+    }
+
+    func test_init_targetBundleId_값이없으면_nil() {
+        // given
+        let arguments = ["GazeRow", "--target-bundle-id"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertNil(sut.targetBundleIdentifier)
+    }
+
+    func test_init_targetBundleId_다음값이다른옵션이면_nil() {
+        // given
+        let arguments = ["GazeRow", "--target-bundle-id", "--show-overlay-on-launch"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertNil(sut.targetBundleIdentifier)
+    }
 }

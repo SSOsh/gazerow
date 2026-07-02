@@ -20,6 +20,11 @@ protocol AccessibilityTargetClient {
 /// @since 2026-07-02
 @MainActor
 struct AXAccessibilityTargetClient: AccessibilityTargetClient {
+    private let windowSelector: TargetWindowCandidateSelector
+
+    init(windowSelector: TargetWindowCandidateSelector = TargetWindowCandidateSelector()) {
+        self.windowSelector = windowSelector
+    }
 
     func focusedWindow(for application: TargetApplication) -> Result<TargetWindow, AccessibilityReadFailure> {
         guard AXIsProcessTrusted() else {
@@ -28,21 +33,42 @@ struct AXAccessibilityTargetClient: AccessibilityTargetClient {
 
         let applicationElement = AXUIElementCreateApplication(application.processIdentifier)
 
-        switch copyFocusedWindow(from: applicationElement) {
+        switch copyWindowElement(kAXFocusedWindowAttribute, from: applicationElement) {
         case .success(let windowElement):
             return buildWindow(from: windowElement)
         case .failure(let failure):
-            return .failure(failure)
+            return fallbackWindow(from: applicationElement, focusedFailure: failure)
         }
     }
 
-    private func copyFocusedWindow(
+    private func fallbackWindow(
+        from applicationElement: AXUIElement,
+        focusedFailure: AccessibilityReadFailure
+    ) -> Result<TargetWindow, AccessibilityReadFailure> {
+        switch copyWindowElement(kAXMainWindowAttribute, from: applicationElement) {
+        case .success(let windowElement):
+            return buildWindow(from: windowElement)
+        case .failure:
+            break
+        }
+
+        let windows = copyWindowElements(from: applicationElement)
+            .compactMap { try? buildWindow(from: $0).get() }
+        if let window = windowSelector.firstUsableWindow(from: windows) {
+            return .success(window)
+        }
+
+        return .failure(focusedFailure)
+    }
+
+    private func copyWindowElement(
+        _ attribute: String,
         from applicationElement: AXUIElement
     ) -> Result<AXUIElement, AccessibilityReadFailure> {
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(
             applicationElement,
-            kAXFocusedWindowAttribute as CFString,
+            attribute as CFString,
             &value
         )
 
@@ -53,6 +79,27 @@ struct AXAccessibilityTargetClient: AccessibilityTargetClient {
         }
 
         return .success(windowElement as! AXUIElement)
+    }
+
+    private func copyWindowElements(from applicationElement: AXUIElement) -> [AXUIElement] {
+        var value: AnyObject?
+        let error = AXUIElementCopyAttributeValue(
+            applicationElement,
+            kAXWindowsAttribute as CFString,
+            &value
+        )
+
+        guard error == .success,
+              let values = value as? [AnyObject] else {
+            return []
+        }
+
+        return values.compactMap { value in
+            guard CFGetTypeID(value) == AXUIElementGetTypeID() else {
+                return nil
+            }
+            return (value as! AXUIElement)
+        }
     }
 
     private func buildWindow(from windowElement: AXUIElement) -> Result<TargetWindow, AccessibilityReadFailure> {
