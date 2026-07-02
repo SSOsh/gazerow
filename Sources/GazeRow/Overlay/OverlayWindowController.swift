@@ -27,7 +27,8 @@ final class OverlayWindowController {
         targetFrame: CGRect,
         candidates: [ClickableCandidate],
         labels: [String] = [],
-        onEscape: @escaping () -> Void = {}
+        onEscape: @escaping () -> Void = {},
+        onKeyboardCommand: @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) -> OverlayLayout {
         let layout = layoutEngine.makeLayout(
             targetFrame: targetFrame,
@@ -36,11 +37,19 @@ final class OverlayWindowController {
             displayInfo: displayInfoProvider(targetFrame)
         )
 
-        show(layout: layout, onEscape: onEscape)
+        show(
+            layout: layout,
+            onEscape: onEscape,
+            onKeyboardCommand: onKeyboardCommand
+        )
         return layout
     }
 
-    func show(layout: OverlayLayout, onEscape: @escaping () -> Void = {}) {
+    func show(
+        layout: OverlayLayout,
+        onEscape: @escaping () -> Void = {},
+        onKeyboardCommand: @escaping (FocusKeyboardCommand) -> Void = { _ in }
+    ) {
         close()
 
         let panel = OverlayPanel(
@@ -53,6 +62,7 @@ final class OverlayWindowController {
             self?.close()
             onEscape()
         }
+        panel.onKeyboardCommand = onKeyboardCommand
         panel.level = .floating
         panel.backgroundColor = .clear
         panel.isOpaque = false
@@ -85,17 +95,30 @@ final class OverlayWindowController {
 
 private final class OverlayPanel: NSPanel {
     var onEscape: () -> Void = {}
+    var onKeyboardCommand: (FocusKeyboardCommand) -> Void = { _ in }
+    private let keyboardCommandMapper = FocusKeyboardCommandMapper()
 
     override var canBecomeKey: Bool {
         true
     }
 
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 {
+        let input = FocusKeyboardInput(
+            keyCode: event.keyCode,
+            charactersIgnoringModifiers: event.charactersIgnoringModifiers,
+            isShiftPressed: event.modifierFlags.contains(.shift)
+        )
+
+        guard let command = keyboardCommandMapper.command(for: input) else {
+            super.keyDown(with: event)
+            return
+        }
+
+        if command == .closeOverlay {
             onEscape()
             return
         }
 
-        super.keyDown(with: event)
+        onKeyboardCommand(command)
     }
 }
