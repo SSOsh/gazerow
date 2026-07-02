@@ -1,0 +1,22 @@
+import OSLog
+
+/// OSLog 기반 로깅 wrapper.
+///
+/// TICKET-001 범위에서는 app lifecycle 로그만 다룬다.
+/// Interaction 로그 파일 저장, 개인정보 관련 로그는 TICKET-008에서 별도로 처리한다.
+///
+/// - Note: raw camera, raw window title, text value 등은 이 wrapper로 기록하지 않는다.
+///
+/// @author suho.do
+/// @since 2026-07-02
+enum AppLogger {
+
+    /// 로그 subsystem. bundle identifier와 정렬한다.
+    private static let subsystem = "dev.local.gazerow"
+
+    /// app 실행/종료, settings open 등 lifecycle 이벤트 로거.
+    static let lifecycle = Logger(subsystem: subsystem, category: "lifecycle")
+
+    /// 세션 활성/비활성(kill switch) 상태 변화 로거.
+    static let session = Logger(subsystem: subsystem, category: "session")
+}
