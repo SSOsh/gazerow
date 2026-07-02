@@ -1,0 +1,99 @@
+import SwiftUI
+
+/// Known Limitations와 앱 지원 범위를 보여주는 열람 시트.
+///
+/// TICKET-009. 지원(supported)/제한(limited)/미확인(unverified) 앱을 구분해
+/// 사용자가 어디까지 기대할 수 있는지 알 수 있게 한다.
+///
+/// @author suho.do
+/// @since 2026-07-02
+struct KnownLimitationsView: View {
+
+    /// 시트를 닫기 위한 dismiss 액션.
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Known Limitations")
+                .font(.title2)
+                .fontWeight(.semibold)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    limitationsSection
+                    fallbackSection
+                    appSupportSection
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(24)
+        .frame(width: 460, height: 480)
+    }
+
+    // MARK: - Sections
+
+    private var limitationsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(AppContent.knownLimitations, id: \.self) { item in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•").foregroundStyle(.secondary)
+                    Text(item)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.callout)
+            }
+        }
+    }
+
+    private var fallbackSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Click Safety")
+                .font(.headline)
+            Text(AppContent.fallbackDisabledNotice)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var appSupportSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("App Support")
+                .font(.headline)
+            ForEach(AppContent.appSupport) { app in
+                HStack {
+                    Text(app.name)
+                    Spacer()
+                    tierBadge(app.tier)
+                }
+                .font(.callout)
+            }
+        }
+    }
+
+    /// 지원 등급을 색상 배지로 표현한다.
+    private func tierBadge(_ tier: AppContent.SupportTier) -> some View {
+        let (label, color): (String, Color) = switch tier {
+        case .supported: ("Supported", .green)
+        case .limited: ("Limited", .orange)
+        case .unverified: ("Unverified", .secondary)
+        }
+        return Text(label)
+            .font(.caption)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.18), in: Capsule())
+            .foregroundStyle(color)
+    }
+}
+
+#Preview {
+    KnownLimitationsView()
+}
