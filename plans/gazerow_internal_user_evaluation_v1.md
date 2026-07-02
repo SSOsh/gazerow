@@ -2,6 +2,7 @@
 
 ## 변경 이력
 - v1: TICKET-010 내부 사용자 3명 평가를 실행하기 위한 진행 절차와 기록지를 작성.
+- v2: 외부 내부 사용자 3명 확보 불가로 평가를 Post-MVP로 defer(ED-008). 결과를 지어내지 않고 gate defer 상태로 기록. 평가자 확보 시 이 runbook으로 재개.
 
 ## 1. 목적
 
@@ -135,9 +136,11 @@ passesValueGate: worthContinuingYesCount >= 2
 ## 10. 현재 상태
 
 ```text
-Status: READY_FOR_INTERNAL_USER_EVALUATION
-Blocking input: User 1/User 2/User 3 evaluation results
-Minimum pass condition: at least 2 yes for understoodIn3Min and at least 2 yes for worthContinuing
+Status: DEFERRED_POST_MVP
+Reason: 외부 내부 사용자 3명을 확보하지 못했고, 평가 결과를 지어내지 않기로 함(ED-008).
+Decision: local MVP freeze에서는 내부 사용자 gate를 Post-MVP로 defer한다.
+Resume condition: 평가자 3명 확보 시 이 runbook의 Section 3~8 절차로 재개.
+Minimum pass condition (재개 시): at least 2 yes for understoodIn3Min and at least 2 yes for worthContinuing
 ```
 
 ---
