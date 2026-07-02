@@ -26,6 +26,7 @@
 - debug export UI 기본 숨김 정책
 - diagnostics 삭제/생성 액션 상태 피드백
 - MVP freeze 기본값 자동 감사
+- MVP freeze 사전 검증 스크립트
 - first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
 - `gazerow_evaluation_template_v1.md`
@@ -136,6 +137,12 @@ gazerow_ticket_001_spec_v1.md
 gazerow_ticket_010_prep_v1.md
 gazerow_ticket_010_result_v1.md
 gazerow_tickets_v1.md
+```
+
+검증 스크립트:
+
+```text
+scripts/verify_mvp_freeze.sh
 ```
 
 ## 9. 다음 문서 후보

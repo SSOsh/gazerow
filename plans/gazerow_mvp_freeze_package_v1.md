@@ -61,6 +61,9 @@ cd /Users/suho/Github/gazerow
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
+
+# freeze 사전 검증
+scripts/verify_mvp_freeze.sh
 ```
 
 주의:
@@ -84,6 +87,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 | automatic click | not supported | keyboard confirm 원칙 |
 | second confirm | enabled for risky action | destructive/externalEffect/unknownRisk 안전 정책 |
 | automated default audit | pass required | `MVPDefaultPolicy` |
+| freeze verification script | pass required | `scripts/verify_mvp_freeze.sh` |
 
 ## 6. Privacy / Log 삭제 동선
 
@@ -103,6 +107,7 @@ Freeze 전 확인:
 - [x] Settings에서 debug export UI 기본 숨김 확인
 - [x] diagnostics 삭제/생성 액션의 상태 피드백 표시
 - [x] `MVPDefaultPolicy`로 자동 확인 가능한 freeze 기본값 테스트
+- [x] `scripts/verify_mvp_freeze.sh`로 build/test/제외 권한 문자열 검증
 - [ ] interaction log 생성 후 삭제 확인
 - [ ] debug export 생성 후 삭제 확인
 - [ ] 생성 파일에 raw title/text value가 없는지 확인

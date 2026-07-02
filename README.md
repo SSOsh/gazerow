@@ -104,6 +104,8 @@ gazerow/
     WindowTitleHasherTests.swift
     DebugExportManagerTests.swift
   plans/                      # 계획/티켓/결정 문서
+  scripts/
+    verify_mvp_freeze.sh      # TICKET-011 freeze 사전 검증
 ```
 
 ## 평가 준비 문서
@@ -136,6 +138,9 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 ```bash
 # 테스트 실행
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
+
+# MVP freeze 사전 검증
+scripts/verify_mvp_freeze.sh
 ```
 
 ## TICKET-001 완료 기준
