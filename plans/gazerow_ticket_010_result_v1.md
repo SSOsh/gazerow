@@ -9,14 +9,17 @@
 - v6: focused label confirm에서 AXPress click execution까지 runtime wiring이 완료됐고, risky second confirm/click logging이 다음 차단 항목임을 기록.
 - v7: risky action second confirm runtime flow가 완료됐고, click attempt/completed logging이 다음 차단 항목임을 기록.
 - v8: click attempt/completed interaction log wiring이 완료되어 TICKET-010 수동 평가 재시도 가능 상태로 갱신.
+- v9: TICKET-010 재시도 전 권한 precheck에서 Accessibility 권한이 not granted임을 확인하고 평가 차단 상태로 갱신.
 
 ## 1. 상태
 
-현재 상태: `READY_FOR_MANUAL_EVALUATION_RETRY`
+현재 상태: `BLOCKED_PENDING_ACCESSIBILITY_PERMISSION`
 
 자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 당시 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않았다.
 
-이후 1차 runtime wiring으로 메뉴바 activation에서 target resolve, scan, overlay show까지 연결했고, overlay keyboard command를 FocusEngine과 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label confirm의 AXPress click execution wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 완료했다. 이제 5개 앱 task 수행, 내부 사용자 3명 평가, 30분 crash-free 세션을 재시도할 수 있다.
+이후 1차 runtime wiring으로 메뉴바 activation에서 target resolve, scan, overlay show까지 연결했고, overlay keyboard command를 FocusEngine과 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label confirm의 AXPress click execution wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 완료했다.
+
+2026-07-02 12:58:32 KST에 수동 평가 재시도 전 precheck를 수행했지만, 현재 실행 환경에서 Accessibility 권한이 `not granted`로 확인됐다. AX tree scan과 AXPress가 모두 Accessibility 권한에 의존하므로 5개 앱 task 수행은 권한 부여 후 재시도해야 한다.
 
 ## 2. 평가 전 체크리스트
 
@@ -26,13 +29,13 @@
 | 평가자 | PENDING_MANUAL_EVALUATION |
 | macOS version | macOS 26.2 (25C56) |
 | Xcode version | Xcode 26.6 (17F113) |
-| GazeRow commit | `ae06d01` |
+| GazeRow commit | `76c8555` |
 | 빌드 방식 | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build` |
 | build result | pass |
 | test result | pass, 95 tests, 0 failures |
 | run smoke result | pass, launched and stayed running for 5 seconds before manual interrupt |
 | freeze verification result | pass, `scripts/verify_mvp_freeze.sh` |
-| Accessibility 권한 | PENDING_RUNTIME_WIRING |
+| Accessibility 권한 | not granted, blocks manual evaluation retry |
 | Input Monitoring 권한 | not requested |
 | Screen Recording 권한 | not requested |
 | Camera 권한 | not requested |
@@ -50,6 +53,8 @@
 | run smoke | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run` | pass, launched and stayed running for 5 seconds before manual interrupt |
 | freeze verification | `scripts/verify_mvp_freeze.sh` | pass |
 | manual evaluation attempt | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run` | pass, app process launched, but no runtime activation path exists for 5-app click tasks |
+| permission precheck | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift -e 'import ApplicationServices; print(AXIsProcessTrusted())'` | false |
+| runtime wiring focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'OverlaySessionControllerTests\|OverlaySessionClickTargetResolverTests'` | pass, 24 tests, 0 failures |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -66,7 +71,7 @@
 
 - 현재 빌드는 overlay 표시, keyboard focus/label jump, focus interaction log, AXPress click execution, risky action second confirm, click attempt/completed interaction log 진입점까지 갖췄다.
 - 이전 차단 사유였던 runtime wiring 부재는 해소됐다.
-- TICKET-010 5개 앱 수동 평가를 재시도한다.
+- Accessibility 권한이 아직 부여되지 않아 TICKET-010 5개 앱 수동 평가는 권한 부여 후 재시도한다.
 
 ## 4. 앱별 평가 기록
 
@@ -280,11 +285,11 @@ AppSupportReport
 ## 7. Go/No-Go 판정
 
 ```text
-Decision: PENDING_MANUAL_EVALUATION_RETRY
-Reason: runtime wiring 차단은 해소됐고, 5개 앱 task/30분 세션/내부 사용자 평가가 아직 필요하다.
+Decision: BLOCKED_PENDING_ACCESSIBILITY_PERMISSION
+Reason: runtime wiring 차단은 해소됐지만 현재 실행 환경에서 Accessibility 권한이 부여되지 않았다.
 Required fixes before freeze: TBD after manual evaluation retry
 Known limitations to document: TICKET-010 재시도 후 확정
-Next ticket: runtime activation/wiring 구현 후 TICKET-010 재시도. TICKET-011 최종 확정은 그 이후에만 가능
+Next ticket: Accessibility 권한 부여 후 TICKET-010 5개 앱 수동 평가 재시도. TICKET-011 최종 확정은 그 이후에만 가능
 ```
 
 ## 8. 남은 수동 작업
@@ -296,7 +301,8 @@ Next ticket: runtime activation/wiring 구현 후 TICKET-010 재시도. TICKET-0
 - [x] AXPress click execution wiring 구현
 - [x] risky action second confirm runtime flow 구현
 - [x] click attempt/completed interaction log wiring 구현
-- [ ] Accessibility 권한 부여와 Settings/onboarding 확인
+- [!] Accessibility 권한 부여와 Settings/onboarding 확인
+  - blocked: 2026-07-02 12:58:32 KST precheck에서 `AXIsProcessTrusted()`가 false 반환
 - [ ] Finder task 수행
 - [ ] Safari task 수행
 - [ ] Chrome task 수행

@@ -2,6 +2,7 @@
 
 ## 변경 이력
 - v1: TICKET-010 수동 평가 차단 해소를 위한 end-to-end overlay session wiring 작업 목록을 정의.
+- v2: runtime wiring 완료 후 Accessibility 권한 precheck 차단 상태를 기록.
 
 ## 1. 목적
 
@@ -24,8 +25,9 @@ TICKET-010 수동 평가를 재시도하려면 현재 개별 구성요소로만 
 
 ### Phase 4: Evaluation Retry
 - [x] 4.1 `scripts/verify_mvp_freeze.sh` 재실행
-- [ ] 4.2 TICKET-010 5개 앱 수동 평가 재시도
-- [ ] 4.3 README, handoff, freeze package 상태 갱신
+- [!] 4.2 TICKET-010 5개 앱 수동 평가 재시도
+  - blocked: 2026-07-02 12:58:32 KST precheck에서 `AXIsProcessTrusted()`가 false 반환
+- [x] 4.3 README, handoff, freeze package 상태 갱신
 
 ## 3. 제한
 
