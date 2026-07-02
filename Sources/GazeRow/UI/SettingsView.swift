@@ -22,6 +22,15 @@ struct SettingsView: View {
     /// Known Limitations 시트 표시 여부.
     @State private var showLimitations = false
 
+    /// interaction 로그 저장소.
+    @State private var logStore = InteractionLogStore()
+
+    /// AX debug export 매니저.
+    @State private var debugExport = DebugExportManager()
+
+    /// interaction 저장 opt-in 토글 바인딩 상태.
+    @State private var isInteractionLoggingEnabled = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
@@ -42,6 +51,10 @@ struct SettingsView: View {
 
             privacySection
 
+            Divider()
+
+            diagnosticsSection
+
             footer
 
             Spacer(minLength: 0)
@@ -49,13 +62,14 @@ struct SettingsView: View {
         .padding(24)
         .frame(width: 420, height: 560)
         .onAppear {
-            permissionManager.refresh()
+            refreshPermission()
             onboarding.presentIfNeeded()
+            isInteractionLoggingEnabled = logStore.isOptInEnabled
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
         ) { _ in
-            permissionManager.refresh()
+            refreshPermission()
         }
         .sheet(isPresented: $onboarding.isPresenting) {
             OnboardingView(onboarding: onboarding)
@@ -117,7 +131,7 @@ struct SettingsView: View {
                     permissionManager.openAccessibilitySettings()
                 }
                 Button("Recheck") {
-                    permissionManager.refresh()
+                    refreshPermission()
                 }
             }
             .controlSize(.small)
@@ -191,6 +205,44 @@ struct SettingsView: View {
         }
     }
 
+    /// interaction 로그 opt-in과 로그/진단 export 관리 섹션.
+    private var diagnosticsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Diagnostics")
+                .font(.headline)
+
+            Toggle("Store interaction logs", isOn: $isInteractionLoggingEnabled)
+                .onChange(of: isInteractionLoggingEnabled) { _, newValue in
+                    logStore.isOptInEnabled = newValue
+                }
+                .toggleStyle(.switch)
+                .controlSize(.small)
+
+            Text(AppContent.interactionLoggingNotice)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                Button("Delete Logs") {
+                    logStore.deleteAll()
+                }
+                Button("Create Debug Export") {
+                    _ = try? debugExport.createExport()
+                }
+                Button("Delete Export") {
+                    debugExport.deleteAll()
+                }
+            }
+            .controlSize(.small)
+
+            Text(AppContent.debugExportNotice)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     /// Known Limitations 열람 진입점.
     private var footer: some View {
         Button("Known Limitations…") {
@@ -200,6 +252,15 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    /// 권한 상태를 갱신하고 결과를 Info 로그로 남긴다.
+    ///
+    /// - Note: 상태 코드(granted/notGranted)만 기록하며 민감정보는 남기지 않는다.
+    private func refreshPermission() {
+        permissionManager.refresh()
+        let granted = permissionManager.accessibilityStatus == .granted
+        AppLogger.permission.info("accessibility granted=\(granted, privacy: .public)")
+    }
 
     /// 라벨과 값을 좌우로 배치한 행.
     private func labeledRow(_ label: String, _ value: String) -> some View {

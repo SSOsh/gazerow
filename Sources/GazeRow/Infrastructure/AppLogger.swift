@@ -19,4 +19,15 @@ enum AppLogger {
 
     /// 세션 활성/비활성(kill switch) 상태 변화 로거.
     static let session = Logger(subsystem: subsystem, category: "session")
+
+    /// Accessibility 등 권한 상태 변화 로거.
+    static let permission = Logger(subsystem: subsystem, category: "permission")
+
+    /// overlay open/close 등 표시 상태 로거.
+    static let overlay = Logger(subsystem: subsystem, category: "overlay")
+
+    /// interaction(focus/click) 관련 Info 로거.
+    ///
+    /// - Note: raw window title, text value 등 민감정보는 이 로거로 기록하지 않는다.
+    static let interaction = Logger(subsystem: subsystem, category: "interaction")
 }

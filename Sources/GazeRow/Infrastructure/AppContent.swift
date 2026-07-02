@@ -60,6 +60,21 @@ enum AppContent {
         "Gaze/camera features are Post-MVP and disabled in this build."
     ]
 
+    // MARK: - Diagnostics
+
+    /// interaction 로그 저장 opt-in 토글 안내 문구.
+    static let interactionLoggingNotice = """
+    When enabled, GazeRow stores minimal interaction events (focus/click) locally. \
+    Window titles are stored only as a per-session hash; raw titles and text values \
+    are never written.
+    """
+
+    /// debug export 안내 문구.
+    static let debugExportNotice = """
+    Debug Export saves a plain-text snapshot of current diagnostics for \
+    troubleshooting. It does not include raw window titles or text values.
+    """
+
     // MARK: - App Support
 
     /// 지원/제한/미확인 앱 구분 목록.
