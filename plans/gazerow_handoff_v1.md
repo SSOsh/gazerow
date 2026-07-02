@@ -29,6 +29,7 @@
 - `gazerow_decisions_v1.md`
 - `gazerow_known_limitations_v1.md`
 - `gazerow_ticket_010_prep_v1.md`
+- `gazerow_ticket_010_result_v1.md`
 
 현재 기준 문서:
 
@@ -52,6 +53,7 @@
 1. `gazerow_evaluation_template_v1.md`
 2. `gazerow_ticket_010_prep_v1.md`
 3. `gazerow_known_limitations_v1.md`
+4. `gazerow_ticket_010_result_v1.md`
 
 ## 4. 핵심 결정 요약
 
@@ -126,6 +128,7 @@ gazerow_known_limitations_v1.md
 gazerow_mvp_v2.md
 gazerow_ticket_001_spec_v1.md
 gazerow_ticket_010_prep_v1.md
+gazerow_ticket_010_result_v1.md
 gazerow_tickets_v1.md
 ```
 
@@ -133,5 +136,4 @@ gazerow_tickets_v1.md
 
 필요할 때만 만든다.
 
-- `gazerow_ticket_010_result_v1.md`: 실제 TICKET-010 평가 결과
 - `gazerow_mvp_freeze_package_v1.md`: TICKET-011 freeze package
