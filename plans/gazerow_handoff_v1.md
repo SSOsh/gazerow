@@ -15,7 +15,8 @@
 
 ## 2. 현재 상태
 
-현재는 TICKET-001부터 TICKET-009까지 구현된 뒤, TICKET-010 Baseline Evaluation Run 착수 전 단계다.
+현재는 TICKET-001부터 TICKET-009까지 구현됐고, TICKET-010 사전 검증과 TICKET-011 freeze 준비 산출물이 완료된 상태다.
+TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정은 아직 남아 있다.
 
 완료된 구현/문서:
 
@@ -27,6 +28,7 @@
 - diagnostics 삭제/생성 액션 상태 피드백
 - MVP freeze 기본값 자동 감사
 - MVP freeze 사전 검증 스크립트
+- TICKET-011 freeze package / distribution checklist 초안
 - first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
 - `gazerow_evaluation_template_v1.md`
@@ -102,12 +104,13 @@ Deferred:
 
 추천 순서:
 
-1. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` 재확인
+1. `scripts/verify_mvp_freeze.sh` 재확인
 2. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
 3. Accessibility 권한 부여 및 Settings/onboarding 확인
-4. `gazerow_evaluation_template_v1.md`를 복사해 평가 결과 기록
+4. `gazerow_ticket_010_result_v1.md`에 평가 결과 기록
 5. Finder, Safari, Chrome, VS Code, System Settings 순서로 고정 task 수행
-6. go/no-go 결론과 TICKET-011 착수 가능 여부 기록
+6. go/no-go 결론 작성
+7. TICKET-011 freeze package와 known limitations/app support tiers 최종 갱신
 
 ## 7. 작업 중 지켜야 할 제한
 

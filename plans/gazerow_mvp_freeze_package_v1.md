@@ -5,9 +5,9 @@
 
 ## 1. 상태
 
-현재 상태: `DRAFT_BLOCKED_PENDING_TICKET_010`
+현재 상태: `DRAFT_PREP_COMPLETE_BLOCKED_PENDING_TICKET_010`
 
-이 문서는 TICKET-011의 준비 가능한 산출물이다. TICKET-010 Baseline Evaluation Run의 실제 앱별 결과와 go/no-go 판정이 없으므로 MVP freeze 완료로 간주하지 않는다.
+이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 실제 앱별 결과와 go/no-go 판정이 없으므로 MVP freeze 완료로 간주하지 않는다.
 
 ## 2. Freeze 대상
 
