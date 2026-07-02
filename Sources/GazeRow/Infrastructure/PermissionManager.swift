@@ -34,10 +34,18 @@ final class PermissionManager {
     /// 테스트에서는 고정 Bool을 반환하는 클로저를 주입한다.
     private let trustCheck: () -> Bool
 
+    /// Accessibility 권한 요청 프롬프트 실행 함수.
+    /// 테스트에서는 호출 여부만 기록하는 클로저를 주입한다.
+    private let permissionRequest: @MainActor () -> Void
+
     /// - Parameter trustCheck: Accessibility 신뢰 여부를 반환하는 클로저.
     ///   기본값은 `AXIsProcessTrusted()`이며, 프롬프트를 띄우지 않고 상태만 조회한다.
-    init(trustCheck: @escaping () -> Bool = { AXIsProcessTrusted() }) {
+    init(
+        trustCheck: @escaping () -> Bool = { AXIsProcessTrusted() },
+        permissionRequest: @escaping @MainActor () -> Void = PermissionManager.requestSystemAccessibilityPermission
+    ) {
         self.trustCheck = trustCheck
+        self.permissionRequest = permissionRequest
         self.accessibilityStatus = trustCheck() ? .granted : .notGranted
     }
 
@@ -70,11 +78,7 @@ final class PermissionManager {
     /// PR-001에 따라 첫 overlay activation 전 안내/요청 용도로 사용한다.
     /// 시스템이 System Settings로 유도하는 프롬프트를 표시하고, 이후 상태를 갱신한다.
     func requestAccessibilityPermission() {
-        // kAXTrustedCheckOptionPrompt의 값. 전역 상수 직접 참조는 Swift 6
-        // strict concurrency에서 non-Sendable var로 취급되어 문자열 값을 사용한다.
-        let promptKey = "AXTrustedCheckOptionPrompt"
-        let options = [promptKey: true] as CFDictionary
-        _ = AXIsProcessTrustedWithOptions(options)
+        permissionRequest()
         refresh()
     }
 
@@ -86,5 +90,13 @@ final class PermissionManager {
             return
         }
         NSWorkspace.shared.open(url)
+    }
+
+    private static func requestSystemAccessibilityPermission() {
+        // kAXTrustedCheckOptionPrompt의 값. 전역 상수 직접 참조는 Swift 6
+        // strict concurrency에서 non-Sendable var로 취급되어 문자열 값을 사용한다.
+        let promptKey = "AXTrustedCheckOptionPrompt"
+        let options = [promptKey: true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
     }
 }

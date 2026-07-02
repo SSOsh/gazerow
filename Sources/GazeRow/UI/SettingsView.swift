@@ -133,6 +133,11 @@ struct SettingsView: View {
             }
 
             HStack(spacing: 8) {
+                if permissionManager.accessibilityStatus == .notGranted {
+                    Button("Request Permission") {
+                        requestAccessibilityPermission()
+                    }
+                }
                 Button("Open System Settings") {
                     permissionManager.openAccessibilitySettings()
                 }
@@ -284,6 +289,13 @@ struct SettingsView: View {
         permissionManager.refresh()
         let granted = permissionManager.accessibilityStatus == .granted
         AppLogger.permission.info("accessibility granted=\(granted, privacy: .public)")
+    }
+
+    /// Accessibility 권한 요청 프롬프트를 띄운 뒤 현재 상태를 기록한다.
+    private func requestAccessibilityPermission() {
+        permissionManager.requestAccessibilityPermission()
+        let granted = permissionManager.accessibilityStatus == .granted
+        AppLogger.permission.info("accessibility request completed granted=\(granted, privacy: .public)")
     }
 
     /// 라벨과 값을 좌우로 배치한 행.

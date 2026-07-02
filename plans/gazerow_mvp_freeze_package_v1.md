@@ -3,12 +3,13 @@
 ## 변경 이력
 - v1: TICKET-011 착수 전 freeze package 초안 작성. TICKET-010 수동 평가 결과가 필요한 항목은 명시적으로 보류.
 - v2: runtime wiring 완료 후 Accessibility 권한 precheck 차단 상태를 반영.
+- v3: Settings Accessibility 권한 요청 버튼 연결과 freeze 검증 통과 상태를 반영.
 
 ## 1. 상태
 
 현재 상태: `DRAFT_PREP_COMPLETE_BLOCKED_PENDING_ACCESSIBILITY_AND_TICKET_010_MANUAL_EVALUATION`
 
-이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 실제 앱별 결과와 go/no-go 판정이 없으므로 MVP freeze 완료로 간주하지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 12:58:32 KST precheck에서 Accessibility 권한이 `not granted`로 확인됐으므로 권한 부여 후 TICKET-010 수동 평가를 재시도해야 한다.
+이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 실제 앱별 결과와 go/no-go 판정이 없으므로 MVP freeze 완료로 간주하지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 권한 요청 버튼 연결 후 `scripts/verify_mvp_freeze.sh`가 120 tests, 0 failures로 통과했다. 현재 Accessibility 권한이 `not granted`로 확인됐으므로 권한 부여 후 TICKET-010 수동 평가를 재시도해야 한다.
 
 ## 2. Freeze 대상
 
@@ -144,6 +145,7 @@ Freeze 진행 조건:
 현재 차단:
 
 - Accessibility 권한 not granted
+- 권한 부여 후 Settings에서 `Request Permission` / `Recheck` 동선 확인 필요
 - TICKET-010 5개 앱 수동 평가 미완료
 - `gazerow_ticket_010_result_v1.md`의 앱별 `PENDING_MANUAL_EVALUATION` 값 미기입
 - 내부 사용자 3명 평가 미완료

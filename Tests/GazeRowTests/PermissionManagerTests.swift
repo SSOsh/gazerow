@@ -65,6 +65,30 @@ final class PermissionManagerTests: XCTestCase {
         XCTAssertFalse(sut.canActivateOverlay)
     }
 
+    // MARK: - requestAccessibilityPermission
+
+    func test_requestAccessibilityPermission_요청후_권한상태를_갱신() {
+        // given
+        var trusted = false
+        var requestCallCount = 0
+        let sut = PermissionManager(
+            trustCheck: { trusted },
+            permissionRequest: {
+                requestCallCount += 1
+                trusted = true
+            }
+        )
+        XCTAssertEqual(sut.accessibilityStatus, .notGranted)
+
+        // when
+        sut.requestAccessibilityPermission()
+
+        // then
+        XCTAssertEqual(requestCallCount, 1)
+        XCTAssertEqual(sut.accessibilityStatus, .granted)
+        XCTAssertTrue(sut.canActivateOverlay)
+    }
+
     // MARK: - 안내 문구
 
     func test_overlayUnavailableReason_권한없을때_안내문구_제공() {
