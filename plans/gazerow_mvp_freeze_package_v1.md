@@ -5,9 +5,9 @@
 
 ## 1. 상태
 
-현재 상태: `DRAFT_PREP_COMPLETE_BLOCKED_PENDING_TICKET_010`
+현재 상태: `DRAFT_PREP_COMPLETE_BLOCKED_PENDING_RUNTIME_WIRING_AND_TICKET_010`
 
-이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 실제 앱별 결과와 go/no-go 판정이 없으므로 MVP freeze 완료로 간주하지 않는다.
+이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 실제 앱별 결과와 go/no-go 판정이 없으므로 MVP freeze 완료로 간주하지 않는다. 2026-07-02 수동 평가 착수 결과 현재 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 먼저 재시도할 수 없다.
 
 ## 2. Freeze 대상
 
@@ -142,6 +142,7 @@ Freeze 진행 조건:
 
 현재 차단:
 
+- end-to-end overlay activation/click runtime wiring 미연결
 - `gazerow_ticket_010_result_v1.md`의 앱별 `PENDING_MANUAL_EVALUATION` 값 미기입
 - 내부 사용자 3명 평가 미완료
 - go/no-go 판정 미작성
@@ -167,10 +168,10 @@ Freeze 진행 조건:
 
 ```text
 Decision: PENDING_TICKET_010
-Reason: 실제 앱별 평가와 내부 사용자 평가가 필요하다.
-Required fixes before freeze: TBD after TICKET-010
+Reason: 실제 앱별 평가와 내부 사용자 평가가 필요하며, 현재 빌드는 5개 앱 task를 수행할 runtime activation path가 없다.
+Required fixes before freeze: runtime activation/wiring 구현 후 TICKET-010 재시도
 Known limitations to update: TBD after TICKET-010
-Next ticket: complete TICKET-010 manual evaluation, then finalize TICKET-011
+Next ticket: implement runtime activation/wiring, rerun TICKET-010 manual evaluation, then finalize TICKET-011
 ```
 
 ---

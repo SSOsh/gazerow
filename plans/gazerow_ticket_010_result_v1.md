@@ -2,12 +2,13 @@
 
 ## 변경 이력
 - v1: TICKET-010 Baseline Evaluation Run의 사전 검증 결과와 수동 평가 기록지를 생성.
+- v2: 수동 평가 착수 중 현재 빌드에 end-to-end overlay activation/click runtime 진입점이 없어 5개 앱 task를 수행할 수 없음을 기록.
 
 ## 1. 상태
 
-현재 상태: `IN_PROGRESS`
+현재 상태: `BLOCKED_RUNTIME_WIRING_REQUIRED`
 
-자동 사전 검증은 완료했다. 실제 5개 앱 task 수행, 내부 사용자 3명 평가, 30분 crash-free 세션은 로컬 GUI에서 수동 진행이 필요하다.
+자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 현재 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않다. 따라서 5개 앱 task 수행, 내부 사용자 3명 평가, 30분 crash-free 세션은 runtime wiring 구현 후 재시도해야 한다.
 
 ## 2. 평가 전 체크리스트
 
@@ -23,7 +24,7 @@
 | test result | pass, 95 tests, 0 failures |
 | run smoke result | pass, launched and stayed running for 5 seconds before manual interrupt |
 | freeze verification result | pass, `scripts/verify_mvp_freeze.sh` |
-| Accessibility 권한 | PENDING_MANUAL_EVALUATION |
+| Accessibility 권한 | PENDING_RUNTIME_WIRING |
 | Input Monitoring 권한 | not requested |
 | Screen Recording 권한 | not requested |
 | Camera 권한 | not requested |
@@ -40,6 +41,24 @@
 | test | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 95 tests, 0 failures |
 | run smoke | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run` | pass, launched and stayed running for 5 seconds before manual interrupt |
 | freeze verification | `scripts/verify_mvp_freeze.sh` | pass |
+| manual evaluation attempt | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run` | pass, app process launched, but no runtime activation path exists for 5-app click tasks |
+
+## 3.1 수동 평가 착수 결과
+
+2026-07-02 12:19:56 KST 기준으로 앱 실행은 성공했다.
+
+확인 내용:
+
+- `GazeRow` 프로세스가 `.build/arm64-apple-macosx/debug/GazeRow`로 실행됨.
+- 메뉴바/Settings/권한/세션 UI는 앱 런타임에 연결되어 있음.
+- `TargetResolver`, `AccessibilityScanner`, `OverlayWindowController`, `FocusEngine`, `ClickExecutor`는 단위 테스트와 개별 구성요소로 존재하지만, 실제 사용자 activation 경로에서 함께 호출되지 않음.
+- AppDelegate/GazeRowApp 주석과 코드 기준으로 global hotkey/event tap/overlay/click은 런타임 범위에 연결되어 있지 않음.
+
+결론:
+
+- 현재 빌드에서는 Finder/Safari/Chrome/VS Code/System Settings의 고정 task를 GazeRow로 수행할 수 없다.
+- 이는 앱별 AX 지원성 실패가 아니라 end-to-end overlay session wiring 부재로 인한 평가 차단이다.
+- TICKET-010은 runtime activation/wiring 구현 후 재시도해야 한다.
 
 ## 4. 앱별 평가 기록
 
@@ -238,6 +257,8 @@ AppSupportReport
 | VS Code | PENDING | TBD | TBD | TBD | TBD | TBD | TBD |
 | System Settings | PENDING | TBD | TBD | TBD | TBD | TBD | TBD |
 
+현재 값은 앱별 실패값이 아니라 평가 미실행값이다. runtime activation/wiring 구현 전에는 앱별 pass/fail을 판정하지 않는다.
+
 ## 6. Safety 결과
 
 | 항목 | 결과 |
@@ -252,15 +273,16 @@ AppSupportReport
 
 ```text
 Decision: PENDING_MANUAL_EVALUATION
-Reason: 5개 앱 task, 30분 crash-free 세션, 내부 사용자 3명 평가가 아직 필요하다.
-Required fixes before freeze: TBD
-Known limitations to document: TBD
-Next ticket: TICKET-011, TICKET-010 결과가 GO 또는 CONDITIONAL-GO일 때만 착수
+Reason: 5개 앱 task를 수행할 runtime activation path가 현재 빌드에 없다.
+Required fixes before freeze: end-to-end overlay session wiring(global activation or menu action, target resolve, scan, overlay show, keyboard focus/label jump, AXPress click execution, interaction logging)
+Known limitations to document: TICKET-010 재시도 후 확정
+Next ticket: runtime activation/wiring 구현 후 TICKET-010 재시도. TICKET-011 최종 확정은 그 이후에만 가능
 ```
 
 ## 8. 남은 수동 작업
 
-- [ ] `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
+- [x] `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
+- [ ] runtime activation/wiring 구현
 - [ ] Accessibility 권한 부여와 Settings/onboarding 확인
 - [ ] Finder task 수행
 - [ ] Safari task 수행
