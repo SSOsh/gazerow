@@ -5,12 +5,13 @@
 - v2: runtime wiring 완료 후 Accessibility 권한 precheck 차단 상태를 반영.
 - v3: Settings Accessibility 권한 요청 버튼 연결과 freeze 검증 통과 상태를 반영.
 - v4: Show Overlay 권한 실패 시 권한 요청/설정 이동 경로와 123 tests 검증 결과를 반영.
+- v5: `--request-accessibility` 런치 옵션과 125 tests 검증 결과를 반영.
 
 ## 1. 상태
 
 현재 상태: `DRAFT_PREP_COMPLETE_BLOCKED_PENDING_ACCESSIBILITY_AND_TICKET_010_MANUAL_EVALUATION`
 
-이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 실제 앱별 결과와 go/no-go 판정이 없으므로 MVP freeze 완료로 간주하지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:42:19 KST에는 Settings와 Show Overlay 권한 실패 경로의 Accessibility 권한 요청 동선 연결 후 `scripts/verify_mvp_freeze.sh`가 123 tests, 0 failures로 통과했다. 현재 Accessibility 권한이 `not granted`로 확인됐으므로 권한 부여 후 TICKET-010 수동 평가를 재시도해야 한다.
+이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 실제 앱별 결과와 go/no-go 판정이 없으므로 MVP freeze 완료로 간주하지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:45:35 KST에는 Settings, Show Overlay 권한 실패 경로, `--request-accessibility` 런치 옵션의 Accessibility 권한 요청 동선 연결 후 `scripts/verify_mvp_freeze.sh`가 125 tests, 0 failures로 통과했다. 현재 Accessibility 권한이 `not granted`로 확인됐으므로 권한 부여 후 TICKET-010 수동 평가를 재시도해야 한다.
 
 ## 2. Freeze 대상
 
@@ -74,6 +75,7 @@ scripts/verify_mvp_freeze.sh
 - `xcode-select`가 Command Line Tools를 가리켜도 위처럼 `DEVELOPER_DIR`를 지정하면 된다.
 - 실행 후 Dock 아이콘 없이 메뉴바 status item이 표시된다.
 - Settings는 메뉴바 아이콘의 **Open Settings**로 연다.
+- 권한 요청 동선은 `swift run GazeRow -- --request-accessibility`로 바로 열 수 있다.
 - 실제 scanner/overlay 평가에는 Accessibility 권한이 필요하다.
 
 ## 5. 기능 플래그/기본값 확인
@@ -146,7 +148,7 @@ Freeze 진행 조건:
 현재 차단:
 
 - Accessibility 권한 not granted
-- 권한 부여 후 Settings `Request Permission` / `Recheck`와 Show Overlay 권한 실패 동선 확인 필요
+- 권한 부여 후 Settings `Request Permission` / `Recheck`, Show Overlay 권한 실패 동선, `--request-accessibility` 런치 옵션 확인 필요
 - TICKET-010 5개 앱 수동 평가 미완료
 - `gazerow_ticket_010_result_v1.md`의 앱별 `PENDING_MANUAL_EVALUATION` 값 미기입
 - 내부 사용자 3명 평가 미완료

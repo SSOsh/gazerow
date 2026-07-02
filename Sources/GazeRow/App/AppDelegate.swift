@@ -27,6 +27,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Accessibility 권한 요청/설정 이동을 담당한다.
     private let permissionManager = PermissionManager()
 
+    /// 실행 시 전달된 로컬 평가/복구 옵션.
+    private let launchOptions = AppLaunchOptions.current
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 메뉴바 앱: Dock 아이콘 없이 accessory 모드로 동작.
         NSApp.setActivationPolicy(.accessory)
@@ -38,6 +41,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !onboarding.hasCompleted {
             openSettings()
         }
+
+        requestAccessibilityPermissionIfRequested()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -158,6 +163,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         permissionManager.requestAccessibilityPermission()
         permissionManager.openAccessibilitySettings()
+    }
+
+    /// 평가자가 CLI로 앱을 실행할 때 권한 요청 동선을 바로 열 수 있게 한다.
+    private func requestAccessibilityPermissionIfRequested() {
+        guard launchOptions.requestsAccessibilityPermission else {
+            return
+        }
+
+        permissionManager.requestAccessibilityPermission()
+        permissionManager.openAccessibilitySettings()
+        AppLogger.permission.info("accessibility request launched from startup option")
     }
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.

@@ -167,6 +167,9 @@ sudo xcodebuild -license accept
 # 빌드 / 실행 (Xcode toolchain 지정)
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
+
+# Accessibility 권한 요청/설정 이동을 바로 열고 실행
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --request-accessibility
 ```
 
 > **주의**: `xcode-select`가 Command Line Tools를 가리키면 SwiftPM manifest
@@ -175,6 +178,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 
 실행하면 Dock 아이콘 없이 메뉴바에 커서 아이콘이 표시된다.
 아이콘 클릭 → **Open Settings** / **Quit** 으로 동작을 확인할 수 있다.
+Accessibility 권한이 없으면 Settings의 **Request Permission** 또는 위 런치 옵션으로
+권한 요청 동선을 열 수 있다.
 
 ```bash
 # 테스트 실행
@@ -200,7 +205,7 @@ scripts/verify_mvp_freeze.sh
 - [x] 권한 없을 때 activation gate + 안내 문구 (`canActivateOverlay` / `overlayUnavailableReason`)
 - [x] Camera / Input Monitoring은 baseline에서 요청하지 않음을 UI에 명시
 - [x] 창 표시 / 앱 활성화 시 자동 refresh + Recheck 버튼
-- [x] 단위 테스트 5건 통과, crash 없이 실행 확인
+- [x] 단위 테스트 6건 통과, crash 없이 실행 확인
 
 ## TICKET-003 완료 기준
 
@@ -299,6 +304,7 @@ scripts/verify_mvp_freeze.sh
 - [x] click attempt/completed interaction log wiring
 - [x] Settings Accessibility 권한 요청 버튼 연결
 - [x] Show Overlay 권한 실패 시 Accessibility 요청/설정 이동 연결
+- [x] `--request-accessibility` 런치 옵션 연결
 - [!] Accessibility 권한 부여와 Settings/onboarding 확인
 - [ ] Finder / Safari / Chrome / VS Code / System Settings 수동 평가
 - [ ] 30분 crash-free manual session 기록

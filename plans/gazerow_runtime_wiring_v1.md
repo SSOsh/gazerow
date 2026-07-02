@@ -5,6 +5,7 @@
 - v2: runtime wiring 완료 후 Accessibility 권한 precheck 차단 상태를 기록.
 - v3: Settings Accessibility 권한 요청 버튼 연결과 검증 통과를 기록.
 - v4: Show Overlay 권한 실패 시 권한 요청/설정 이동 경로와 검증 통과를 기록.
+- v5: `--request-accessibility` 런치 옵션과 검증 통과를 기록.
 
 ## 1. 목적
 
@@ -29,9 +30,10 @@ TICKET-010 수동 평가를 재시도하려면 현재 개별 구성요소로만 
 - [x] 4.1 `scripts/verify_mvp_freeze.sh` 재실행
 - [x] 4.2 Settings Accessibility 권한 요청 버튼 연결
 - [x] 4.3 Show Overlay 권한 실패 시 Accessibility 요청/설정 이동 연결
-- [!] 4.4 TICKET-010 5개 앱 수동 평가 재시도
+- [x] 4.4 `--request-accessibility` 런치 옵션 연결
+- [!] 4.5 TICKET-010 5개 앱 수동 평가 재시도
   - blocked: 2026-07-02 12:58:32 KST precheck에서 `AXIsProcessTrusted()`가 false 반환
-- [x] 4.5 README, handoff, freeze package 상태 갱신
+- [x] 4.6 README, handoff, freeze package 상태 갱신
 
 ## 3. 제한
 
