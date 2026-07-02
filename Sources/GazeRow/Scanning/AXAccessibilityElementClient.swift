@@ -8,6 +8,8 @@ import Foundation
 /// @since 2026-07-02
 @MainActor
 struct AXAccessibilityElementClient: AccessibilityElementClient {
+    private let rootElementSelector = AccessibilityRootElementSelector<AXUIElement>()
+    private let messagingTimeout: Float = 1.0
 
     func rootElement(for context: TargetContext) -> Result<AXUIElement, AccessibilityScanFailure> {
         guard AXIsProcessTrusted() else {
@@ -15,10 +17,30 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         }
 
         let applicationElement = AXUIElementCreateApplication(context.application.processIdentifier)
+        AXUIElementSetMessagingTimeout(applicationElement, messagingTimeout)
+
+        return rootElementSelector.select(
+            focusedWindow: copyWindowElement(kAXFocusedWindowAttribute, from: applicationElement),
+            mainWindow: copyWindowElement(kAXMainWindowAttribute, from: applicationElement),
+            windows: copyWindowElements(from: applicationElement),
+            isUsable: { windowElement in
+                configureTimeout(for: windowElement)
+                guard let frame = copyFrame(from: windowElement) else {
+                    return false
+                }
+                return frame.width > 0 && frame.height > 0
+            }
+        )
+    }
+
+    private func copyWindowElement(
+        _ attribute: String,
+        from applicationElement: AXUIElement
+    ) -> Result<AXUIElement, AccessibilityScanFailure> {
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(
             applicationElement,
-            kAXFocusedWindowAttribute as CFString,
+            attribute as CFString,
             &value
         )
 
@@ -28,7 +50,37 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
             return .failure(.focusedWindowUnavailable(error.localizedDebugDescription))
         }
 
-        return .success(value as! AXUIElement)
+        let windowElement = value as! AXUIElement
+        configureTimeout(for: windowElement)
+        return .success(windowElement)
+    }
+
+    private func copyWindowElements(from applicationElement: AXUIElement) -> [AXUIElement] {
+        var value: AnyObject?
+        let error = AXUIElementCopyAttributeValue(
+            applicationElement,
+            kAXWindowsAttribute as CFString,
+            &value
+        )
+
+        guard error == .success,
+              let values = value as? [AnyObject] else {
+            return []
+        }
+
+        return values.compactMap { value in
+            guard CFGetTypeID(value) == AXUIElementGetTypeID() else {
+                return nil
+            }
+
+            let windowElement = value as! AXUIElement
+            configureTimeout(for: windowElement)
+            return windowElement
+        }
+    }
+
+    private func configureTimeout(for element: AXUIElement) {
+        AXUIElementSetMessagingTimeout(element, messagingTimeout)
     }
 
     func snapshot(of element: AXUIElement) -> AccessibilityElementSnapshot {
