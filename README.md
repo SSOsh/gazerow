@@ -289,7 +289,7 @@ scripts/verify_mvp_freeze.sh
 - [x] 메뉴바 activation에서 target resolve / scan / overlay show 연결
 - [x] activation 실패 사유 sanitized log code 기록
 - [x] overlay keyboard focus / label jump wiring
-- [ ] focus / label jump interaction log wiring
+- [x] focus / label jump interaction log wiring
 - [ ] focused label AXPress click wiring
 - [ ] Finder / Safari / Chrome / VS Code / System Settings 수동 평가
 - [ ] 30분 crash-free manual session 기록
@@ -317,7 +317,7 @@ scripts/verify_mvp_freeze.sh
 
 ## 다음 티켓
 
-- **runtime interaction/click wiring**: focus/label jump log 연결 후 focused label confirm → AXPress click까지 연결
+- **runtime click wiring**: focused label confirm → AXPress click까지 연결
 - 이후 **TICKET-010**: Baseline Evaluation Run 수동 평가 재시도
 - 이후 **TICKET-011**: MVP Freeze Package 최종 확정
 

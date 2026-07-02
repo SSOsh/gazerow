@@ -12,6 +12,9 @@ final class OverlaySessionController {
     private let targetResolver: any OverlaySessionTargetResolving
     private let scanner: any OverlaySessionScanning
     private let overlayPresenter: any OverlaySessionPresenting
+    private let interactionRecorder: any OverlaySessionInteractionRecording
+    private let windowTitleHasher: WindowTitleHasher
+    private let dateProvider: () -> Date
     private let isSessionEnabled: () -> Bool
     private(set) var activeSession: OverlaySessionState?
 
@@ -19,11 +22,17 @@ final class OverlaySessionController {
         targetResolver: any OverlaySessionTargetResolving = TargetResolver(),
         scanner: any OverlaySessionScanning = AccessibilityScanner(client: AXAccessibilityElementClient()),
         overlayPresenter: any OverlaySessionPresenting = OverlayWindowController(),
+        interactionRecorder: any OverlaySessionInteractionRecording = InteractionLogStore(),
+        windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
+        dateProvider: @escaping () -> Date = Date.init,
         isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled }
     ) {
         self.targetResolver = targetResolver
         self.scanner = scanner
         self.overlayPresenter = overlayPresenter
+        self.interactionRecorder = interactionRecorder
+        self.windowTitleHasher = windowTitleHasher
+        self.dateProvider = dateProvider
         self.isSessionEnabled = isSessionEnabled
     }
 
@@ -105,12 +114,38 @@ final class OverlaySessionController {
 
         activeSession = session
         overlayPresenter.updateFocus(focusedLabelID: session.focusEngine.focusedItemID)
+        record(event, context: session.snapshot.context)
         return event
     }
 
     func close() {
         overlayPresenter.close()
         activeSession = nil
+    }
+
+    private func record(_ event: FocusEngineEvent?, context: TargetContext) {
+        guard let event, let kind = interactionKind(for: event) else {
+            return
+        }
+
+        interactionRecorder.record(
+            InteractionEvent(
+                timestamp: dateProvider(),
+                kind: kind,
+                windowTitleHash: windowTitleHasher.hash(context.window.title)
+            )
+        )
+    }
+
+    private func interactionKind(for event: FocusEngineEvent) -> InteractionEventKind? {
+        switch event {
+        case .focusChanged(_, _, let method):
+            .focusChanged(method: method.logCode)
+        case .labelJump(_, let matched, _):
+            .labelJump(matched: matched)
+        case .dryRunConfirm:
+            nil
+        }
     }
 }
 
@@ -157,6 +192,17 @@ protocol OverlaySessionPresenting {
 }
 
 extension OverlayWindowController: OverlaySessionPresenting {}
+
+/// overlay session interaction event recording abstraction.
+///
+/// @author suho.do
+/// @since 2026-07-02
+@MainActor
+protocol OverlaySessionInteractionRecording {
+    func record(_ event: InteractionEvent)
+}
+
+extension InteractionLogStore: OverlaySessionInteractionRecording {}
 
 /// overlay session activation 성공 snapshot.
 ///
@@ -206,6 +252,25 @@ enum OverlaySessionStartFailure: Equatable {
             "scan_failed.\(failure.logCode)"
         case .noCandidates:
             "no_candidates"
+        }
+    }
+}
+
+private extension FocusChangeMethod {
+    var logCode: String {
+        switch self {
+        case .initial:
+            "initial"
+        case .tab:
+            "tab"
+        case .shiftTab:
+            "shiftTab"
+        case .arrowUp:
+            "arrowUp"
+        case .arrowDown:
+            "arrowDown"
+        case .labelJump:
+            "labelJump"
         }
     }
 }

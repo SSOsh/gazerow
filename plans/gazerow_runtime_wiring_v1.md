@@ -15,7 +15,7 @@ TICKET-010 수동 평가를 재시도하려면 현재 개별 구성요소로만 
 
 ### Phase 2: Keyboard Focus Wiring
 - [x] 2.1 overlay keyboard command를 `FocusEngine`에 연결
-- [ ] 2.2 focus/label jump 이벤트를 interaction log에 연결
+- [x] 2.2 focus/label jump 이벤트를 interaction log에 연결
 
 ### Phase 3: Click Execution Wiring
 - [ ] 3.1 focused label confirm을 `AXPress` click execution에 연결

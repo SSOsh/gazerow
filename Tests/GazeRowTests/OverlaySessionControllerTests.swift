@@ -192,6 +192,72 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
     }
 
+    func test_handleKeyboardCommand_focusChanged를_interactionLog에_기록() {
+        // given
+        let recorder = StubInteractionRecorder()
+        let timestamp = Date(timeIntervalSince1970: 10)
+        let hasher = WindowTitleHasher(salt: SessionSalt(value: "test-salt"))
+        let sut = makeStartedSessionController(
+            recorder: recorder,
+            windowTitleHasher: hasher,
+            dateProvider: { timestamp }
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.move(.next))
+
+        // then
+        XCTAssertEqual(
+            recorder.events,
+            [
+                InteractionEvent(
+                    timestamp: timestamp,
+                    kind: .focusChanged(method: "tab"),
+                    windowTitleHash: hasher.hash("Finder")
+                )
+            ]
+        )
+    }
+
+    func test_handleKeyboardCommand_labelJump를_interactionLog에_기록() {
+        // given
+        let recorder = StubInteractionRecorder()
+        let timestamp = Date(timeIntervalSince1970: 20)
+        let hasher = WindowTitleHasher(salt: SessionSalt(value: "test-salt"))
+        let sut = makeStartedSessionController(
+            recorder: recorder,
+            windowTitleHasher: hasher,
+            dateProvider: { timestamp }
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.typeLabel("B"))
+
+        // then
+        XCTAssertEqual(
+            recorder.events,
+            [
+                InteractionEvent(
+                    timestamp: timestamp,
+                    kind: .labelJump(matched: true),
+                    windowTitleHash: hasher.hash("Finder")
+                )
+            ]
+        )
+    }
+
+    func test_handleKeyboardCommand_dryRunConfirm은_interactionLog에_기록하지_않음() {
+        // given
+        let recorder = StubInteractionRecorder()
+        let sut = makeStartedSessionController(recorder: recorder)
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertTrue(recorder.events.isEmpty)
+    }
+
     func test_overlayKeyboardCallback은_controller_focus상태를_갱신() throws {
         // given
         let context = makeContext()
@@ -264,7 +330,10 @@ final class OverlaySessionControllerTests: XCTestCase {
     }
 
     private func makeStartedSessionController(
-        presenter: StubOverlayPresenter = StubOverlayPresenter()
+        presenter: StubOverlayPresenter = StubOverlayPresenter(),
+        recorder: StubInteractionRecorder = StubInteractionRecorder(),
+        windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt(value: "default-test-salt")),
+        dateProvider: @escaping () -> Date = Date.init
     ) -> OverlaySessionController {
         let context = makeContext()
         let resolver = StubOverlayTargetResolver(result: .success(context))
@@ -281,7 +350,10 @@ final class OverlaySessionControllerTests: XCTestCase {
         let sut = OverlaySessionController(
             targetResolver: resolver,
             scanner: scanner,
-            overlayPresenter: presenter
+            overlayPresenter: presenter,
+            interactionRecorder: recorder,
+            windowTitleHasher: windowTitleHasher,
+            dateProvider: dateProvider
         )
         _ = sut.start()
         return sut
@@ -401,4 +473,13 @@ private struct ShowRequest: Equatable {
     let targetFrame: CGRect
     let candidates: [ClickableCandidate]
     let labels: [String]
+}
+
+@MainActor
+private final class StubInteractionRecorder: OverlaySessionInteractionRecording {
+    private(set) var events: [InteractionEvent] = []
+
+    func record(_ event: InteractionEvent) {
+        events.append(event)
+    }
 }
