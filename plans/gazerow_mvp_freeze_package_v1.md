@@ -94,11 +94,13 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 | interaction log 삭제 | Settings의 delete logs 동선과 `InteractionLogStore.deleteAll()` |
 | debug export 생성 | Settings의 manual export 동선과 `DebugExportManager.createExport()` |
 | debug export 삭제 | Settings의 delete export 동선과 `DebugExportManager.deleteAll()` |
+| 삭제/생성 결과 표시 | `DiagnosticsActionFeedback`으로 민감정보 없는 상태 문구 표시 |
 
 Freeze 전 확인:
 
 - [ ] Settings에서 interaction log opt-in 기본 off 확인
 - [x] Settings에서 debug export UI 기본 숨김 확인
+- [x] diagnostics 삭제/생성 액션의 상태 피드백 표시
 - [ ] interaction log 생성 후 삭제 확인
 - [ ] debug export 생성 후 삭제 확인
 - [ ] 생성 파일에 raw title/text value가 없는지 확인

@@ -34,6 +34,9 @@ struct SettingsView: View {
     /// interaction 저장 opt-in 토글 바인딩 상태.
     @State private var isInteractionLoggingEnabled = false
 
+    /// diagnostics 수동 액션 결과 표시 상태.
+    @State private var diagnosticsFeedback = DiagnosticsActionFeedback()
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
@@ -229,18 +232,31 @@ struct SettingsView: View {
             HStack(spacing: 8) {
                 Button("Delete Logs") {
                     logStore.deleteAll()
+                    diagnosticsFeedback.didDeleteLogs()
                 }
 
                 if debugFeatureVisibility.isDebugExportVisible {
                     Button("Create Debug Export") {
-                        _ = try? debugExport.createExport()
+                        do {
+                            _ = try debugExport.createExport()
+                            diagnosticsFeedback.didCreateDebugExport()
+                        } catch {
+                            diagnosticsFeedback.didFailDebugExport()
+                        }
                     }
                     Button("Delete Export") {
                         debugExport.deleteAll()
+                        diagnosticsFeedback.didDeleteDebugExport()
                     }
                 }
             }
             .controlSize(.small)
+
+            if let message = diagnosticsFeedback.message {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             if debugFeatureVisibility.isDebugExportVisible {
                 Text(AppContent.debugExportNotice)
