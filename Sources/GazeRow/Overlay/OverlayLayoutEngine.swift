@@ -18,13 +18,14 @@ struct OverlayLayoutEngine {
         displayInfo: OverlayDisplayInfo = OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
     ) -> OverlayLayout {
         let mapper = OverlayCoordinateMapper(targetFrame: targetFrame)
+        let generatedLabels = LabelGenerator().labels(count: candidates.count)
         var placedLabels: [OverlayLabel] = []
         var collisionCount = 0
         var occlusionCount = 0
 
         for (index, candidate) in candidates.enumerated() {
             let candidateFrame = mapper.mapScreenFrameToLocal(candidate.frame)
-            let text = index < labels.count ? labels[index] : OverlayLabelPolicy.label(for: index)
+            let text = index < labels.count ? labels[index] : generatedLabels[index]
             let proposedFrame = makeInitialLabelFrame(near: candidateFrame, in: mapper.localBounds)
             let placement = mitigateCollision(
                 proposedFrame: proposedFrame,

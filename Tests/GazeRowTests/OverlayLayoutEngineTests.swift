@@ -42,7 +42,7 @@ final class OverlayLayoutEngineTests: XCTestCase {
         XCTAssertTrue(layout.metrics.isRetina)
     }
 
-    func test_makeLayout_labels가_없으면_기본_label을_생성() {
+    func test_makeLayout_labels가_없으면_prefix없는_기본_label을_생성() {
         // given
         let candidates = (0..<28).map { index in
             makeCandidate(frame: CGRect(x: 20 + index * 4, y: 120, width: 2, height: 2))
@@ -56,10 +56,10 @@ final class OverlayLayoutEngineTests: XCTestCase {
         )
 
         // then
-        XCTAssertEqual(layout.labels[0].text, "A")
-        XCTAssertEqual(layout.labels[25].text, "Z")
-        XCTAssertEqual(layout.labels[26].text, "AA")
-        XCTAssertEqual(layout.labels[27].text, "AB")
+        XCTAssertEqual(layout.labels[0].text, "AA")
+        XCTAssertEqual(layout.labels[25].text, "AZ")
+        XCTAssertEqual(layout.labels[26].text, "BA")
+        XCTAssertEqual(layout.labels[27].text, "BB")
     }
 
     func test_makeLayout_labelFrame을_targetBounds안으로_clamp() throws {

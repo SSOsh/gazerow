@@ -3,10 +3,11 @@
 macOS 키보드 클릭 유틸리티 (Homerow 스타일). 화면 위의 클릭 가능한 UI 요소를
 자동으로 찾아 label을 붙이고, 사용자가 키보드로 focus와 click을 수행하게 한다.
 
-> **현재 상태**: TICKET-001부터 TICKET-005까지 core 구현 완료, TICKET-009 UX/문서 구현.
+> **현재 상태**: TICKET-001부터 TICKET-006까지 core 구현 완료, TICKET-009 UX/문서 구현.
 > 메뉴바 앱 shell + Settings window + Accessibility 권한 UX + target resolver
-> + Accessibility scanner + overlay layout/window 기반 + kill switch + onboarding.
-> global hotkey, keyboard focus engine, 실제 click 실행은 아직 없다(TICKET-006+).
+> + Accessibility scanner + overlay layout/window 기반 + focus engine
+> + kill switch + onboarding.
+> global hotkey와 실제 click 실행은 아직 없다(TICKET-007+).
 
 ## MVP 포지셔닝
 
@@ -62,6 +63,11 @@ gazerow/
       OverlayLayoutEngine.swift
       OverlayCoordinateMapper.swift
       OverlayModels.swift
+    Focus/
+      LabelGenerator.swift
+      FocusEngine.swift
+      FocusModels.swift
+      FocusKeyboardCommand.swift
   Tests/GazeRowTests/
     PermissionManagerTests.swift
     SessionControllerTests.swift
@@ -69,6 +75,9 @@ gazerow/
     TargetResolverTests.swift
     AccessibilityScannerTests.swift
     OverlayLayoutEngineTests.swift
+    LabelGeneratorTests.swift
+    FocusEngineTests.swift
+    FocusKeyboardCommandMapperTests.swift
   plans/                      # 계획/티켓/결정 문서
 ```
 
@@ -148,6 +157,20 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 - [x] Retina 여부 판단용 display info 모델 추가
 - [x] `OverlayLayoutEngineTests`로 좌표 변환, label 생성, bounds clamp, collision, occlusion 검증
 
+## TICKET-006 완료 기준
+
+- [x] `LabelGenerator` 추가
+- [x] 26개 초과 후보에서 prefix 충돌 없는 고정 길이 label 생성
+- [x] `FocusEngine` 추가
+- [x] Tab / Shift-Tab 순환 focus 이동
+- [x] Arrow Up / Arrow Down 기반 수직 focus 이동
+- [x] overlay keyboard input → focus command mapper 추가
+- [x] label typing buffer 유지 / 초기화
+- [x] label jump match / miss 이벤트 반환
+- [x] Return click 연결 전 dry-run confirm 이벤트 반환
+- [x] `OverlayView` focused label indicator 추가
+- [x] `LabelGeneratorTests`, `FocusEngineTests`, `FocusKeyboardCommandMapperTests`로 label/focus/keyboard/dry-run 검증
+
 ## TICKET-009 완료 기준
 
 - [x] kill switch(`SessionController`): 메뉴바 · Settings에서 세션 즉시 중단/재개
@@ -159,13 +182,11 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 
 ## 하지 않는 것 (현재 범위 외)
 
-- global hotkey / event tap (TICKET-006+)
-- keyboard focus navigation / label jump (TICKET-006)
 - 실제 click 실행 (TICKET-007+)
 - Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
 
 ## 다음 티켓
 
-- **TICKET-006**: Label Generation and Focus Engine
+- **TICKET-007**: AXPress Click Execution and Safety
 
 자세한 계획은 `plans/` 폴더 참조.

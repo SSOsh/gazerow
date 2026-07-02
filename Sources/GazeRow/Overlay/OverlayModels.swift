@@ -81,15 +81,6 @@ struct OverlayLayoutMetrics: Equatable {
 /// @since 2026-07-02
 enum OverlayLabelPolicy {
     static func label(for index: Int) -> String {
-        let alphabet = Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-        var value = index
-        var characters: [Character] = []
-
-        repeat {
-            characters.insert(alphabet[value % alphabet.count], at: 0)
-            value = (value / alphabet.count) - 1
-        } while value >= 0
-
-        return String(characters)
+        LabelGenerator().label(for: index)
     }
 }
