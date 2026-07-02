@@ -8,6 +8,25 @@ import XCTest
 /// @since 2026-07-02
 final class OverlayLaunchReporterTests: XCTestCase {
 
+    func test_starting_bundleIdentifier를_포함한다() {
+        // given
+        let bundleIdentifier = "com.microsoft.VSCode"
+
+        // when
+        let message = OverlayLaunchReporter.starting(bundleIdentifier: bundleIdentifier)
+
+        // then
+        XCTAssertEqual(message, "GAZEROW_OVERLAY_RESULT starting bundle=com.microsoft.VSCode")
+    }
+
+    func test_starting_bundleIdentifier가_없으면_frontmost를_출력한다() {
+        // when
+        let message = OverlayLaunchReporter.starting(bundleIdentifier: nil)
+
+        // then
+        XCTAssertEqual(message, "GAZEROW_OVERLAY_RESULT starting bundle=<frontmost>")
+    }
+
     func test_success_labelCount를_포함한다() {
         // given
         let labelCount = 12

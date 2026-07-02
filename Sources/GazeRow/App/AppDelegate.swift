@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 
 /// AppKit lifecycle과 메뉴바 status item을 담당하는 delegate.
 ///
@@ -243,6 +244,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(500))
+            printOverlayLaunchResultIfNeeded(
+                OverlayLaunchReporter.starting(bundleIdentifier: launchOptions.targetBundleIdentifier)
+            )
             showOverlay()
         }
     }
@@ -267,6 +271,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         print(message)
+        fflush(stdout)
     }
 
     /// 로컬 평가용 label map을 stdout에 출력한다.
@@ -277,7 +282,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         OverlayLaunchReporter
             .labelMap(layout: snapshot.layout, candidates: snapshot.scanResult.candidates)
-            .forEach { print($0) }
+            .forEach { message in
+                print(message)
+                fflush(stdout)
+            }
     }
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.

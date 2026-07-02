@@ -4,6 +4,10 @@
 /// @since 2026-07-02
 enum OverlayLaunchReporter {
 
+    static func starting(bundleIdentifier: String?) -> String {
+        "GAZEROW_OVERLAY_RESULT starting bundle=\(bundleIdentifier ?? "<frontmost>")"
+    }
+
     static func success(labelCount: Int) -> String {
         "GAZEROW_OVERLAY_RESULT success labels=\(labelCount)"
     }
