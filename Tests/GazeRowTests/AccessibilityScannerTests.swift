@@ -104,6 +104,34 @@ final class AccessibilityScannerTests: XCTestCase {
         )
     }
 
+    func test_scan_defaultDepth는_VSCode_activityBar처럼_깊은_candidate를_수집() {
+        // given
+        let activityBarItem = FakeElement(
+            snapshot: AccessibilityElementSnapshot(
+                role: AccessibilityRole.radioButton,
+                subrole: "AXTabButton",
+                title: nil,
+                value: nil,
+                help: nil,
+                frame: CGRect(x: 0, y: 99, width: 48, height: 48),
+                actions: [AccessibilityAction.press, "AXShowMenu", "AXScrollToVisible"]
+            )
+        )
+        let root = nestedElement(depth: 17, leaf: activityBarItem)
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.radioButton)
+        XCTAssertEqual(scanResult.candidates.first?.subrole, "AXTabButton")
+    }
+
     func test_scan_secureField는_AXPress가_있어도_제외() {
         // given
         let secureField = FakeElement(
@@ -324,6 +352,14 @@ final class AccessibilityScannerTests: XCTestCase {
             frame: frame,
             actions: actions
         )
+    }
+
+    private func nestedElement(depth: Int, leaf: FakeElement) -> FakeElement {
+        guard depth > 0 else {
+            return leaf
+        }
+
+        return FakeElement(children: [nestedElement(depth: depth - 1, leaf: leaf)])
     }
 }
 

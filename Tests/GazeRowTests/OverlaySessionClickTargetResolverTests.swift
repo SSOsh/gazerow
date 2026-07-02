@@ -88,6 +88,35 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
         )
     }
 
+    func test_resolveTargets_defaultDepth는_VSCode_activityBar처럼_깊은_target을_수집() throws {
+        // given
+        let activityBarItem = FakeClickElement(
+            id: 17,
+            snapshot: AccessibilityElementSnapshot(
+                role: AccessibilityRole.radioButton,
+                subrole: "AXTabButton",
+                title: nil,
+                value: nil,
+                help: nil,
+                frame: CGRect(x: 0, y: 99, width: 48, height: 48),
+                actions: [AccessibilityAction.press, "AXShowMenu", "AXScrollToVisible"]
+            )
+        )
+        let root = nestedElement(depth: 17, leaf: activityBarItem)
+        let sut = OverlaySessionClickTargetResolver(
+            client: FakeClickTargetClient(root: .success(root))
+        )
+
+        // when
+        let result = sut.resolveTargets(context: makeContext())
+
+        // then
+        let targets = try unwrapSuccess(result)
+        XCTAssertEqual(targets.first?.element.id, 17)
+        XCTAssertEqual(targets.first?.role, AccessibilityRole.radioButton)
+        XCTAssertEqual(targets.first?.subrole, "AXTabButton")
+    }
+
     func test_resolveTargets_secureField와_frame없는_element는_제외() throws {
         // given
         let secure = FakeClickElement(
@@ -182,6 +211,18 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
             help: nil,
             frame: frame,
             actions: actions
+        )
+    }
+
+    private func nestedElement(depth: Int, leaf: FakeClickElement) -> FakeClickElement {
+        guard depth > 0 else {
+            return leaf
+        }
+
+        return FakeClickElement(
+            id: -depth,
+            snapshot: makeSnapshot(role: "AXGroup", frame: CGRect(x: 0, y: 0, width: 100, height: 100), actions: []),
+            children: [nestedElement(depth: depth - 1, leaf: leaf)]
         )
     }
 

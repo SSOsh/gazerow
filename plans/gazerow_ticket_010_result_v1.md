@@ -18,6 +18,7 @@
 - v15: 30분 crash-free manual session 통과 결과를 기록.
 - v16: 내부 사용자 3명 평가 runbook 준비 상태를 기록.
 - v17: Finder/VS Code candidate coverage 보강 후 fixed task 재평가 필요 상태를 기록.
+- v18: scanner 기본 depth 확장 후 Finder/VS Code label map smoke 개선 결과를 기록.
 
 ## 1. 상태
 
@@ -93,6 +94,9 @@
 | internal user evaluation runbook | `plans/gazerow_internal_user_evaluation_v1.md` | ready, awaiting User 1/User 2/User 3 results |
 | selectable container candidate coverage focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AccessibilityScannerTests\|OverlaySessionClickTargetResolverTests'` | pass, 15 tests, 0 failures |
 | freeze verification after candidate coverage update | `scripts/verify_mvp_freeze.sh` | pass, 150 tests, 0 failures |
+| scanner depth focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AccessibilityScannerTests\|OverlaySessionClickTargetResolverTests'` | pass, 17 tests, 0 failures |
+| VS Code label map smoke after depth update | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` | pass, 29 labels, Activity Bar `AXRadioButton` candidates visible |
+| freeze verification after scanner depth update | `scripts/verify_mvp_freeze.sh` | pass, 183 tests, 0 failures, MVP-excluded check passed |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -111,17 +115,19 @@
 - 이전 차단 사유였던 runtime wiring 부재는 해소됐다.
 - Accessibility 권한과 5개 앱 overlay activation smoke는 통과했다.
 - TICKET-010 5개 앱 실제 click task는 3 pass / 2 fail이다.
-- 이후 Finder/VS Code candidate coverage는 `AXRow` / `AXCell` / `AXImage` 수집 보강으로 개선했다.
+- 이후 Finder/VS Code candidate coverage는 selectable role 수집과 scanner 기본 depth 확장으로 개선했다.
+- Finder label map은 19개에서 63개로 증가했고 `AXRow` / `AXCell` 후보가 수집된다.
+- VS Code label map은 3개에서 29개로 증가했고 Activity Bar `AXRadioButton` 후보가 수집된다.
 - Finder sidebar row와 VS Code Activity Bar item fixed task는 보강 후 재평가가 필요하다.
 
 ## 3.2 5개 앱 overlay activation smoke
 
 | 앱 | Bundle ID | 결과 | Label count | 명령 |
 | --- | --- | --- | ---: | --- |
-| Finder | `com.apple.finder` | pass | 19 | `swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.finder` |
+| Finder | `com.apple.finder` | pass | 63 | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` |
 | Safari | `com.apple.Safari` | pass | 35 | `swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.Safari` |
 | Chrome | `com.google.Chrome` | pass | 46 | `swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.google.Chrome` |
-| VS Code | `com.microsoft.VSCode` | pass | 3 | `swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode` |
+| VS Code | `com.microsoft.VSCode` | pass | 29 | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` |
 | System Settings | `com.apple.systempreferences` | pass | 11 | `swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.systempreferences` |
 
 ## 4. 앱별 평가 기록

@@ -11,7 +11,7 @@ struct AccessibilityScanConfiguration: Equatable {
     let timeout: TimeInterval
 
     init(
-        maxDepth: Int = 8,
+        maxDepth: Int = 18,
         maxNodes: Int = 2_000,
         timeout: TimeInterval = 1.0
     ) {
