@@ -60,6 +60,50 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.textField)
     }
 
+    func test_scan_selectableContainerRole은_action이_없어도_candidate로_수집() {
+        // given
+        let row = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.row,
+                title: "Finder Sidebar Item",
+                frame: CGRect(x: 10, y: 20, width: 180, height: 24)
+            )
+        )
+        let cell = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.cell,
+                title: "Finder Sidebar Cell",
+                frame: CGRect(x: 10, y: 52, width: 180, height: 24)
+            )
+        )
+        let image = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.image,
+                title: "VS Code Activity Bar Item",
+                frame: CGRect(x: 10, y: 84, width: 32, height: 32)
+            )
+        )
+        let root = FakeElement(children: [row, cell, image])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(
+            scanResult.candidates.map(\.role),
+            [
+                AccessibilityRole.row,
+                AccessibilityRole.cell,
+                AccessibilityRole.image
+            ]
+        )
+    }
+
     func test_scan_secureField는_AXPress가_있어도_제외() {
         // given
         let secureField = FakeElement(

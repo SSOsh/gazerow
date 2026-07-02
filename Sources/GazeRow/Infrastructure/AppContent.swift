@@ -58,8 +58,8 @@ enum AppContent {
         "Coordinate-click fallback is off by default and must be enabled in debug.",
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
         "Gaze/camera features are Post-MVP and disabled in this build.",
-        "Finder sidebar rows may be missing from click candidates.",
-        "VS Code Activity Bar items may be missing from click candidates."
+        "Finder sidebar rows need fixed-task reevaluation after candidate coverage updates.",
+        "VS Code Activity Bar items need fixed-task reevaluation after candidate coverage updates."
     ]
 
     // MARK: - Diagnostics

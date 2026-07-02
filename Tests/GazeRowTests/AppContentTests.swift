@@ -26,7 +26,7 @@ final class AppContentTests: XCTestCase {
         let limitations = AppContent.knownLimitations.joined(separator: "\n")
 
         // when & then
-        XCTAssertTrue(limitations.contains("Finder sidebar rows"))
-        XCTAssertTrue(limitations.contains("VS Code Activity Bar items"))
+        XCTAssertTrue(limitations.contains("Finder sidebar rows need fixed-task reevaluation"))
+        XCTAssertTrue(limitations.contains("VS Code Activity Bar items need fixed-task reevaluation"))
     }
 }

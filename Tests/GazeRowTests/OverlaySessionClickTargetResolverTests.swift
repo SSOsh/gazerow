@@ -37,6 +37,57 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
         XCTAssertEqual(targets.map(\.frame), [first.snapshot.frame, second.snapshot.frame])
     }
 
+    func test_resolveTargets_selectableContainerRole은_action이_없어도_수집() throws {
+        // given
+        let row = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(
+                role: AccessibilityRole.row,
+                frame: CGRect(x: 10, y: 10, width: 80, height: 24),
+                actions: []
+            )
+        )
+        let cell = FakeClickElement(
+            id: 2,
+            snapshot: makeSnapshot(
+                role: AccessibilityRole.cell,
+                frame: CGRect(x: 10, y: 42, width: 80, height: 24),
+                actions: []
+            )
+        )
+        let image = FakeClickElement(
+            id: 3,
+            snapshot: makeSnapshot(
+                role: AccessibilityRole.image,
+                frame: CGRect(x: 10, y: 74, width: 32, height: 32),
+                actions: []
+            )
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(role: "AXGroup", frame: CGRect(x: 0, y: 0, width: 100, height: 120), actions: []),
+            children: [row, cell, image]
+        )
+        let sut = OverlaySessionClickTargetResolver(
+            client: FakeClickTargetClient(root: .success(root))
+        )
+
+        // when
+        let result = sut.resolveTargets(context: makeContext())
+
+        // then
+        let targets = try unwrapSuccess(result)
+        XCTAssertEqual(targets.map(\.element.id), [1, 2, 3])
+        XCTAssertEqual(
+            targets.map(\.role),
+            [
+                AccessibilityRole.row,
+                AccessibilityRole.cell,
+                AccessibilityRole.image
+            ]
+        )
+    }
+
     func test_resolveTargets_secureField와_frame없는_element는_제외() throws {
         // given
         let secure = FakeClickElement(

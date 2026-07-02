@@ -64,6 +64,7 @@ gazerow/
       FrontmostApplicationProvider.swift
     Scanning/
       AccessibilityScanner.swift
+      AccessibilityClickabilityPolicy.swift
       AccessibilityScanModels.swift
       AccessibilityElementClient.swift
       AXAccessibilityElementClient.swift
@@ -144,10 +145,10 @@ TICKET-010 실제 click task와 30분 crash-free session 결과 기준이며, �
 
 | 앱 | 등급 | Freeze 전 확인 |
 | --- | --- | --- |
-| Finder | Limited | sidebar row가 candidate로 수집되지 않아 fixed task fail |
+| Finder | Limited | sidebar row candidate 수집 보강 후 fixed task 재평가 필요 |
 | Safari | Evaluation pass | Tab Overview toolbar button task pass |
 | Chrome | Evaluation pass | address bar focus task pass |
-| VS Code | Limited | Activity Bar item이 candidate로 수집되지 않아 fixed task fail |
+| VS Code | Limited | Activity Bar candidate 수집 보강 후 fixed task 재평가 필요 |
 | System Settings | Evaluation pass | toolbar Back button pane navigation task pass |
 | Limited apps | Finder, VS Code | TICKET-011 freeze 문서에 제한사항 반영 필요 |
 | Slack | Unverified | Post-MVP 검증 |
@@ -314,6 +315,7 @@ scripts/verify_mvp_freeze.sh
 - [x] Settings Accessibility 권한 요청 버튼 연결
 - [x] Show Overlay 권한 실패 시 Accessibility 요청/설정 이동 연결
 - [x] Command+Shift+Space overlay activation shortcut 연결
+- [x] Finder / VS Code candidate coverage 보강(`AXRow` / `AXCell` / `AXImage`)
 - [x] `--request-accessibility` 런치 옵션 연결
 - [x] Accessibility 권한 부여와 Settings/onboarding 확인
 - [x] 5개 앱 overlay activation smoke

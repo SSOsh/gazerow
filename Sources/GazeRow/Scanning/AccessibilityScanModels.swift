@@ -88,13 +88,16 @@ enum AccessibilityScanFailure: Error, Equatable {
 /// @since 2026-07-02
 enum AccessibilityRole {
     static let button = "AXButton"
+    static let cell = "AXCell"
     static let checkBox = "AXCheckBox"
     static let comboBox = "AXComboBox"
     static let disclosureTriangle = "AXDisclosureTriangle"
+    static let image = "AXImage"
     static let link = "AXLink"
     static let menuButton = "AXMenuButton"
     static let popUpButton = "AXPopUpButton"
     static let radioButton = "AXRadioButton"
+    static let row = "AXRow"
     static let secureTextField = "AXSecureTextField"
     static let slider = "AXSlider"
     static let tabGroup = "AXTabGroup"

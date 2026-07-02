@@ -9,15 +9,18 @@ import Foundation
 struct AccessibilityScanner<Client: AccessibilityElementClient> {
     private let client: Client
     private let configuration: AccessibilityScanConfiguration
+    private let clickabilityPolicy: AccessibilityClickabilityPolicy
     private let dateProvider: () -> Date
 
     init(
         client: Client,
         configuration: AccessibilityScanConfiguration = AccessibilityScanConfiguration(),
+        clickabilityPolicy: AccessibilityClickabilityPolicy = AccessibilityClickabilityPolicy(),
         dateProvider: @escaping () -> Date = Date.init
     ) {
         self.client = client
         self.configuration = configuration
+        self.clickabilityPolicy = clickabilityPolicy
         self.dateProvider = dateProvider
     }
 
@@ -93,7 +96,7 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
     private func makeCandidate(from snapshot: AccessibilityElementSnapshot) -> ClickableCandidate? {
         guard !snapshot.isSecureField,
               let role = snapshot.role,
-              isClickable(snapshot: snapshot),
+              clickabilityPolicy.isClickable(snapshot),
               let frame = snapshot.frame,
               frame.width > 0,
               frame.height > 0 else {
@@ -109,27 +112,6 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
         )
     }
 
-    private func isClickable(snapshot: AccessibilityElementSnapshot) -> Bool {
-        snapshot.actions.contains(AccessibilityAction.press)
-            || snapshot.actions.contains(AccessibilityAction.confirm)
-            || clickableRoles.contains(snapshot.role ?? "")
-    }
-
-    private var clickableRoles: Set<String> {
-        [
-            AccessibilityRole.button,
-            AccessibilityRole.checkBox,
-            AccessibilityRole.comboBox,
-            AccessibilityRole.disclosureTriangle,
-            AccessibilityRole.link,
-            AccessibilityRole.menuButton,
-            AccessibilityRole.popUpButton,
-            AccessibilityRole.radioButton,
-            AccessibilityRole.slider,
-            AccessibilityRole.tabGroup,
-            AccessibilityRole.textField
-        ]
-    }
 }
 
 private struct CandidateKey: Hashable {

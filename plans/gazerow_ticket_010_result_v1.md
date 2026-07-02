@@ -17,6 +17,7 @@
 - v14: 5개 앱 실제 click task를 수행해 Safari/Chrome/System Settings pass, Finder/VS Code fail을 기록.
 - v15: 30분 crash-free manual session 통과 결과를 기록.
 - v16: 내부 사용자 3명 평가 runbook 준비 상태를 기록.
+- v17: Finder/VS Code candidate coverage 보강 후 fixed task 재평가 필요 상태를 기록.
 
 ## 1. 상태
 
@@ -90,6 +91,8 @@
 | 30min crash-free session | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow` with 1-minute process checks | pass, 1800 seconds, 0 crashes |
 | freeze verification after 30min session docs | `scripts/verify_mvp_freeze.sh` | pass, 141 tests, 0 failures |
 | internal user evaluation runbook | `plans/gazerow_internal_user_evaluation_v1.md` | ready, awaiting User 1/User 2/User 3 results |
+| selectable container candidate coverage focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AccessibilityScannerTests\|OverlaySessionClickTargetResolverTests'` | pass, 15 tests, 0 failures |
+| freeze verification after candidate coverage update | `scripts/verify_mvp_freeze.sh` | pass, 150 tests, 0 failures |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -108,7 +111,8 @@
 - 이전 차단 사유였던 runtime wiring 부재는 해소됐다.
 - Accessibility 권한과 5개 앱 overlay activation smoke는 통과했다.
 - TICKET-010 5개 앱 실제 click task는 3 pass / 2 fail이다.
-- Finder sidebar row와 VS Code Activity Bar item은 현재 scanner candidate로 수집되지 않아 known limitation으로 문서화해야 한다.
+- 이후 Finder/VS Code candidate coverage는 `AXRow` / `AXCell` / `AXImage` 수집 보강으로 개선했다.
+- Finder sidebar row와 VS Code Activity Bar item fixed task는 보강 후 재평가가 필요하다.
 
 ## 3.2 5개 앱 overlay activation smoke
 
@@ -317,7 +321,7 @@ AppSupportReport
 | VS Code | fail | 3 | 0 | 0 | 0 | 1 | 0 |
 | System Settings | pass | 13 | 1 | 1 | 0 | 0 | 0 |
 
-초기 5개 앱 중 3개 앱에서 task success를 기록했다. Finder와 VS Code는 overlay activation은 성공했지만 고정 task target이 candidate로 수집되지 않아 실패로 판정한다.
+초기 5개 앱 중 3개 앱에서 task success를 기록했다. Finder와 VS Code는 overlay activation은 성공했지만 고정 task target이 candidate로 수집되지 않아 실패로 판정했다. 이후 selectable container candidate coverage를 보강했으므로 Finder/VS Code fixed task는 재평가가 필요하다.
 
 ## 6. Safety 결과
 
@@ -333,10 +337,10 @@ AppSupportReport
 
 ```text
 Decision: CONDITIONAL_GO_PENDING_INTERNAL_USERS
-Reason: 5개 앱 중 3개 task 성공, critical misclick 0건, 30분 crash-free session은 충족했다. 내부 사용자 3명 평가는 아직 필요하다.
-Required fixes before freeze: 내부 사용자 3명 평가
-Known limitations to document: Finder sidebar rows missing from candidates, VS Code Activity Bar items missing from candidates
-Next ticket: 내부 사용자 3명 평가 후 TICKET-011 freeze 최종 확정
+Reason: 기존 5개 앱 평가에서 3개 task 성공, critical misclick 0건, 30분 crash-free session은 충족했다. Finder/VS Code candidate coverage를 보강했으므로 fixed task 재평가가 필요하고, 내부 사용자 3명 평가도 아직 필요하다.
+Required fixes before freeze: Finder/VS Code fixed task 재평가, 내부 사용자 3명 평가
+Known limitations to document: Finder/VS Code는 보강 후 재평가 전까지 Limited 유지
+Next ticket: Finder/VS Code 재평가와 내부 사용자 3명 평가 후 TICKET-011 freeze 최종 확정
 ```
 
 ## 8. 남은 수동 작업
@@ -367,6 +371,9 @@ Next ticket: 내부 사용자 3명 평가 후 TICKET-011 freeze 최종 확정
 - [x] 30분 crash-free manual session 기록
   - result: 2026-07-02 20:46:31~21:16:31 KST, 1800초, crash 0건
 - [x] 내부 사용자 3명 평가 runbook 작성
+- [x] Finder/VS Code candidate coverage 보강
+- [ ] Finder fixed task 재평가
+- [ ] VS Code fixed task 재평가
 - [ ] 내부 사용자 3명 평가 기록
 - [ ] go/no-go 결론 작성
 
