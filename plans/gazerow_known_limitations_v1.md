@@ -33,17 +33,21 @@ GazeRow는 키보드 중심 사용자를 위한 **생산성 유틸리티**다.
 
 ## 4. App Support Tiers (앱 지원 등급)
 
+TICKET-010 실제 평가 전까지 아래 등급은 provisional 상태다.
+
 | 앱 | 등급 |
 | --- | --- |
-| Finder | Supported |
-| Safari | Supported |
-| Chrome | Supported |
-| VS Code | Supported |
-| System Settings | Supported |
+| Finder | Evaluation target |
+| Safari | Evaluation target |
+| Chrome | Evaluation target |
+| VS Code | Evaluation target |
+| System Settings | Evaluation target |
+| Limited apps | None confirmed yet |
 | Slack | Unverified |
 | Notion | Unverified |
 
-- **Supported**: MVP 기준 앱으로 task 검증 대상.
+- **Evaluation target**: MVP 기준 앱으로 TICKET-010에서 검증 대상.
+- **Supported**: TICKET-010에서 task 성공이 확인된 앱.
 - **Limited**: 동작하지만 후보/클릭에 제약이 있는 앱.
 - **Unverified**: 아직 검증하지 않은 앱.
 

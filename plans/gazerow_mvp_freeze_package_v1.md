@@ -123,6 +123,7 @@ TICKET-010 결과가 들어오기 전까지 아래 표는 provisional 상태다.
 | Chrome | Evaluation target | address bar focus task success |
 | VS Code | Evaluation target | Activity Bar task success |
 | System Settings | Evaluation target | button/toggle task success |
+| Limited apps | None confirmed yet | TICKET-010 결과 후 갱신 |
 | Slack | Unverified | Post-MVP 검증 |
 | Notion | Unverified | Post-MVP 검증 |
 

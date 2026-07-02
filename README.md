@@ -115,6 +115,27 @@ gazerow/
 - `plans/gazerow_ticket_010_result_v1.md`: TICKET-010 사전 검증 결과와 수동 평가 기록지
 - `plans/gazerow_mvp_freeze_package_v1.md`: TICKET-011 MVP freeze package 초안
 
+## 앱 지원 범위
+
+TICKET-010 실제 평가 전까지 아래 등급은 provisional 상태다.
+
+| 앱 | 등급 | Freeze 전 확인 |
+| --- | --- | --- |
+| Finder | Evaluation target | sidebar item task 성공 여부 |
+| Safari | Evaluation target | toolbar button task 성공 여부 |
+| Chrome | Evaluation target | address bar focus task 성공 여부 |
+| VS Code | Evaluation target | Activity Bar task 성공 여부 |
+| System Settings | Evaluation target | button/toggle task 성공 여부 |
+| Limited apps | None confirmed yet | TICKET-010 결과 후 갱신 |
+| Slack | Unverified | Post-MVP 검증 |
+| Notion | Unverified | Post-MVP 검증 |
+
+등급 의미:
+
+- **Evaluation target**: MVP 기준 앱으로 TICKET-010에서 검증 대상.
+- **Limited**: 동작하지만 후보/클릭에 제약이 확인된 앱.
+- **Unverified**: 아직 검증하지 않은 앱.
+
 ## 빌드 / 실행
 
 Swift Package Manager 기반. **Xcode toolchain이 필요**하다.
