@@ -16,7 +16,7 @@
 ## 2. 현재 상태
 
 현재는 TICKET-001부터 TICKET-009까지 구현됐고, TICKET-010 사전 검증과 TICKET-011 freeze 준비 산출물이 완료된 상태다.
-TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow도 완료했다. TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정은 click logging wiring 구현 후 재시도해야 한다.
+TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 완료했다. TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정을 재시도할 수 있다.
 
 완료된 구현/문서:
 
@@ -33,6 +33,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - runtime focus/label jump interaction log wiring
 - runtime focused label AXPress click wiring
 - runtime risky action second confirm flow
+- runtime click attempt/completed interaction log wiring
 - TICKET-011 freeze package / distribution checklist 초안
 - first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
@@ -100,7 +101,7 @@ Deferred:
 | 항목 | 현재 상태 | 필요 이유 |
 | --- | --- | --- |
 | Xcode toolchain | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`로 검증 | SwiftPM AppKit build/test |
-| Runtime activation/wiring | overlay show/focus까지 부분 연결 | TICKET-010 5개 앱 task 수행 전제 |
+| Runtime activation/wiring | 완료 | TICKET-010 5개 앱 task 수행 전제 |
 | Accessibility 권한 | 평가 환경에서 직접 부여 필요 | scanner/overlay 대상 조회 |
 | 평가자 3명 | TBD | TICKET-010 완료 조건 |
 | 평가 macOS version | TBD | 평가표 필수 기록 |
@@ -110,14 +111,13 @@ Deferred:
 
 추천 순서:
 
-1. Click logging 구현: click attempt/completed interaction logging
-2. `scripts/verify_mvp_freeze.sh` 재확인
-3. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
-4. Accessibility 권한 부여 및 Settings/onboarding 확인
-5. `gazerow_ticket_010_result_v1.md`에 평가 결과 기록
-6. Finder, Safari, Chrome, VS Code, System Settings 순서로 고정 task 수행
-7. go/no-go 결론 작성
-8. TICKET-011 freeze package와 known limitations/app support tiers 최종 갱신
+1. `scripts/verify_mvp_freeze.sh` 재확인
+2. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
+3. Accessibility 권한 부여 및 Settings/onboarding 확인
+4. `gazerow_ticket_010_result_v1.md`에 평가 결과 기록
+5. Finder, Safari, Chrome, VS Code, System Settings 순서로 고정 task 수행
+6. go/no-go 결론 작성
+7. TICKET-011 freeze package와 known limitations/app support tiers 최종 갱신
 
 ## 7. 작업 중 지켜야 할 제한
 

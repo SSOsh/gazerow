@@ -223,6 +223,48 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.closeCallCount, 1)
     }
 
+    func test_handleKeyboardCommand_click성공은_attempt와_completed를_기록() {
+        // given
+        let recorder = StubInteractionRecorder()
+        let timestamp = Date(timeIntervalSince1970: 30)
+        let hasher = WindowTitleHasher(salt: SessionSalt(value: "test-salt"))
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(
+                    method: .axPress,
+                    riskClass: .safeNavigation,
+                    fallbackUsed: false
+                )
+            )
+        )
+        let sut = makeStartedSessionController(
+            recorder: recorder,
+            clickExecutor: clickExecutor,
+            windowTitleHasher: hasher,
+            dateProvider: { timestamp }
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(
+            recorder.events,
+            [
+                InteractionEvent(
+                    timestamp: timestamp,
+                    kind: .clickAttempt(risk: "safeNavigation"),
+                    windowTitleHash: hasher.hash("Finder")
+                ),
+                InteractionEvent(
+                    timestamp: timestamp,
+                    kind: .clickCompleted(risk: "safeNavigation", success: true),
+                    windowTitleHash: hasher.hash("Finder")
+                )
+            ]
+        )
+    }
+
     func test_handleKeyboardCommand_click실패면_overlaySession을_유지() {
         // given
         let clickExecutor = StubOverlayClickExecutor(
@@ -244,8 +286,33 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.closeCallCount, 0)
     }
 
+    func test_handleKeyboardCommand_click실패는_attempt와_completed_false를_기록() {
+        // given
+        let recorder = StubInteractionRecorder()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.executionFailed(.missingPressAction))
+        )
+        let sut = makeStartedSessionController(
+            recorder: recorder,
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(
+            recorder.events.map(\.kind),
+            [
+                .clickAttempt(risk: "unknownRisk"),
+                .clickCompleted(risk: "unknownRisk", success: false)
+            ]
+        )
+    }
+
     func test_handleKeyboardCommand_위험click은_secondConfirm을_대기하고_두번째_confirm에서_실행() {
         // given
+        let recorder = StubInteractionRecorder()
         let clickExecutor = StubOverlayClickExecutor(
             results: [
                 .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
@@ -261,6 +328,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         let presenter = StubOverlayPresenter()
         let sut = makeStartedSessionController(
             presenter: presenter,
+            recorder: recorder,
             clickExecutor: clickExecutor
         )
 
@@ -272,6 +340,14 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(firstEvent, .dryRunConfirm(index: 0))
         XCTAssertEqual(secondEvent, .dryRunConfirm(index: 0))
         XCTAssertEqual(clickExecutor.requests.map(\.isSecondConfirmProvided), [false, true])
+        XCTAssertEqual(
+            recorder.events.map(\.kind),
+            [
+                .clickAttempt(risk: "destructive"),
+                .clickAttempt(risk: "destructive"),
+                .clickCompleted(risk: "destructive", success: true)
+            ]
+        )
         XCTAssertEqual(sut.activeSession, nil)
         XCTAssertEqual(presenter.closeCallCount, 1)
     }
@@ -352,18 +428,6 @@ final class OverlaySessionControllerTests: XCTestCase {
                 )
             ]
         )
-    }
-
-    func test_handleKeyboardCommand_dryRunConfirm은_interactionLog에_기록하지_않음() {
-        // given
-        let recorder = StubInteractionRecorder()
-        let sut = makeStartedSessionController(recorder: recorder)
-
-        // when
-        _ = sut.handleKeyboardCommand(.dryRunConfirm)
-
-        // then
-        XCTAssertTrue(recorder.events.isEmpty)
     }
 
     func test_overlayKeyboardCallback은_controller_focus상태를_갱신() throws {

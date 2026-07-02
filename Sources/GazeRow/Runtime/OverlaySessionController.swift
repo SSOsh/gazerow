@@ -146,6 +146,7 @@ final class OverlaySessionController {
             isSecondConfirmProvided: isSecondConfirmProvided
         )
         lastClickResult = result
+        recordClick(result: result, context: session.snapshot.context)
 
         switch result {
         case .success:
@@ -189,6 +190,60 @@ final class OverlaySessionController {
             .labelJump(matched: matched)
         case .dryRunConfirm:
             nil
+        }
+    }
+
+    private func recordClick(
+        result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>,
+        context: TargetContext
+    ) {
+        let risk = clickRisk(for: result)
+        record(kind: .clickAttempt(risk: risk.logCode), context: context)
+
+        if shouldRecordClickCompleted(for: result) {
+            record(
+                kind: .clickCompleted(
+                    risk: risk.logCode,
+                    success: result.isSuccess
+                ),
+                context: context
+            )
+        }
+    }
+
+    private func record(kind: InteractionEventKind, context: TargetContext) {
+        interactionRecorder.record(
+            InteractionEvent(
+                timestamp: dateProvider(),
+                kind: kind,
+                windowTitleHash: windowTitleHasher.hash(context.window.title)
+            )
+        )
+    }
+
+    private func clickRisk(
+        for result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+    ) -> ClickRiskClass {
+        switch result {
+        case .success(let success):
+            success.riskClass
+        case .failure(.executionFailed(.secondConfirmRequired(let riskClass))):
+            riskClass
+        case .failure:
+            .unknownRisk
+        }
+    }
+
+    private func shouldRecordClickCompleted(
+        for result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+    ) -> Bool {
+        switch result {
+        case .success:
+            true
+        case .failure(.executionFailed(.secondConfirmRequired)):
+            false
+        case .failure:
+            true
         }
     }
 }
@@ -326,6 +381,32 @@ private extension FocusChangeMethod {
         case .labelJump:
             "labelJump"
         }
+    }
+}
+
+private extension ClickRiskClass {
+    var logCode: String {
+        switch self {
+        case .safeNavigation:
+            "safeNavigation"
+        case .stateChange:
+            "stateChange"
+        case .destructive:
+            "destructive"
+        case .externalEffect:
+            "externalEffect"
+        case .unknownRisk:
+            "unknownRisk"
+        }
+    }
+}
+
+private extension Result {
+    var isSuccess: Bool {
+        if case .success = self {
+            return true
+        }
+        return false
     }
 }
 
