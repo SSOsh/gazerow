@@ -13,15 +13,16 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 평가 일시 | 2026-07-02 11:29:23 KST |
+| 평가 일시 | 2026-07-02 12:11:54 KST |
 | 평가자 | PENDING_MANUAL_EVALUATION |
 | macOS version | macOS 26.2 (25C56) |
 | Xcode version | Xcode 26.6 (17F113) |
-| GazeRow commit | `6a7333c` |
+| GazeRow commit | `ae06d01` |
 | 빌드 방식 | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build` |
 | build result | pass |
-| test result | pass, 76 tests, 0 failures |
+| test result | pass, 95 tests, 0 failures |
 | run smoke result | pass, launched and stayed running for 5 seconds before manual interrupt |
+| freeze verification result | pass, `scripts/verify_mvp_freeze.sh` |
 | Accessibility 권한 | PENDING_MANUAL_EVALUATION |
 | Input Monitoring 권한 | not requested |
 | Screen Recording 권한 | not requested |
@@ -36,8 +37,9 @@
 | --- | --- | --- |
 | git 상태 | `git status --short --branch` | preflight 시작 시 clean, `main...origin/main` |
 | build | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build` | pass |
-| test | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 76 tests, 0 failures |
+| test | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 95 tests, 0 failures |
 | run smoke | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run` | pass, launched and stayed running for 5 seconds before manual interrupt |
+| freeze verification | `scripts/verify_mvp_freeze.sh` | pass |
 
 ## 4. 앱별 평가 기록
 

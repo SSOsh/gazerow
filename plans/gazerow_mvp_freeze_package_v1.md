@@ -17,7 +17,7 @@
 | Bundle Identifier | `dev.local.gazerow` |
 | 플랫폼 | macOS 14+ |
 | 앱 형태 | 메뉴바 앱(`.accessory`) + Settings window |
-| 기준 commit | `bc6ea66` |
+| 기준 commit | `ae06d01` |
 | Toolchain | Xcode 26.6 (17F113) |
 | 평가 기준 문서 | `gazerow_ticket_010_result_v1.md` |
 
