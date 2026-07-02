@@ -3,11 +3,11 @@
 macOS 키보드 클릭 유틸리티 (Homerow 스타일). 화면 위의 클릭 가능한 UI 요소를
 자동으로 찾아 label을 붙이고, 사용자가 키보드로 focus와 click을 수행하게 한다.
 
-> **현재 상태**: TICKET-001부터 TICKET-006까지 core 구현 완료, TICKET-009 UX/문서 구현.
+> **현재 상태**: TICKET-001부터 TICKET-007까지 core 구현 완료, TICKET-009 UX/문서 구현.
 > 메뉴바 앱 shell + Settings window + Accessibility 권한 UX + target resolver
 > + Accessibility scanner + overlay layout/window 기반 + focus engine
-> + kill switch + onboarding.
-> global hotkey와 실제 click 실행은 아직 없다(TICKET-007+).
+> + AXPress click executor + kill switch + onboarding.
+> global hotkey, end-to-end overlay session wiring, interaction logging은 아직 없다(TICKET-008+).
 
 ## MVP 포지셔닝
 
@@ -68,6 +68,12 @@ gazerow/
       FocusEngine.swift
       FocusModels.swift
       FocusKeyboardCommand.swift
+    Clicking/
+      ClickExecutor.swift
+      ClickModels.swift
+      ClickRiskClassifier.swift
+      ClickExecutionClient.swift
+      AXClickExecutionClient.swift
   Tests/GazeRowTests/
     PermissionManagerTests.swift
     SessionControllerTests.swift
@@ -78,6 +84,8 @@ gazerow/
     LabelGeneratorTests.swift
     FocusEngineTests.swift
     FocusKeyboardCommandMapperTests.swift
+    ClickExecutorTests.swift
+    ClickRiskClassifierTests.swift
   plans/                      # 계획/티켓/결정 문서
 ```
 
@@ -171,6 +179,20 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 - [x] `OverlayView` focused label indicator 추가
 - [x] `LabelGeneratorTests`, `FocusEngineTests`, `FocusKeyboardCommandMapperTests`로 label/focus/keyboard/dry-run 검증
 
+## TICKET-007 완료 기준
+
+- [x] `ClickExecutor` 추가
+- [x] `AXPress` 우선 실행
+- [x] `AXPress` 실패 reason 반환
+- [x] 좌표 클릭 fallback hook 추가
+- [x] 좌표 클릭 fallback 기본 off 유지
+- [x] `ClickRiskClassifier` 추가
+- [x] destructive / externalEffect / unknownRisk second confirm 요구
+- [x] secure field는 scanner 단계에서 제외 유지
+- [x] 위험 class만 결과에 남기고 원문 title은 저장하지 않음
+- [x] `AXClickExecutionClient` 추가
+- [x] `ClickExecutorTests`, `ClickRiskClassifierTests`로 안전 정책 검증
+
 ## TICKET-009 완료 기준
 
 - [x] kill switch(`SessionController`): 메뉴바 · Settings에서 세션 즉시 중단/재개
@@ -182,11 +204,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 
 ## 하지 않는 것 (현재 범위 외)
 
-- 실제 click 실행 (TICKET-007+)
+- end-to-end overlay session wiring
+- interaction log 파일 저장 / debug export (TICKET-008)
 - Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
 
 ## 다음 티켓
 
-- **TICKET-007**: AXPress Click Execution and Safety
+- **TICKET-008**: Local Logging and Debug Export
 
 자세한 계획은 `plans/` 폴더 참조.

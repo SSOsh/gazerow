@@ -43,6 +43,25 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         )
     }
 
+    func clickTarget(from element: AXUIElement) -> ClickTarget<AXUIElement>? {
+        let snapshot = snapshot(of: element)
+
+        guard !snapshot.isSecureField,
+              let role = snapshot.role,
+              let frame = snapshot.frame else {
+            return nil
+        }
+
+        return ClickTarget(
+            element: element,
+            role: role,
+            subrole: snapshot.subrole,
+            title: snapshot.title,
+            frame: frame,
+            actions: snapshot.actions
+        )
+    }
+
     func children(of element: AXUIElement) -> Result<[AXUIElement], AccessibilityScanFailure> {
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(
@@ -146,46 +165,5 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         }
 
         return actions
-    }
-}
-
-private extension AXError {
-    var localizedDebugDescription: String {
-        switch self {
-        case .success:
-            "success"
-        case .failure:
-            "failure"
-        case .illegalArgument:
-            "illegal argument"
-        case .invalidUIElement:
-            "invalid UI element"
-        case .invalidUIElementObserver:
-            "invalid UI element observer"
-        case .cannotComplete:
-            "cannot complete"
-        case .attributeUnsupported:
-            "attribute unsupported"
-        case .actionUnsupported:
-            "action unsupported"
-        case .notificationUnsupported:
-            "notification unsupported"
-        case .notImplemented:
-            "not implemented"
-        case .notificationAlreadyRegistered:
-            "notification already registered"
-        case .notificationNotRegistered:
-            "notification not registered"
-        case .apiDisabled:
-            "api disabled"
-        case .noValue:
-            "no value"
-        case .parameterizedAttributeUnsupported:
-            "parameterized attribute unsupported"
-        case .notEnoughPrecision:
-            "not enough precision"
-        @unknown default:
-            "unknown AX error \(rawValue)"
-        }
     }
 }
