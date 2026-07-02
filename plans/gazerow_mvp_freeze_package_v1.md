@@ -8,12 +8,13 @@
 - v5: `--request-accessibility` 런치 옵션과 125 tests 검증 결과를 반영.
 - v6: Accessibility 권한 승인, 5개 앱 overlay activation smoke, 136 tests 검증 결과를 반영.
 - v7: 5개 앱 실제 click task 결과(3 pass / 2 fail), known limitations 갱신, 141 tests 검증 결과를 반영.
+- v8: 30분 crash-free manual session 통과 결과를 반영.
 
 ## 1. 상태
 
-현재 상태: `DRAFT_PREP_COMPLETE_PENDING_30MIN_AND_INTERNAL_USER_EVALUATION`
+현재 상태: `DRAFT_PREP_COMPLETE_PENDING_INTERNAL_USER_EVALUATION`
 
-이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 30분 crash-free session과 내부 사용자 3명 평가가 없으므로 MVP freeze 완료로 간주하지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 true를 반환했고, target bundle launch option과 target window fallback을 추가해 5개 앱 overlay activation smoke를 통과했다. 2026-07-02 20:20 KST 실제 click task는 Safari/Chrome/System Settings pass, Finder/VS Code fail로 3/5 success를 기록했다. known limitations와 app support tier도 이 결과에 맞춰 갱신했다. `scripts/verify_mvp_freeze.sh`는 141 tests, 0 failures로 통과했다. TICKET-011 최종 확정에는 30분 crash-free session과 내부 사용자 3명 평가가 남아 있다.
+이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐지만, TICKET-010 Baseline Evaluation Run의 내부 사용자 3명 평가가 없으므로 MVP freeze 완료로 간주하지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 true를 반환했고, target bundle launch option과 target window fallback을 추가해 5개 앱 overlay activation smoke를 통과했다. 2026-07-02 20:20 KST 실제 click task는 Safari/Chrome/System Settings pass, Finder/VS Code fail로 3/5 success를 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. known limitations와 app support tier도 이 결과에 맞춰 갱신했다. `scripts/verify_mvp_freeze.sh`는 141 tests, 0 failures로 통과했다. TICKET-011 최종 확정에는 내부 사용자 3명 평가가 남아 있다.
 
 ## 2. Freeze 대상
 
@@ -121,7 +122,7 @@ Freeze 전 확인:
 
 ## 7. 지원 앱/제한 앱/미확인 앱
 
-TICKET-010 실제 click task 결과 기준이며, 30분 crash-free session과 내부 사용자 평가 전까지는 provisional 상태다.
+TICKET-010 실제 click task와 30분 crash-free session 결과 기준이며, 내부 사용자 평가 전까지는 provisional 상태다.
 
 | 앱 | 현재 등급 | Freeze 전 필요한 확인 |
 | --- | --- | --- |
@@ -142,14 +143,13 @@ Freeze 진행 조건:
 
 - [x] 초기 5개 앱 중 3개 이상에서 task success
 - [x] fallback off 상태에서 critical misclick count 0
-- [ ] 30분 수동 세션 crash 없음
+- [x] 30분 수동 세션 crash 없음
 - [ ] 내부 사용자 3명 중 2명 이상이 3분 안에 기본 흐름 이해
 - [ ] 내부 사용자 3명 중 2명 이상이 계속 쓸 가치 있음으로 평가
 - [ ] abandoned attempt count가 task당 1회 이하
 
 현재 차단:
 
-- 30분 crash-free manual session 미완료
 - 내부 사용자 3명 평가 미완료
 - 최종 go/no-go 판정 미작성
 
@@ -173,11 +173,11 @@ Freeze 진행 조건:
 ## 10. Freeze 판정
 
 ```text
-Decision: CONDITIONAL_GO_PENDING_30MIN_AND_INTERNAL_USERS
-Reason: 5개 앱 중 3개 task success와 critical misclick 0건은 충족했지만, 30분 crash-free session과 내부 사용자 평가가 필요하다.
-Required fixes before freeze: 30분 crash-free session, 내부 사용자 3명 평가
+Decision: CONDITIONAL_GO_PENDING_INTERNAL_USERS
+Reason: 5개 앱 중 3개 task success, critical misclick 0건, 30분 crash-free session은 충족했지만 내부 사용자 평가가 필요하다.
+Required fixes before freeze: 내부 사용자 3명 평가
 Known limitations to update: Finder sidebar row candidate 미수집, VS Code Activity Bar item candidate 미수집
-Next ticket: run 30-minute crash-free session and internal user evaluation, then finalize TICKET-011
+Next ticket: run internal user evaluation, then finalize TICKET-011
 ```
 
 ---

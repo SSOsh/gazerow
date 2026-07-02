@@ -15,10 +15,11 @@
 - v12: `--request-accessibility` 런치 옵션을 추가하고 freeze 검증 통과를 기록.
 - v13: Accessibility 권한 승인 후 5개 앱 overlay activation smoke를 통과했고, click task는 계속 pending으로 기록.
 - v14: 5개 앱 실제 click task를 수행해 Safari/Chrome/System Settings pass, Finder/VS Code fail을 기록.
+- v15: 30분 crash-free manual session 통과 결과를 기록.
 
 ## 1. 상태
 
-현재 상태: `CLICK_TASKS_COMPLETE_PENDING_30MIN_AND_INTERNAL_USER_EVALUATION`
+현재 상태: `CRASH_FREE_SESSION_PASS_PENDING_INTERNAL_USER_EVALUATION`
 
 자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 당시 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않았다.
 
@@ -32,9 +33,11 @@
 
 2026-07-02 19:45:35 KST에는 `swift run GazeRow -- --request-accessibility` 실행 시 앱 시작 직후 권한 요청 프롬프트와 System Settings Accessibility 패널을 여는 런치 옵션을 추가했다.
 
-2026-07-02 19:57:41 KST에는 Codex 실행 컨텍스트의 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션, target window fallback(`AXFocusedWindow` -> `AXMainWindow` -> `AXWindows`), overlay launch reporter를 추가했고 Finder, Safari, Chrome, VS Code, System Settings에서 overlay activation smoke가 모두 통과했다. 실제 keyboard label jump/confirm click task, 30분 crash-free session, 내부 사용자 3명 평가는 남아 있다.
+2026-07-02 19:57:41 KST에는 Codex 실행 컨텍스트의 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션, target window fallback(`AXFocusedWindow` -> `AXMainWindow` -> `AXWindows`), overlay launch reporter를 추가했고 Finder, Safari, Chrome, VS Code, System Settings에서 overlay activation smoke가 모두 통과했다. 이 시점에는 실제 keyboard label jump/confirm click task, 30분 crash-free session, 내부 사용자 3명 평가가 남아 있었다.
 
-2026-07-02 20:20 KST에는 실제 click task를 수행했다. `--print-overlay-label-map` 평가 옵션으로 GazeRow가 부여한 label과 candidate를 확인했고, keyboard label jump 후 Return confirm으로 Safari, Chrome, System Settings task가 성공했다. Finder는 sidebar row가 candidate로 수집되지 않았고, VS Code는 Activity Bar item이 candidate로 수집되지 않아 task 실패로 기록한다. 초기 5개 앱 중 3개 task 성공 기준은 충족했지만, 30분 crash-free session과 내부 사용자 3명 평가는 아직 남아 있다.
+2026-07-02 20:20 KST에는 실제 click task를 수행했다. `--print-overlay-label-map` 평가 옵션으로 GazeRow가 부여한 label과 candidate를 확인했고, keyboard label jump 후 Return confirm으로 Safari, Chrome, System Settings task가 성공했다. Finder는 sidebar row가 candidate로 수집되지 않았고, VS Code는 Activity Bar item이 candidate로 수집되지 않아 task 실패로 기록한다. 초기 5개 앱 중 3개 task 성공 기준은 충족했지만, 이 시점에는 30분 crash-free session과 내부 사용자 3명 평가가 아직 남아 있었다.
+
+2026-07-02 20:46:31 KST부터 21:16:31 KST까지 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow`로 30분 crash-free session을 수행했다. 1분 간격으로 프로세스 생존을 확인했고 1800초 동안 crash 없이 유지됐다. 세션 종료 시 `SIGINT`로 정상 정리했으며 잔여 `GazeRow` 프로세스는 없었다.
 
 ## 2. 평가 전 체크리스트
 
@@ -81,6 +84,8 @@
 | freeze verification after overlay smoke support | `scripts/verify_mvp_freeze.sh` | pass, 136 tests, 0 failures |
 | label map focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AppContentTests\|AppLaunchOptionsTests\|OverlayLaunchReporterTests'` | pass, 14 tests, 0 failures |
 | freeze verification after click task docs/support update | `scripts/verify_mvp_freeze.sh` | pass, 141 tests, 0 failures |
+| 30min crash-free session | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow` with 1-minute process checks | pass, 1800 seconds, 0 crashes |
+| freeze verification after 30min session docs | `scripts/verify_mvp_freeze.sh` | pass, 141 tests, 0 failures |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -323,11 +328,11 @@ AppSupportReport
 ## 7. Go/No-Go 판정
 
 ```text
-Decision: CONDITIONAL_GO_PENDING_30MIN_AND_INTERNAL_USERS
-Reason: 5개 앱 중 3개 task가 성공했고 critical misclick은 0건이다. 다만 30분 crash-free session과 내부 사용자 3명 평가는 아직 필요하다.
-Required fixes before freeze: Finder sidebar row candidate 수집 개선 또는 limitation 문서화, VS Code Activity Bar candidate 수집 개선 또는 limitation 문서화
+Decision: CONDITIONAL_GO_PENDING_INTERNAL_USERS
+Reason: 5개 앱 중 3개 task 성공, critical misclick 0건, 30분 crash-free session은 충족했다. 내부 사용자 3명 평가는 아직 필요하다.
+Required fixes before freeze: 내부 사용자 3명 평가
 Known limitations to document: Finder sidebar rows missing from candidates, VS Code Activity Bar items missing from candidates
-Next ticket: 30분 crash-free session과 내부 사용자 3명 평가 후 TICKET-011 freeze 최종 확정
+Next ticket: 내부 사용자 3명 평가 후 TICKET-011 freeze 최종 확정
 ```
 
 ## 8. 남은 수동 작업
@@ -355,7 +360,8 @@ Next ticket: 30분 crash-free session과 내부 사용자 3명 평가 후 TICKET
   - result: fail, Activity Bar item candidate 미수집
 - [x] System Settings task 수행
   - result: pass, toolbar Back button moved pane without toggling settings
-- [ ] 30분 crash-free manual session 기록
+- [x] 30분 crash-free manual session 기록
+  - result: 2026-07-02 20:46:31~21:16:31 KST, 1800초, crash 0건
 - [ ] 내부 사용자 3명 평가 기록
 - [ ] go/no-go 결론 작성
 
