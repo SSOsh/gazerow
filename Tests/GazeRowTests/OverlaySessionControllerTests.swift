@@ -244,6 +244,62 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.closeCallCount, 0)
     }
 
+    func test_handleKeyboardCommand_위험click은_secondConfirm을_대기하고_두번째_confirm에서_실행() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            results: [
+                .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
+                .success(
+                    ClickExecutionSuccess(
+                        method: .axPress,
+                        riskClass: .destructive,
+                        fallbackUsed: false
+                    )
+                )
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        let firstEvent = sut.handleKeyboardCommand(.dryRunConfirm)
+        let secondEvent = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(firstEvent, .dryRunConfirm(index: 0))
+        XCTAssertEqual(secondEvent, .dryRunConfirm(index: 0))
+        XCTAssertEqual(clickExecutor.requests.map(\.isSecondConfirmProvided), [false, true])
+        XCTAssertEqual(sut.activeSession, nil)
+        XCTAssertEqual(presenter.closeCallCount, 1)
+    }
+
+    func test_handleKeyboardCommand_focus가_바뀌면_secondConfirm대기를_초기화() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            results: [
+                .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
+                .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive)))
+            ]
+        )
+        let sut = makeStartedSessionController(clickExecutor: clickExecutor)
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // when
+        _ = sut.handleKeyboardCommand(.move(.next))
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [0, 1])
+        XCTAssertEqual(clickExecutor.requests.map(\.isSecondConfirmProvided), [false, false])
+        XCTAssertEqual(
+            sut.activeSession?.pendingSecondConfirm,
+            PendingSecondConfirm(focusedItemID: 1, riskClass: .destructive)
+        )
+    }
+
     func test_handleKeyboardCommand_focusChanged를_interactionLog에_기록() {
         // given
         let recorder = StubInteractionRecorder()
@@ -540,11 +596,20 @@ private final class StubInteractionRecorder: OverlaySessionInteractionRecording 
 
 @MainActor
 private final class StubOverlayClickExecutor: OverlaySessionClickExecuting {
-    let result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+    private let results: [Result<ClickExecutionSuccess, OverlaySessionClickFailure>]
     private(set) var requests: [ClickRequest] = []
+    private(set) var lastReturnedResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
+
+    var result: Result<ClickExecutionSuccess, OverlaySessionClickFailure> {
+        results[0]
+    }
 
     init(result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>) {
-        self.result = result
+        self.results = [result]
+    }
+
+    init(results: [Result<ClickExecutionSuccess, OverlaySessionClickFailure>]) {
+        self.results = results
     }
 
     func execute(
@@ -559,6 +624,9 @@ private final class StubOverlayClickExecutor: OverlaySessionClickExecuting {
                 isSecondConfirmProvided: isSecondConfirmProvided
             )
         )
+        let index = min(requests.count - 1, results.count - 1)
+        let result = results[index]
+        lastReturnedResult = result
         return result
     }
 }

@@ -293,7 +293,7 @@ scripts/verify_mvp_freeze.sh
 - [x] overlay keyboard focus / label jump wiring
 - [x] focus / label jump interaction log wiring
 - [x] focused label AXPress click wiring
-- [ ] risky action second confirm runtime flow
+- [x] risky action second confirm runtime flow
 - [ ] click attempt/completed interaction log wiring
 - [ ] Finder / Safari / Chrome / VS Code / System Settings 수동 평가
 - [ ] 30분 crash-free manual session 기록
@@ -321,7 +321,7 @@ scripts/verify_mvp_freeze.sh
 
 ## 다음 티켓
 
-- **runtime click safety/logging**: risky action second confirm 흐름과 click attempt/completed log 연결
+- **runtime click logging**: click attempt/completed interaction log 연결
 - 이후 **TICKET-010**: Baseline Evaluation Run 수동 평가 재시도
 - 이후 **TICKET-011**: MVP Freeze Package 최종 확정
 

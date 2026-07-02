@@ -16,7 +16,7 @@
 ## 2. 현재 상태
 
 현재는 TICKET-001부터 TICKET-009까지 구현됐고, TICKET-010 사전 검증과 TICKET-011 freeze 준비 산출물이 완료된 상태다.
-TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. focus/label jump interaction log wiring과 focused label AXPress click wiring도 완료했다. TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정은 click safety/logging wiring 구현 후 재시도해야 한다.
+TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow도 완료했다. TICKET-010의 실제 5개 앱 수동 평가와 go/no-go 판정은 click logging wiring 구현 후 재시도해야 한다.
 
 완료된 구현/문서:
 
@@ -32,6 +32,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - runtime keyboard focus wiring(FocusEngine, label jump, focused label highlight)
 - runtime focus/label jump interaction log wiring
 - runtime focused label AXPress click wiring
+- runtime risky action second confirm flow
 - TICKET-011 freeze package / distribution checklist 초안
 - first-run onboarding, known limitations, kill switch
 - `gazerow_tickets_v1.md`
@@ -109,7 +110,7 @@ Deferred:
 
 추천 순서:
 
-1. Click safety/logging 구현: risky action second confirm runtime flow, click attempt/completed interaction logging
+1. Click logging 구현: click attempt/completed interaction logging
 2. `scripts/verify_mvp_freeze.sh` 재확인
 3. `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run`으로 앱 실행
 4. Accessibility 권한 부여 및 Settings/onboarding 확인

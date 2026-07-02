@@ -19,7 +19,7 @@ TICKET-010 수동 평가를 재시도하려면 현재 개별 구성요소로만 
 
 ### Phase 3: Click Execution Wiring
 - [x] 3.1 focused label confirm을 `AXPress` click execution에 연결
-- [ ] 3.2 risky action second confirm 흐름을 runtime에 연결
+- [x] 3.2 risky action second confirm 흐름을 runtime에 연결
 - [ ] 3.3 click attempt/completed 이벤트를 interaction log에 연결
 
 ### Phase 4: Evaluation Retry

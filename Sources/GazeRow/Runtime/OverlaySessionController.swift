@@ -105,16 +105,18 @@ final class OverlaySessionController {
         let event: FocusEngineEvent?
         switch command {
         case .move(let moveCommand):
+            session.pendingSecondConfirm = nil
             event = session.focusEngine.move(moveCommand)
         case .typeLabel(let character):
+            session.pendingSecondConfirm = nil
             event = session.focusEngine.typeLabelCharacter(character).event
         case .clearLabelBuffer:
+            session.pendingSecondConfirm = nil
             session.focusEngine.clearLabelBuffer()
             event = nil
         case .dryRunConfirm:
             let confirmResult = session.focusEngine.dryRunConfirm()
-            activeSession = session
-            executeClickIfPossible(confirmResult: confirmResult, context: session.snapshot.context)
+            executeClickIfPossible(confirmResult: confirmResult, session: &session)
             return confirmResult.event
         case .closeOverlay:
             close()
@@ -129,22 +131,34 @@ final class OverlaySessionController {
 
     private func executeClickIfPossible(
         confirmResult: DryRunConfirmResult,
-        context: TargetContext
+        session: inout OverlaySessionState
     ) {
         guard let focusedItemID = confirmResult.focusedItemID else {
             lastClickResult = .failure(.missingFocusedTarget(index: -1))
+            activeSession = session
             return
         }
 
+        let isSecondConfirmProvided = session.pendingSecondConfirm?.focusedItemID == focusedItemID
         let result = clickExecutor.execute(
             focusedIndex: focusedItemID,
-            context: context,
-            isSecondConfirmProvided: false
+            context: session.snapshot.context,
+            isSecondConfirmProvided: isSecondConfirmProvided
         )
         lastClickResult = result
 
-        if case .success = result {
+        switch result {
+        case .success:
             close()
+        case .failure(.executionFailed(.secondConfirmRequired(let riskClass))):
+            session.pendingSecondConfirm = PendingSecondConfirm(
+                focusedItemID: focusedItemID,
+                riskClass: riskClass
+            )
+            activeSession = session
+        case .failure:
+            session.pendingSecondConfirm = nil
+            activeSession = session
         }
     }
 
@@ -251,6 +265,16 @@ struct OverlaySessionSnapshot: Equatable {
 struct OverlaySessionState: Equatable {
     let snapshot: OverlaySessionSnapshot
     var focusEngine: FocusEngine
+    var pendingSecondConfirm: PendingSecondConfirm?
+}
+
+/// 위험 click second confirm 대기 상태.
+///
+/// @author suho.do
+/// @since 2026-07-02
+struct PendingSecondConfirm: Equatable {
+    let focusedItemID: Int
+    let riskClass: ClickRiskClass
 }
 
 /// overlay session activation 결과.

@@ -7,6 +7,7 @@
 - v4: overlay keyboard command와 FocusEngine runtime wiring 및 focused label highlight update가 완료됐고, interaction log/click wiring이 다음 차단 항목임을 기록.
 - v5: focus/label jump interaction log wiring이 완료됐고, AXPress click execution wiring이 다음 차단 항목임을 기록.
 - v6: focused label confirm에서 AXPress click execution까지 runtime wiring이 완료됐고, risky second confirm/click logging이 다음 차단 항목임을 기록.
+- v7: risky action second confirm runtime flow가 완료됐고, click attempt/completed logging이 다음 차단 항목임을 기록.
 
 ## 1. 상태
 
@@ -14,7 +15,7 @@
 
 자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 당시 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않았다.
 
-이후 1차 runtime wiring으로 메뉴바 activation에서 target resolve, scan, overlay show까지 연결했고, overlay keyboard command를 FocusEngine과 focused label highlight update에 연결했다. focus/label jump interaction log wiring과 focused label confirm의 AXPress click execution wiring도 완료했다. 5개 앱 task 수행, 내부 사용자 3명 평가, 30분 crash-free 세션은 risky action second confirm과 click attempt/completed logging까지 완료한 뒤 재시도해야 한다.
+이후 1차 runtime wiring으로 메뉴바 activation에서 target resolve, scan, overlay show까지 연결했고, overlay keyboard command를 FocusEngine과 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label confirm의 AXPress click execution wiring, risky action second confirm runtime flow도 완료했다. 5개 앱 task 수행, 내부 사용자 3명 평가, 30분 crash-free 세션은 click attempt/completed logging까지 완료한 뒤 재시도해야 한다.
 
 ## 2. 평가 전 체크리스트
 
@@ -62,9 +63,9 @@
 
 결론:
 
-- 현재 빌드는 overlay 표시, keyboard focus/label jump, focus interaction log, AXPress click execution 진입점까지 갖췄지만, risky action second confirm과 click attempt/completed interaction logging이 아직 없어 TICKET-010 평가 전 안전/계측 조건이 완전하지 않다.
-- 이는 앱별 AX 지원성 실패가 아니라 click safety/logging wiring 미완료로 인한 평가 차단이다.
-- TICKET-010은 click safety/logging wiring 구현 후 재시도해야 한다.
+- 현재 빌드는 overlay 표시, keyboard focus/label jump, focus interaction log, AXPress click execution, risky action second confirm 진입점까지 갖췄지만, click attempt/completed interaction logging이 아직 없어 TICKET-010 평가 전 계측 조건이 완전하지 않다.
+- 이는 앱별 AX 지원성 실패가 아니라 click logging wiring 미완료로 인한 평가 차단이다.
+- TICKET-010은 click logging wiring 구현 후 재시도해야 한다.
 
 ## 4. 앱별 평가 기록
 
@@ -279,8 +280,8 @@ AppSupportReport
 
 ```text
 Decision: PENDING_MANUAL_EVALUATION
-Reason: 5개 앱 task를 평가할 click safety/logging runtime path가 아직 완전하지 않다.
-Required fixes before freeze: risky action second confirm runtime flow, click attempt/completed interaction logging
+Reason: 5개 앱 task를 평가할 click interaction logging runtime path가 아직 완전하지 않다.
+Required fixes before freeze: click attempt/completed interaction logging
 Known limitations to document: TICKET-010 재시도 후 확정
 Next ticket: runtime activation/wiring 구현 후 TICKET-010 재시도. TICKET-011 최종 확정은 그 이후에만 가능
 ```
@@ -292,7 +293,7 @@ Next ticket: runtime activation/wiring 구현 후 TICKET-010 재시도. TICKET-0
 - [x] keyboard focus / label jump wiring 구현
 - [x] focus / label jump interaction log wiring 구현
 - [x] AXPress click execution wiring 구현
-- [ ] risky action second confirm runtime flow 구현
+- [x] risky action second confirm runtime flow 구현
 - [ ] click attempt/completed interaction log wiring 구현
 - [ ] Accessibility 권한 부여와 Settings/onboarding 확인
 - [ ] Finder task 수행
