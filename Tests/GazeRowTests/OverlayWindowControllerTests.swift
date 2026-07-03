@@ -46,6 +46,60 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertEqual(appKitFrame, CGRect(x: 20, y: 1500, width: 300, height: 200))
     }
 
+    func test_OverlayScreenFrameMapper_오른쪽_외장모니터_roundTrip을_유지한다() {
+        // given
+        let sut = OverlayScreenFrameMapper(
+            screenFrames: [
+                CGRect(x: 0, y: 0, width: 1440, height: 900),
+                CGRect(x: 1440, y: 0, width: 1920, height: 1080)
+            ]
+        )
+        let axFrame = CGRect(x: 1500, y: 100, width: 400, height: 240)
+
+        // when
+        let appKitFrame = sut.appKitFrame(fromAXFrame: axFrame)
+
+        // then
+        XCTAssertEqual(appKitFrame, CGRect(x: 1500, y: 740, width: 400, height: 240))
+        XCTAssertEqual(sut.axFrame(fromAppKitFrame: appKitFrame), axFrame)
+    }
+
+    func test_OverlayScreenFrameMapper_왼쪽_외장모니터_roundTrip을_유지한다() {
+        // given
+        let sut = OverlayScreenFrameMapper(
+            screenFrames: [
+                CGRect(x: -1280, y: 0, width: 1280, height: 800),
+                CGRect(x: 0, y: 0, width: 1440, height: 900)
+            ]
+        )
+        let axFrame = CGRect(x: -1200, y: 50, width: 500, height: 250)
+
+        // when
+        let appKitFrame = sut.appKitFrame(fromAXFrame: axFrame)
+
+        // then
+        XCTAssertEqual(appKitFrame, CGRect(x: -1200, y: 600, width: 500, height: 250))
+        XCTAssertEqual(sut.axFrame(fromAppKitFrame: appKitFrame), axFrame)
+    }
+
+    func test_OverlayScreenFrameMapper_아래쪽_외장모니터_roundTrip을_유지한다() {
+        // given
+        let sut = OverlayScreenFrameMapper(
+            screenFrames: [
+                CGRect(x: 0, y: 0, width: 1440, height: 900),
+                CGRect(x: 0, y: -900, width: 1440, height: 900)
+            ]
+        )
+        let appKitFrame = CGRect(x: 100, y: -760, width: 360, height: 220)
+
+        // when
+        let axFrame = sut.axFrame(fromAppKitFrame: appKitFrame)
+
+        // then
+        XCTAssertEqual(axFrame, CGRect(x: 100, y: 1440, width: 360, height: 220))
+        XCTAssertEqual(sut.appKitFrame(fromAXFrame: axFrame), appKitFrame)
+    }
+
     func test_show는_overlay_keyboard입력을_받도록_application을_activate한다() {
         // given
         var activateCallCount = 0
