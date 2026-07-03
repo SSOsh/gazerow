@@ -75,6 +75,36 @@ struct OverlayLayoutMetrics: Equatable {
     }
 }
 
+/// overlay 하단에 표시할 현재 입력/실행 상태.
+///
+/// @author suho.do
+/// @since 2026-07-03
+struct OverlayInteractionStatus: Equatable {
+    let focusedLabel: String?
+    let typedLabelBuffer: String
+    let message: String?
+    let tone: Tone
+
+    init(
+        focusedLabel: String? = nil,
+        typedLabelBuffer: String = "",
+        message: String? = nil,
+        tone: Tone = .neutral
+    ) {
+        self.focusedLabel = focusedLabel
+        self.typedLabelBuffer = typedLabelBuffer
+        self.message = message
+        self.tone = tone
+    }
+
+    enum Tone: Equatable {
+        case neutral
+        case success
+        case warning
+        case failure
+    }
+}
+
 /// label 개수와 candidate 개수가 맞지 않을 때의 정책.
 ///
 /// @author suho.do

@@ -95,7 +95,9 @@ final class OverlaySessionController {
             snapshot: snapshot,
             focusEngine: FocusEngine(layout: layout)
         )
-        overlayPresenter.updateFocus(focusedLabelID: activeSession?.focusEngine.focusedItemID)
+        if let activeSession {
+            updateOverlayStatus(for: activeSession, message: "Ready", tone: .neutral)
+        }
 
         return .success(snapshot)
     }
@@ -106,17 +108,25 @@ final class OverlaySessionController {
         }
 
         let event: FocusEngineEvent?
+        var statusMessage: String?
+        var statusTone = OverlayInteractionStatus.Tone.neutral
         switch command {
         case .move(let moveCommand):
             session.pendingSecondConfirm = nil
             event = session.focusEngine.move(moveCommand)
+            statusMessage = focusedMessage(for: session)
         case .typeLabel(let character):
             session.pendingSecondConfirm = nil
-            event = session.focusEngine.typeLabelCharacter(character).event
+            let typingResult = session.focusEngine.typeLabelCharacter(character)
+            event = typingResult.event
+            let feedback = feedback(for: typingResult, typedCharacter: character, session: session)
+            statusMessage = feedback.message
+            statusTone = feedback.tone
         case .clearLabelBuffer:
             session.pendingSecondConfirm = nil
             session.focusEngine.clearLabelBuffer()
             event = nil
+            statusMessage = "Input cleared"
         case .dryRunConfirm:
             let confirmResult = session.focusEngine.dryRunConfirm()
             executeClickIfPossible(confirmResult: confirmResult, session: &session)
@@ -127,7 +137,7 @@ final class OverlaySessionController {
         }
 
         activeSession = session
-        overlayPresenter.updateFocus(focusedLabelID: session.focusEngine.focusedItemID)
+        updateOverlayStatus(for: session, message: statusMessage, tone: statusTone)
         record(event, context: session.snapshot.context)
         return event
     }
@@ -162,7 +172,7 @@ final class OverlaySessionController {
 
         let event = session.focusEngine.focusNearest(to: gazePoint)
         activeSession = session
-        overlayPresenter.updateFocus(focusedLabelID: session.focusEngine.focusedItemID)
+        updateOverlayStatus(for: session, message: focusedMessage(for: session), tone: .neutral)
         record(event, context: session.snapshot.context)
         return event
     }
@@ -183,12 +193,20 @@ final class OverlaySessionController {
             context: session.snapshot.context,
             isSecondConfirmProvided: isSecondConfirmProvided
         )
+        let focusedLabel = labelText(for: focusedItemID, in: session)
         lastClickResult = result
         clickResultObserver(result)
         recordClick(result: result, context: session.snapshot.context)
 
         switch result {
         case .success:
+            overlayPresenter.updateStatus(
+                OverlayInteractionStatus(
+                    focusedLabel: focusedLabel,
+                    message: "Clicked \(focusedLabel ?? "target")",
+                    tone: .success
+                )
+            )
             close()
         case .failure(.executionFailed(.secondConfirmRequired(let riskClass))):
             session.pendingSecondConfirm = PendingSecondConfirm(
@@ -196,9 +214,25 @@ final class OverlaySessionController {
                 riskClass: riskClass
             )
             activeSession = session
+            overlayPresenter.updateStatus(
+                OverlayInteractionStatus(
+                    focusedLabel: focusedLabel,
+                    typedLabelBuffer: session.focusEngine.labelBuffer,
+                    message: "Press Return again for \(riskClass.statusText)",
+                    tone: .warning
+                )
+            )
         case .failure:
             session.pendingSecondConfirm = nil
             activeSession = session
+            overlayPresenter.updateStatus(
+                OverlayInteractionStatus(
+                    focusedLabel: focusedLabel,
+                    typedLabelBuffer: session.focusEngine.labelBuffer,
+                    message: result.statusText,
+                    tone: .failure
+                )
+            )
         }
     }
 
@@ -258,6 +292,55 @@ final class OverlaySessionController {
                 windowTitleHash: windowTitleHasher.hash(context.window.title)
             )
         )
+    }
+
+    private func updateOverlayStatus(
+        for session: OverlaySessionState,
+        message: String?,
+        tone: OverlayInteractionStatus.Tone
+    ) {
+        overlayPresenter.updateStatus(
+            OverlayInteractionStatus(
+                focusedLabel: labelText(for: session.focusEngine.focusedItemID, in: session),
+                typedLabelBuffer: session.focusEngine.labelBuffer,
+                message: message,
+                tone: tone
+            )
+        )
+    }
+
+    private func focusedMessage(for session: OverlaySessionState) -> String? {
+        guard let label = labelText(for: session.focusEngine.focusedItemID, in: session) else {
+            return nil
+        }
+
+        return "Focused \(label)"
+    }
+
+    private func feedback(
+        for typingResult: LabelTypingResult,
+        typedCharacter: Character,
+        session: OverlaySessionState
+    ) -> (message: String?, tone: OverlayInteractionStatus.Tone) {
+        if typingResult.isExactMatch,
+           let label = labelText(for: typingResult.matchedItemID, in: session) {
+            return ("Focused \(label)", .success)
+        }
+
+        if !typingResult.buffer.isEmpty {
+            return ("Typing \(typingResult.buffer)", .neutral)
+        }
+
+        let typedLabel = String(typedCharacter).uppercased()
+        return ("No label \(typedLabel)", .failure)
+    }
+
+    private func labelText(for focusedItemID: Int?, in session: OverlaySessionState) -> String? {
+        guard let focusedItemID else {
+            return nil
+        }
+
+        return session.snapshot.layout.labels.first { $0.id == focusedItemID }?.text
     }
 
     private func clickRisk(
@@ -327,6 +410,8 @@ protocol OverlaySessionPresenting {
     func close()
 
     func updateFocus(focusedLabelID: Int?)
+
+    func updateStatus(_ status: OverlayInteractionStatus)
 }
 
 extension OverlayWindowController: OverlaySessionPresenting {}
@@ -453,6 +538,21 @@ private extension ClickRiskClass {
             "unknownRisk"
         }
     }
+
+    var statusText: String {
+        switch self {
+        case .safeNavigation:
+            "safe action"
+        case .stateChange:
+            "state change"
+        case .destructive:
+            "destructive action"
+        case .externalEffect:
+            "external action"
+        case .unknownRisk:
+            "unknown action"
+        }
+    }
 }
 
 private extension Result {
@@ -461,6 +561,47 @@ private extension Result {
             return true
         }
         return false
+    }
+}
+
+private extension Result where Success == ClickExecutionSuccess, Failure == OverlaySessionClickFailure {
+    var statusText: String {
+        switch self {
+        case .success:
+            "Click succeeded"
+        case .failure(let failure):
+            failure.statusText
+        }
+    }
+}
+
+private extension OverlaySessionClickFailure {
+    var statusText: String {
+        switch self {
+        case .scanFailed:
+            "Click failed: target changed"
+        case .missingFocusedTarget:
+            "Click failed: no focused target"
+        case .executionFailed(let failure):
+            failure.statusText
+        }
+    }
+}
+
+private extension ClickExecutionFailure {
+    var statusText: String {
+        switch self {
+        case .missingPressAction:
+            "Click failed: no supported action"
+        case .secondConfirmRequired(let riskClass):
+            "Press Return again for \(riskClass.statusText)"
+        case .axPressFailed:
+            "Click failed: accessibility action failed"
+        case .coordinateFallbackDisabled:
+            "Click failed: coordinate fallback is off"
+        case .coordinateFallbackFailed:
+            "Click failed: coordinate fallback failed"
+        }
     }
 }
 

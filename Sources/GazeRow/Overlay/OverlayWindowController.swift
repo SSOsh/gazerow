@@ -9,6 +9,7 @@ import SwiftUI
 final class OverlayWindowController {
     private var panel: OverlayPanel?
     private var currentLayout: OverlayLayout?
+    private var currentStatus = OverlayInteractionStatus()
     private let layoutEngine: OverlayLayoutEngine
     private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
     private let screenFrameProvider: @MainActor () -> [CGRect]
@@ -86,33 +87,64 @@ final class OverlayWindowController {
 
         self.panel = panel
         currentLayout = layout
-        render(layout: layout, focusedLabelID: nil)
+        currentStatus = OverlayInteractionStatus()
+        render(layout: layout, status: currentStatus)
         applicationActivator()
         panel.orderFrontRegardless()
         panel.makeKey()
     }
 
     func updateFocus(focusedLabelID: Int?) {
+        updateStatus(
+            OverlayInteractionStatus(
+                focusedLabel: labelText(for: focusedLabelID),
+                typedLabelBuffer: currentStatus.typedLabelBuffer,
+                message: currentStatus.message,
+                tone: currentStatus.tone
+            )
+        )
+    }
+
+    func updateStatus(_ status: OverlayInteractionStatus) {
         guard let currentLayout else {
             return
         }
 
-        render(layout: currentLayout, focusedLabelID: focusedLabelID)
+        currentStatus = status
+        render(layout: currentLayout, status: status)
     }
 
     func close() {
         panel?.orderOut(nil)
         panel = nil
         currentLayout = nil
+        currentStatus = OverlayInteractionStatus()
     }
 
-    private func render(layout: OverlayLayout, focusedLabelID: Int?) {
+    private func render(layout: OverlayLayout, status: OverlayInteractionStatus) {
         panel?.contentView = NSHostingView(
             rootView: OverlayView(
                 layout: layout,
-                focusedLabelID: focusedLabelID
+                focusedLabelID: focusedLabelID(for: status.focusedLabel),
+                status: status
             )
         )
+    }
+
+    private func labelText(for focusedLabelID: Int?) -> String? {
+        guard let focusedLabelID else {
+            return nil
+        }
+
+        return currentLayout?.labels.first { $0.id == focusedLabelID }?.text
+    }
+
+    private func focusedLabelID(for labelText: String?) -> Int? {
+        guard let labelText else {
+            return nil
+        }
+
+        return currentLayout?.labels.first { $0.text == labelText }?.id
     }
 
     static func defaultDisplayInfo(for targetFrame: CGRect) -> OverlayDisplayInfo {

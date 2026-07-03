@@ -156,7 +156,8 @@ final class OverlaySessionControllerTests: XCTestCase {
 
     func test_handleKeyboardCommand_typeLabel은_labelJump로_focus를_갱신() {
         // given
-        let sut = makeStartedSessionController()
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
 
         // when
         let event = sut.handleKeyboardCommand(.typeLabel("B"))
@@ -164,6 +165,26 @@ final class OverlaySessionControllerTests: XCTestCase {
         // then
         XCTAssertEqual(event, .labelJump(typedLabel: "B", matched: true, to: 1))
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+        XCTAssertEqual(
+            presenter.statusUpdates.last,
+            OverlayInteractionStatus(focusedLabel: "B", message: "Focused B", tone: .success)
+        )
+    }
+
+    func test_handleKeyboardCommand_없는_label은_실패피드백을_표시() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
+
+        // when
+        let event = sut.handleKeyboardCommand(.typeLabel("J"))
+
+        // then
+        XCTAssertEqual(event, .labelJump(typedLabel: "J", matched: false, to: nil))
+        XCTAssertEqual(
+            presenter.statusUpdates.last,
+            OverlayInteractionStatus(focusedLabel: "A", message: "No label J", tone: .failure)
+        )
     }
 
     func test_handleKeyboardCommand_clearLabelBuffer는_buffer만_초기화() {
@@ -314,7 +335,11 @@ final class OverlaySessionControllerTests: XCTestCase {
         // then
         XCTAssertEqual(result, .some(clickExecutor.result))
         XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [1])
-        XCTAssertEqual(presenter.focusUpdates, [0, 1])
+        XCTAssertEqual(presenter.focusUpdates, [0, 1, 1])
+        XCTAssertEqual(
+            presenter.statusUpdates.last,
+            OverlayInteractionStatus(focusedLabel: "B", message: "Clicked B", tone: .success)
+        )
         XCTAssertNil(sut.activeSession)
     }
 
@@ -366,6 +391,14 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.lastClickResult, clickExecutor.result)
         XCTAssertNotNil(sut.activeSession)
         XCTAssertEqual(presenter.closeCallCount, 0)
+        XCTAssertEqual(
+            presenter.statusUpdates.last,
+            OverlayInteractionStatus(
+                focusedLabel: "A",
+                message: "Click failed: no supported action",
+                tone: .failure
+            )
+        )
     }
 
     func test_handleKeyboardCommand_click실패는_attempt와_completed_false를_기록() {
@@ -727,6 +760,8 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
     private(set) var closeCallCount = 0
     private(set) var keyboardCommandHandler: ((FocusKeyboardCommand) -> Void)?
     private(set) var focusUpdates: [Int?] = []
+    private(set) var statusUpdates: [OverlayInteractionStatus] = []
+    private var lastLayout: OverlayLayout?
 
     func show(
         targetFrame: CGRect,
@@ -743,11 +778,13 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
             )
         )
         keyboardCommandHandler = onKeyboardCommand
-        return OverlayLayoutEngine().makeLayout(
+        let layout = OverlayLayoutEngine().makeLayout(
             targetFrame: targetFrame,
             candidates: candidates,
             labels: labels
         )
+        lastLayout = layout
+        return layout
     }
 
     func close() {
@@ -756,6 +793,19 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
 
     func updateFocus(focusedLabelID: Int?) {
         focusUpdates.append(focusedLabelID)
+    }
+
+    func updateStatus(_ status: OverlayInteractionStatus) {
+        statusUpdates.append(status)
+        focusUpdates.append(focusedLabelID(for: status.focusedLabel))
+    }
+
+    private func focusedLabelID(for label: String?) -> Int? {
+        guard let label else {
+            return nil
+        }
+
+        return lastLayout?.labels.first { $0.text == label }?.id
     }
 }
 

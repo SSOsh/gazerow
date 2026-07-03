@@ -8,18 +8,23 @@ struct OverlayView: View {
     let layout: OverlayLayout
     let showsBoundary: Bool
     let focusedLabelID: Int?
+    let status: OverlayInteractionStatus
 
     init(
         layout: OverlayLayout,
         showsBoundary: Bool = true,
-        focusedLabelID: Int? = nil
+        focusedLabelID: Int? = nil,
+        status: OverlayInteractionStatus = OverlayInteractionStatus()
     ) {
         self.layout = layout
         self.showsBoundary = showsBoundary
         self.focusedLabelID = focusedLabelID
+        self.status = status
     }
 
     var body: some View {
+        let statusWidth = max(0, min(layout.localBounds.width - 16, 420))
+
         ZStack(alignment: .topLeading) {
             if showsBoundary {
                 Rectangle()
@@ -35,6 +40,13 @@ struct OverlayView: View {
                     .frame(width: label.labelFrame.width, height: label.labelFrame.height)
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
             }
+
+            OverlayStatusView(status: status)
+                .frame(maxWidth: statusWidth, alignment: .leading)
+                .position(
+                    x: statusWidth / 2 + 8,
+                    y: layout.localBounds.height - 22
+                )
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
         .background(Color.clear)
@@ -63,6 +75,52 @@ private struct OverlayLabelView: View {
     }
 }
 
+private struct OverlayStatusView: View {
+    let status: OverlayInteractionStatus
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if let focusedLabel = status.focusedLabel {
+                Text("Focus \(focusedLabel)")
+                    .fontWeight(.semibold)
+            }
+
+            if !status.typedLabelBuffer.isEmpty {
+                Text("Typed \(status.typedLabelBuffer)")
+                    .fontWeight(.medium)
+            }
+
+            if let message = status.message {
+                Text(message)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+        }
+        .font(.system(size: 12, weight: .regular, design: .rounded))
+        .foregroundStyle(Color.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(backgroundColor, in: RoundedRectangle(cornerRadius: 6))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color.white.opacity(0.72), lineWidth: 1)
+        }
+    }
+
+    private var backgroundColor: Color {
+        switch status.tone {
+        case .neutral:
+            Color.black.opacity(0.72)
+        case .success:
+            Color.green.opacity(0.82)
+        case .warning:
+            Color.orange.opacity(0.86)
+        case .failure:
+            Color.red.opacity(0.86)
+        }
+    }
+}
+
 #Preview {
     let candidate = ClickableCandidate(
         role: AccessibilityRole.button,
@@ -76,5 +134,14 @@ private struct OverlayLabelView: View {
         candidates: [candidate],
         displayInfo: OverlayDisplayInfo(scaleFactor: 2, visibleFrame: nil)
     )
-    OverlayView(layout: layout)
+    OverlayView(
+        layout: layout,
+        focusedLabelID: 0,
+        status: OverlayInteractionStatus(
+            focusedLabel: "A",
+            typedLabelBuffer: "",
+            message: "Ready",
+            tone: .neutral
+        )
+    )
 }

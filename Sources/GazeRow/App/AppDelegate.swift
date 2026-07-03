@@ -528,8 +528,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        guard presentAccessibilityPermissionAlert() else {
+            return
+        }
+
         permissionManager.requestAccessibilityPermission()
         permissionManager.openAccessibilitySettings()
+    }
+
+    /// 권한 설정으로 보내기 전에 무엇이 미완료인지 먼저 설명한다.
+    private func presentAccessibilityPermissionAlert() -> Bool {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let guidance = AccessibilityPermissionGuidance()
+        let alert = NSAlert()
+        alert.messageText = guidance.title
+        alert.informativeText = guidance.message
+        alert.addButton(withTitle: guidance.actionButtonTitle)
+        alert.addButton(withTitle: guidance.cancelButtonTitle)
+
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     /// 평가자가 CLI로 앱을 실행할 때 권한 요청 동선을 바로 열 수 있게 한다.

@@ -101,4 +101,15 @@ final class PermissionManagerTests: XCTestCase {
         // then
         XCTAssertEqual(reason, AppState.accessibilityRationale)
     }
+
+    func test_AccessibilityPermissionGuidance_한국어는_미완료상태와_다음행동을_설명() {
+        // when
+        let guidance = AccessibilityPermissionGuidance(language: .korean)
+
+        // then
+        XCTAssertEqual(guidance.title, "손쉬운 사용 권한이 필요합니다")
+        XCTAssertTrue(guidance.message.contains("권한이 필요합니다"))
+        XCTAssertTrue(guidance.message.contains("시스템 설정"))
+        XCTAssertEqual(guidance.actionButtonTitle, "시스템 설정 열기")
+    }
 }

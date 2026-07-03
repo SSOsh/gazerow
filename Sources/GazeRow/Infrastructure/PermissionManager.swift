@@ -100,3 +100,35 @@ final class PermissionManager {
         _ = AXIsProcessTrustedWithOptions(options)
     }
 }
+
+/// Accessibility 권한이 없어 overlay가 차단됐을 때 보여줄 안내.
+///
+/// @author suho.do
+/// @since 2026-07-03
+struct AccessibilityPermissionGuidance: Equatable {
+    let title: String
+    let message: String
+    let actionButtonTitle: String
+    let cancelButtonTitle: String
+
+    init(language: AppLanguage = AppLanguageSettings().selectedLanguage) {
+        switch language {
+        case .english:
+            title = "Accessibility permission needed"
+            message = """
+            GazeRow needs Accessibility permission before it can show labels and click the focused app. \
+            Open System Settings, enable GazeRow under Accessibility, then return and try the overlay again.
+            """
+            actionButtonTitle = "Open System Settings"
+            cancelButtonTitle = "Cancel"
+        case .korean:
+            title = "손쉬운 사용 권한이 필요합니다"
+            message = """
+            GazeRow가 라벨을 표시하고 현재 앱의 요소를 클릭하려면 손쉬운 사용 권한이 필요합니다. \
+            시스템 설정에서 GazeRow를 손쉬운 사용 항목에 허용한 뒤 돌아와 overlay를 다시 실행하세요.
+            """
+            actionButtonTitle = "시스템 설정 열기"
+            cancelButtonTitle = "취소"
+        }
+    }
+}
