@@ -15,6 +15,8 @@ enum AppContent {
         case supported
         /// 동작하지만 후보/클릭에 제약이 있는 앱.
         case limited
+        /// 평가했지만 현재 후보 수집 또는 대표 task 수행이 불가능한 앱.
+        case unsupported
         /// 아직 검증하지 않은 앱.
         case unverified
     }
@@ -58,7 +60,8 @@ enum AppContent {
         "Coordinate-click fallback is off by default and must be enabled in debug.",
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
         "Gaze/camera features are Post-MVP and disabled in this build.",
-        "Slack currently exposes only window-control candidates in the Post-MVP smoke test."
+        "Slack currently exposes only window-control candidates in the Post-MVP smoke test.",
+        "Discord currently returns no clickable candidates in the Post-MVP smoke test."
     ]
 
     // MARK: - Diagnostics
@@ -86,6 +89,8 @@ enum AppContent {
         AppSupport(name: "VS Code", tier: .supported),
         AppSupport(name: "System Settings", tier: .supported),
         AppSupport(name: "Slack", tier: .limited),
-        AppSupport(name: "Notion", tier: .supported)
+        AppSupport(name: "Notion", tier: .supported),
+        AppSupport(name: "Discord", tier: .unsupported),
+        AppSupport(name: "Obsidian", tier: .unverified)
     ]
 }

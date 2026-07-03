@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Known Limitations와 앱 지원 범위를 보여주는 열람 시트.
 ///
-/// TICKET-009. 지원(supported)/제한(limited)/미확인(unverified) 앱을 구분해
+/// TICKET-009. 지원/제한/미지원/미확인 앱을 구분해
 /// 사용자가 어디까지 기대할 수 있는지 알 수 있게 한다.
 ///
 /// @author suho.do
@@ -82,6 +82,7 @@ struct KnownLimitationsView: View {
         let (label, color): (String, Color) = switch tier {
         case .supported: ("Supported", .green)
         case .limited: ("Limited", .orange)
+        case .unsupported: ("Unsupported", .red)
         case .unverified: ("Unverified", .secondary)
         }
         return Text(label)

@@ -21,6 +21,8 @@ final class AppContentTests: XCTestCase {
         XCTAssertEqual(supportByName["System Settings"], .supported)
         XCTAssertEqual(supportByName["Slack"], .limited)
         XCTAssertEqual(supportByName["Notion"], .supported)
+        XCTAssertEqual(supportByName["Discord"], .unsupported)
+        XCTAssertEqual(supportByName["Obsidian"], .unverified)
     }
 
     func test_knownLimitations_PostMVP제한앱을_포함한다() {
@@ -29,5 +31,6 @@ final class AppContentTests: XCTestCase {
 
         // when & then
         XCTAssertTrue(limitations.contains("Slack currently exposes only window-control candidates"))
+        XCTAssertTrue(limitations.contains("Discord currently returns no clickable candidates"))
     }
 }

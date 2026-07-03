@@ -5,7 +5,7 @@
 
 ## 1. 상태
 
-현재 상태: `SLACK_LIMITED_NOTION_PASS`
+현재 상태: `SLACK_LIMITED_NOTION_PASS_DISCORD_UNSUPPORTED`
 
 TICKET-010/TICKET-011 local MVP freeze 기준 앱 5개는 모두 pass했다. Post-MVP에서는 Slack, Notion 등 추가 앱의 overlay label coverage와 click action 실행 가능성을 같은 기준으로 수집한다.
 
@@ -29,6 +29,10 @@ TICKET-010/TICKET-011 local MVP freeze 기준 앱 5개는 모두 pass했다. Pos
 - [x] 3.3 Notion overlay label map smoke
 - [x] 3.4 Notion representative click task
 - [x] 3.5 App Support Tier 갱신
+- [!] 3.6 Discord overlay label map smoke
+  - issue: target resolve는 성공했지만 `GAZEROW_OVERLAY_RESULT failure reason=no_candidates`.
+- [x] 3.7 Obsidian 설치 여부 확인
+  - result: 현재 평가 환경에서 Obsidian 미설치.
 
 ## 3. 평가 명령
 
@@ -53,6 +57,9 @@ scripts/evaluate_overlay_target.sh --bundle-id <bundle-id> --click-label <LABEL>
 | Slack | `scripts/evaluate_overlay_target.sh --bundle-id com.tinyspeck.slackmacgap --timeout 8` | limited, 3 labels, window-control candidates only |
 | Notion | `scripts/evaluate_overlay_target.sh --bundle-id notion.id --timeout 8` | pass, 57 labels |
 | Notion | `scripts/evaluate_overlay_target.sh --bundle-id notion.id --click-label AY --timeout 8 --no-label-map` | pass, `AXPress`, safeNavigation, fallback=false |
+| Discord | `scripts/evaluate_overlay_target.sh --bundle-id com.hnc.Discord --timeout 8` | unsupported, `no_candidates` |
+| Discord retry | `scripts/evaluate_overlay_target.sh --bundle-id com.hnc.Discord --timeout 10` | unsupported, `no_candidates` |
+| Obsidian | `mdfind 'kMDItemCFBundleIdentifier == "md.obsidian"'` | unverified, not installed |
 
 ## 4. 판정 기준
 
@@ -65,7 +72,7 @@ scripts/evaluate_overlay_target.sh --bundle-id <bundle-id> --click-label <LABEL>
 
 ## 5. 다음 작업
 
-Slack은 Limited, Notion은 Evaluation pass로 반영했다. 다음 앱 확대 검증은 Discord(`com.hnc.Discord`) 또는 Obsidian 설치 여부를 확인한 뒤 같은 스크립트로 진행한다.
+Slack은 Limited, Notion은 Evaluation pass, Discord는 Unsupported, Obsidian은 Unverified로 반영했다. 다음 작업은 Discord의 `no_candidates` 원인 분석 또는 Obsidian 설치 환경에서 같은 스크립트로 평가를 재개하는 것이다.
 
 ---
 

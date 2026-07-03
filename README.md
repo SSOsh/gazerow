@@ -158,11 +158,14 @@ TICKET-010 실제 click task, Finder/VS Code fixed task 재평가, 30분 crash-f
 | System Settings | Evaluation pass | toolbar Back button pane navigation task pass |
 | Slack | Limited | overlay pass, only window-control candidates collected |
 | Notion | Evaluation pass | breadcrumb/page click task pass via `AXPress` |
+| Discord | Unsupported | overlay target resolved, but no clickable candidates collected |
+| Obsidian | Unverified | app not installed in current evaluation environment |
 
 등급 의미:
 
 - **Evaluation target**: MVP 기준 앱으로 TICKET-010에서 검증 대상.
 - **Limited**: 동작하지만 후보/클릭에 제약이 확인된 앱.
+- **Unsupported**: 평가했지만 현재 후보 수집 또는 대표 task 수행이 불가능한 앱.
 - **Unverified**: 아직 검증하지 않은 앱.
 
 ## 빌드 / 실행
@@ -367,12 +370,12 @@ scripts/verify_mvp_freeze.sh
 ## 하지 않는 것 (현재 범위 외)
 
 - Post-MVP 내부 사용자 3명 평가
-- Post-MVP 앱 확대 검증 추가(Discord, Obsidian 등)
+- Post-MVP 앱 확대 검증 추가(Obsidian 설치 환경, Discord candidate 개선 등)
 - Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
 
 ## 다음 티켓
 
-- **Post-MVP**: Discord/Obsidian 등 추가 앱 검증과 내부 사용자 3명 평가 재개
+- **Post-MVP**: Discord candidate 개선, Obsidian 설치 환경 검증, 내부 사용자 3명 평가 재개
 - 이후 **TICKET-011**: MVP Freeze Package 최종 확정
 
 자세한 계획은 `plans/` 폴더 참조.
