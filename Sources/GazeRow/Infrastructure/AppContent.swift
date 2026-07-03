@@ -58,7 +58,7 @@ enum AppContent {
         "Coordinate-click fallback is off by default and must be enabled in debug.",
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
         "Gaze/camera features are Post-MVP and disabled in this build.",
-        "Slack and Notion are not yet verified in the MVP evaluation set."
+        "Slack currently exposes only window-control candidates in the Post-MVP smoke test."
     ]
 
     // MARK: - Diagnostics
@@ -85,7 +85,7 @@ enum AppContent {
         AppSupport(name: "Chrome", tier: .supported),
         AppSupport(name: "VS Code", tier: .supported),
         AppSupport(name: "System Settings", tier: .supported),
-        AppSupport(name: "Slack", tier: .unverified),
-        AppSupport(name: "Notion", tier: .unverified)
+        AppSupport(name: "Slack", tier: .limited),
+        AppSupport(name: "Notion", tier: .supported)
     ]
 }

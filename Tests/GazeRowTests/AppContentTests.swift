@@ -19,13 +19,15 @@ final class AppContentTests: XCTestCase {
         XCTAssertEqual(supportByName["Safari"], .supported)
         XCTAssertEqual(supportByName["Chrome"], .supported)
         XCTAssertEqual(supportByName["System Settings"], .supported)
+        XCTAssertEqual(supportByName["Slack"], .limited)
+        XCTAssertEqual(supportByName["Notion"], .supported)
     }
 
-    func test_knownLimitations_PostMVP미검증앱을_포함한다() {
+    func test_knownLimitations_PostMVP제한앱을_포함한다() {
         // given
         let limitations = AppContent.knownLimitations.joined(separator: "\n")
 
         // when & then
-        XCTAssertTrue(limitations.contains("Slack and Notion are not yet verified"))
+        XCTAssertTrue(limitations.contains("Slack currently exposes only window-control candidates"))
     }
 }

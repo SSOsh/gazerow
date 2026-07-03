@@ -155,8 +155,8 @@ TICKET-010 실제 click task, Finder/VS Code fixed task 재평가, 30분 crash-f
 | Chrome | Evaluation pass | address bar focus task pass |
 | VS Code | Evaluation pass | Activity Bar item task pass via `AXPress` |
 | System Settings | Evaluation pass | pane navigation task pass |
-| Slack | Unverified | Post-MVP 검증 |
-| Notion | Unverified | Post-MVP 검증 |
+| Slack | Limited | Post-MVP smoke에서 window-control candidates only |
+| Notion | Evaluation pass | Post-MVP breadcrumb/page click task pass |
 
 `gazerow_known_limitations_v1.md`의 App Support Tiers는 TICKET-010 결과와 일치한다.
 
@@ -198,7 +198,7 @@ Decision: GO_FOR_LOCAL_MVP_FREEZE
 Reason: 5개 평가 앱 모두 task success, critical misclick 0건, 30분 crash-free session, freeze verification을 충족했다. 내부 사용자 gate는 ED-008에 따라 Post-MVP로 defer했다.
 Required fixes before freeze: none for local MVP
 Known limitations to update: none for evaluated MVP apps
-Next ticket: Post-MVP 앱 확대 검증 또는 내부 사용자 3명 평가 재개
+Next ticket: Discord/Obsidian 앱 확대 검증 또는 내부 사용자 3명 평가 재개
 ```
 
 ---

@@ -5,7 +5,7 @@
 
 ## 1. 상태
 
-현재 상태: `EVALUATION_TOOLING_READY`
+현재 상태: `SLACK_LIMITED_NOTION_PASS`
 
 TICKET-010/TICKET-011 local MVP freeze 기준 앱 5개는 모두 pass했다. Post-MVP에서는 Slack, Notion 등 추가 앱의 overlay label coverage와 click action 실행 가능성을 같은 기준으로 수집한다.
 
@@ -23,11 +23,12 @@ TICKET-010/TICKET-011 local MVP freeze 기준 앱 5개는 모두 pass했다. Pos
 - [x] 2.2 Post-MVP 평가 계획 문서 작성
 
 ### Phase 3: 앱별 평가
-- [ ] 3.1 Slack overlay label map smoke
-- [ ] 3.2 Slack representative click task
-- [ ] 3.3 Notion overlay label map smoke
-- [ ] 3.4 Notion representative click task
-- [ ] 3.5 App Support Tier 갱신
+- [x] 3.1 Slack overlay label map smoke
+- [!] 3.2 Slack representative click task
+  - issue: 현재 smoke에서 window-control `AXButton` 후보 3개만 수집되어 대표 앱 UI click task를 안전하게 정할 수 없음.
+- [x] 3.3 Notion overlay label map smoke
+- [x] 3.4 Notion representative click task
+- [x] 3.5 App Support Tier 갱신
 
 ## 3. 평가 명령
 
@@ -49,6 +50,9 @@ scripts/evaluate_overlay_target.sh --bundle-id <bundle-id> --click-label <LABEL>
 | --- | --- | --- |
 | Finder | `scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --timeout 6 --no-label-map` | pass, 84 labels |
 | Finder | `scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --click-label AA --timeout 6 --no-label-map` | pass, `AXShowDefaultUI`, safeNavigation, fallback=false |
+| Slack | `scripts/evaluate_overlay_target.sh --bundle-id com.tinyspeck.slackmacgap --timeout 8` | limited, 3 labels, window-control candidates only |
+| Notion | `scripts/evaluate_overlay_target.sh --bundle-id notion.id --timeout 8` | pass, 57 labels |
+| Notion | `scripts/evaluate_overlay_target.sh --bundle-id notion.id --click-label AY --timeout 8 --no-label-map` | pass, `AXPress`, safeNavigation, fallback=false |
 
 ## 4. 판정 기준
 
@@ -61,7 +65,7 @@ scripts/evaluate_overlay_target.sh --bundle-id <bundle-id> --click-label <LABEL>
 
 ## 5. 다음 작업
 
-Slack 또는 Notion이 설치되어 있으면 bundle id 확인 후 Phase 3을 진행한다. 설치되어 있지 않으면 평가 결과를 지어내지 않고 `Unverified`로 유지한다.
+Slack은 Limited, Notion은 Evaluation pass로 반영했다. 다음 앱 확대 검증은 Discord(`com.hnc.Discord`) 또는 Obsidian 설치 여부를 확인한 뒤 같은 스크립트로 진행한다.
 
 ---
 

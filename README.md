@@ -156,8 +156,8 @@ TICKET-010 실제 click task, Finder/VS Code fixed task 재평가, 30분 crash-f
 | Chrome | Evaluation pass | address bar focus task pass |
 | VS Code | Evaluation pass | Activity Bar item task pass via `AXPress` |
 | System Settings | Evaluation pass | toolbar Back button pane navigation task pass |
-| Slack | Unverified | Post-MVP 검증 |
-| Notion | Unverified | Post-MVP 검증 |
+| Slack | Limited | overlay pass, only window-control candidates collected |
+| Notion | Evaluation pass | breadcrumb/page click task pass via `AXPress` |
 
 등급 의미:
 
@@ -367,12 +367,12 @@ scripts/verify_mvp_freeze.sh
 ## 하지 않는 것 (현재 범위 외)
 
 - Post-MVP 내부 사용자 3명 평가
-- Post-MVP 앱 확대 검증 결과 확정(Slack, Notion 등)
+- Post-MVP 앱 확대 검증 추가(Discord, Obsidian 등)
 - Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
 
 ## 다음 티켓
 
-- **Post-MVP**: Slack/Notion 등 추가 앱 검증과 내부 사용자 3명 평가 재개
+- **Post-MVP**: Discord/Obsidian 등 추가 앱 검증과 내부 사용자 3명 평가 재개
 - 이후 **TICKET-011**: MVP Freeze Package 최종 확정
 
 자세한 계획은 `plans/` 폴더 참조.

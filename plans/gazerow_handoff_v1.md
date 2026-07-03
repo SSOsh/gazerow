@@ -12,7 +12,7 @@
 
 - 어떤 파일을 어떤 순서로 읽어야 하는지 명확히 한다.
 - 현재 구현된 MVP freeze 범위와 Post-MVP 평가 작업을 구분한다.
-- 다음 작업자가 Slack/Notion 등 추가 앱 평가를 바로 준비할 수 있게 한다.
+- 다음 작업자가 Discord/Obsidian 등 추가 앱 평가를 바로 준비할 수 있게 한다.
 
 ## 2. 현재 상태
 
@@ -141,7 +141,7 @@ Deferred:
 
 추천 순서:
 
-1. Slack/Notion 설치 여부와 bundle id 확인
+1. Discord/Obsidian 설치 여부와 bundle id 확인
 2. `scripts/evaluate_overlay_target.sh`로 overlay label map smoke 실행
 3. 대표 click task label을 정해 `--click-label` 평가 실행
 4. `gazerow_post_mvp_app_evaluation_v1.md`와 App Support Tier 갱신
