@@ -158,7 +158,7 @@ TICKET-010 실제 click task, Finder/VS Code fixed task 재평가, 30분 crash-f
 | System Settings | Evaluation pass | toolbar Back button pane navigation task pass |
 | Slack | Evaluation pass | Messages tab click task pass via `AXPress`, fallback=false |
 | Notion | Evaluation pass | breadcrumb/page click task pass via `AXPress` |
-| Discord | Limited | overlay pass, 8 labels after expanded AX child scanning; representative click pending |
+| Discord | Limited | overlay pass, 6 labels after image candidate filtering; representative click pending |
 | Obsidian | Unverified | app not installed in current evaluation environment |
 
 등급 의미:

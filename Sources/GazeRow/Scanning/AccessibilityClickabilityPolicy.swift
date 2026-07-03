@@ -10,8 +10,15 @@ import Foundation
 struct AccessibilityClickabilityPolicy {
 
     func isClickable(_ snapshot: AccessibilityElementSnapshot) -> Bool {
-        hasClickAction(snapshot)
-            || clickableRoles.contains(snapshot.role ?? "")
+        if hasClickAction(snapshot) {
+            return true
+        }
+
+        if snapshot.role == AccessibilityRole.image {
+            return hasSemanticText(snapshot)
+        }
+
+        return clickableRoles.contains(snapshot.role ?? "")
     }
 
     private func hasClickAction(_ snapshot: AccessibilityElementSnapshot) -> Bool {
@@ -19,6 +26,20 @@ struct AccessibilityClickabilityPolicy {
             || snapshot.actions.contains(AccessibilityAction.confirm)
             || snapshot.actions.contains(AccessibilityAction.open)
             || snapshot.actions.contains(AccessibilityAction.showDefaultUI)
+    }
+
+    private func hasSemanticText(_ snapshot: AccessibilityElementSnapshot) -> Bool {
+        hasText(snapshot.title)
+            || hasText(snapshot.value)
+            || hasText(snapshot.help)
+    }
+
+    private func hasText(_ value: String?) -> Bool {
+        guard let value else {
+            return false
+        }
+
+        return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var clickableRoles: Set<String> {

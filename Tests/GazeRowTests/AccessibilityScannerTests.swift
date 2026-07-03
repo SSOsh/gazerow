@@ -104,6 +104,44 @@ final class AccessibilityScannerTests: XCTestCase {
         )
     }
 
+    func test_scan_의미텍스트없는_image는_action이_없으면_제외() {
+        // given
+        let decorativeImage = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.image,
+                title: nil,
+                frame: CGRect(x: 10, y: 20, width: 128, height: 128)
+            )
+        )
+        let namedImage = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.image,
+                title: "Workspace",
+                frame: CGRect(x: 160, y: 20, width: 32, height: 32)
+            )
+        )
+        let actionableImage = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.image,
+                title: nil,
+                frame: CGRect(x: 210, y: 20, width: 32, height: 32),
+                actions: [AccessibilityAction.press]
+            )
+        )
+        let root = FakeElement(children: [decorativeImage, namedImage, actionableImage])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidates.map(\.frame), [namedImage.snapshot.frame, actionableImage.snapshot.frame])
+    }
+
     func test_scan_defaultDepth는_VSCode_activityBar처럼_깊은_candidate를_수집() {
         // given
         let activityBarItem = FakeElement(

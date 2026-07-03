@@ -157,7 +157,7 @@ TICKET-010 실제 click task, Finder/VS Code fixed task 재평가, 30분 crash-f
 | System Settings | Evaluation pass | pane navigation task pass |
 | Slack | Evaluation pass | Post-MVP Messages tab click pass via `AXPress`, fallback=false |
 | Notion | Evaluation pass | Post-MVP breadcrumb/page click task pass |
-| Discord | Limited | Post-MVP smoke에서 8 labels; representative click pending |
+| Discord | Limited | Post-MVP smoke에서 6 labels; representative click pending |
 | Obsidian | Unverified | 현재 평가 환경에 미설치 |
 
 `gazerow_known_limitations_v1.md`의 App Support Tiers는 TICKET-010 결과와 일치한다.
