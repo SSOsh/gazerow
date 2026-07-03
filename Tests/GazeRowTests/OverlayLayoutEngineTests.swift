@@ -81,7 +81,7 @@ final class OverlayLayoutEngineTests: XCTestCase {
         XCTAssertLessThanOrEqual(labelFrame.maxY, layout.localBounds.maxY)
     }
 
-    func test_makeLayout_겹치는_label은_shift하고_collisionCount를_기록() {
+    func test_makeLayout_인접한_candidate에_label을_중앙_배치하면_겹침을_collisionCount로_기록() {
         // given
         let first = makeCandidate(frame: CGRect(x: 100, y: 120, width: 20, height: 20))
         let second = makeCandidate(frame: CGRect(x: 102, y: 122, width: 20, height: 20))
@@ -100,7 +100,30 @@ final class OverlayLayoutEngineTests: XCTestCase {
 
         // then
         XCTAssertEqual(layout.metrics.collisionCount, 1)
-        XCTAssertFalse(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
+        XCTAssertTrue(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
+    }
+
+    func test_makeLayout_label을_candidate_중앙에_배치() {
+        // given
+        let candidate = makeCandidate(frame: CGRect(x: 140, y: 160, width: 80, height: 40))
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(
+                labelSize: CGSize(width: 30, height: 20),
+                edgeInset: 0
+            )
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
+            candidates: [candidate]
+        )
+
+        // then
+        let candidateFrame = layout.labels[0].candidateFrame
+        let labelFrame = layout.labels[0].labelFrame
+        XCTAssertEqual(labelFrame.midX, candidateFrame.midX, accuracy: 0.001)
+        XCTAssertEqual(labelFrame.midY, candidateFrame.midY, accuracy: 0.001)
     }
 
     func test_makeLayout_label이_candidate를_가리면_occlusionCount를_기록() {

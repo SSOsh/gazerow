@@ -26,19 +26,13 @@ struct OverlayLayoutEngine {
         for (index, candidate) in candidates.enumerated() {
             let candidateFrame = mapper.mapScreenFrameToLocal(candidate.frame)
             let text = index < labels.count ? labels[index] : generatedLabels[index]
-            let proposedFrame = makeInitialLabelFrame(near: candidateFrame, in: mapper.localBounds)
-            let placement = mitigateCollision(
-                proposedFrame: proposedFrame,
-                candidateFrame: candidateFrame,
-                occupiedFrames: placedLabels.map(\.labelFrame),
-                bounds: mapper.localBounds
-            )
+            let labelFrame = makeCenteredLabelFrame(over: candidateFrame, in: mapper.localBounds)
 
-            if placement.didCollide {
+            if placedLabels.contains(where: { $0.labelFrame.intersects(labelFrame) }) {
                 collisionCount += 1
             }
 
-            if placement.frame.intersects(candidateFrame) {
+            if labelFrame.intersects(candidateFrame) {
                 occlusionCount += 1
             }
 
@@ -47,7 +41,7 @@ struct OverlayLayoutEngine {
                     id: index,
                     text: text,
                     candidateFrame: candidateFrame,
-                    labelFrame: placement.frame,
+                    labelFrame: labelFrame,
                     anchorPoint: CGPoint(x: candidateFrame.midX, y: candidateFrame.midY)
                 )
             )
@@ -67,80 +61,18 @@ struct OverlayLayoutEngine {
         )
     }
 
-    private func makeInitialLabelFrame(near candidateFrame: CGRect, in bounds: CGRect) -> CGRect {
-        let aboveOrigin = CGPoint(
+    /// 라벨을 후보 요소의 중앙에 겹쳐 배치한다.
+    ///
+    /// 후보에서 멀리 밀어내지 않으므로 라벨이 각 요소 위에 분산돼, 밀집 UI나
+    /// 화면 가장자리에서 라벨이 한쪽으로 쏠려 뭉치는 현상을 없앤다. 화면 밖으로
+    /// 벗어나지 않도록 경계 안으로만 clamp 한다.
+    private func makeCenteredLabelFrame(over candidateFrame: CGRect, in bounds: CGRect) -> CGRect {
+        let origin = CGPoint(
             x: candidateFrame.midX - configuration.labelSize.width / 2,
-            y: candidateFrame.minY - configuration.labelSize.height - configuration.labelSpacing
-        )
-        let belowOrigin = CGPoint(
-            x: candidateFrame.midX - configuration.labelSize.width / 2,
-            y: candidateFrame.maxY + configuration.labelSpacing
-        )
-        let aboveFrame = CGRect(origin: aboveOrigin, size: configuration.labelSize)
-        let frame = aboveFrame.minY >= bounds.minY + configuration.edgeInset
-            ? aboveFrame
-            : CGRect(origin: belowOrigin, size: configuration.labelSize)
-
-        return clamp(frame, to: bounds)
-    }
-
-    private func mitigateCollision(
-        proposedFrame: CGRect,
-        candidateFrame: CGRect,
-        occupiedFrames: [CGRect],
-        bounds: CGRect
-    ) -> (frame: CGRect, didCollide: Bool) {
-        var frame = proposedFrame
-        var didCollide = false
-
-        for _ in 0...configuration.collisionShiftLimit {
-            guard intersectsAny(frame, occupiedFrames: occupiedFrames) else {
-                return (frame, didCollide)
-            }
-
-            didCollide = true
-            frame = nextCollisionFrame(
-                currentFrame: frame,
-                candidateFrame: candidateFrame,
-                bounds: bounds
-            )
-        }
-
-        return (frame, didCollide)
-    }
-
-    private func nextCollisionFrame(
-        currentFrame: CGRect,
-        candidateFrame: CGRect,
-        bounds: CGRect
-    ) -> CGRect {
-        let shifted = currentFrame.offsetBy(
-            dx: 0,
-            dy: configuration.labelSize.height + configuration.labelSpacing
+            y: candidateFrame.midY - configuration.labelSize.height / 2
         )
 
-        if shifted.maxY <= bounds.maxY - configuration.edgeInset {
-            return shifted
-        }
-
-        let wrapped = CGRect(
-            x: candidateFrame.maxX + configuration.labelSpacing,
-            y: candidateFrame.midY - configuration.labelSize.height / 2,
-            width: configuration.labelSize.width,
-            height: configuration.labelSize.height
-        )
-        return clamp(wrapped, to: bounds)
-    }
-
-    private func intersectsAny(_ frame: CGRect, occupiedFrames: [CGRect]) -> Bool {
-        occupiedFrames.contains { occupied in
-            frame.intersects(
-                occupied.insetBy(
-                    dx: -configuration.labelSpacing,
-                    dy: -configuration.labelSpacing
-                )
-            )
-        }
+        return clamp(CGRect(origin: origin, size: configuration.labelSize), to: bounds)
     }
 
     private func clamp(_ frame: CGRect, to bounds: CGRect) -> CGRect {
