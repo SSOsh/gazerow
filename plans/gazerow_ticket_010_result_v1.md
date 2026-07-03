@@ -26,6 +26,7 @@
 - v23: ED-008에 따라 내부 사용자 gate를 Post-MVP defer로 정리하고 현재 차단 항목을 Finder/VS Code fixed task 재평가로 좁힘.
 - v24: SwiftPM 바이너리 평가에서 overlay keyboard 입력이 Finder로 전달되는 한계를 확인하고 local `.app` bundle 생성 스크립트를 추가.
 - v25: overlay panel AX/AppKit 좌표 변환과 window level 보강 후 Finder overlay 표시 smoke를 통과.
+- v26: 좌표 보정 후 VS Code overlay 표시 smoke를 통과.
 
 ## 1. 상태
 
@@ -56,6 +57,8 @@
 2026-07-03에는 Finder fixed task 재평가를 다시 시도했다. Finder label map은 385개까지 수집됐고 sidebar 영역의 `AXCell` + `AXOpen` 후보가 확인됐다. 다만 SwiftPM 바이너리 실행 상태에서는 Computer Use 키 입력이 overlay가 아니라 Finder 목록 검색/선택으로 전달되어 keyboard confirm click 결과를 얻지 못했다. 이 상태를 pass로 기록하지 않고, LaunchServices/activation 경로로 재평가하기 위해 `scripts/build_local_app.sh`를 추가했다. 스크립트는 `.build/local-app/GazeRow.app` 생성을 통과했지만, 자동 UI 도구에서는 accessory 앱이 별도 앱으로 노출되지 않아 Finder/VS Code fixed task는 실제 사용자 키보드 입력으로 최종 확인해야 한다.
 
 이후 overlay panel이 AX top-left frame을 그대로 AppKit bottom-left window frame으로 사용하던 문제를 보정했다. `OverlayScreenFrameMapper`로 panel frame만 AppKit 좌표로 변환하고, overlay level을 `statusBar`로 올렸다. 전체 화면 캡처(`/tmp/gazerow_overlay_smoke.png`)에서 Finder window 위 label 표시가 확인됐다. Computer Use 앱별 스냅샷은 다른 프로세스 overlay를 제외하므로 이 검증에는 사용하지 않는다.
+
+같은 좌표 보정 빌드로 VS Code overlay 표시 smoke도 수행했다. `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map`는 `GAZEROW_OVERLAY_RESULT success labels=29`를 출력했고, 전체 화면 캡처(`/tmp/gazerow_vscode_overlay_smoke.png`)에서 Activity Bar와 toolbar 후보 label이 VS Code window 위에 표시됨을 확인했다. 이 검증은 overlay visibility와 candidate map 확인이며, VS Code fixed task click 성공 판정은 아직 아니다.
 
 ## 2. 평가 전 체크리스트
 
@@ -124,6 +127,7 @@
 | freeze verification after local app bundle script | `scripts/verify_mvp_freeze.sh` | pass, 191 tests, 0 failures, MVP-excluded check passed |
 | overlay frame mapper focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'OverlayWindowControllerTests\|OverlayLayoutEngineTests\|OverlaySessionControllerTests'` | pass, 30 tests, 0 failures |
 | Finder overlay visibility smoke | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` + `screencapture` | pass, 248 labels, overlay labels visible on full-screen capture |
+| VS Code overlay visibility smoke | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` + `screencapture` | pass, 29 labels, Activity Bar and toolbar labels visible on full-screen capture |
 | full test after overlay frame mapper update | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 193 tests, 0 failures |
 | freeze verification after overlay frame mapper update | `scripts/verify_mvp_freeze.sh` | pass, 193 tests, 0 failures, MVP-excluded check passed |
 
