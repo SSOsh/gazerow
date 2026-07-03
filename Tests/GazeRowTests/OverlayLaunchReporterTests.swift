@@ -52,6 +52,53 @@ final class OverlayLaunchReporterTests: XCTestCase {
         )
     }
 
+    func test_failureDetails_noCandidates는_scan집계만_출력한다() {
+        // given
+        let context = TargetContext(
+            application: TargetApplication(
+                localizedName: "Discord",
+                bundleIdentifier: "com.hnc.Discord",
+                processIdentifier: 100
+            ),
+            window: TargetWindow(
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                title: "Private Window Title"
+            ),
+            resolvedAt: Date(timeIntervalSince1970: 1_788_800_000)
+        )
+        let scanResult = AccessibilityScanResult(
+            candidates: [],
+            nodesVisited: 37,
+            scanDuration: 0.1234,
+            didHitDepthLimit: false,
+            didHitNodeLimit: true,
+            didTimeout: false,
+            failedChildReadCount: 2
+        )
+
+        // when
+        let result = OverlayLaunchReporter.failureDetails(
+            .noCandidates(context: context, scanResult: scanResult)
+        )
+
+        // then
+        XCTAssertEqual(
+            result,
+            [
+                "GAZEROW_OVERLAY_SCAN_SUMMARY bundle=com.hnc.Discord candidates=0 nodes=37 duration_ms=123 depth_limit=false node_limit=true timeout=false failed_child_reads=2"
+            ]
+        )
+        XCTAssertFalse(result.joined(separator: " ").contains("Private Window Title"))
+    }
+
+    func test_failureDetails_noCandidates외_실패는_빈배열() {
+        // when
+        let result = OverlayLaunchReporter.failureDetails(.sessionDisabled)
+
+        // then
+        XCTAssertTrue(result.isEmpty)
+    }
+
     func test_clickResult_success_method와_risk를_출력한다() {
         // given
         let success = ClickExecutionSuccess(

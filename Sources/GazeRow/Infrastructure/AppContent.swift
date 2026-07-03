@@ -61,7 +61,7 @@ enum AppContent {
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
         "Gaze/camera features are Post-MVP and disabled in this build.",
         "Slack currently exposes only window-control candidates in the Post-MVP smoke test.",
-        "Discord currently returns no clickable candidates in the Post-MVP smoke test."
+        "Discord currently exposes only window-control candidates in the Post-MVP smoke test."
     ]
 
     // MARK: - Diagnostics
@@ -90,7 +90,7 @@ enum AppContent {
         AppSupport(name: "System Settings", tier: .supported),
         AppSupport(name: "Slack", tier: .limited),
         AppSupport(name: "Notion", tier: .supported),
-        AppSupport(name: "Discord", tier: .unsupported),
+        AppSupport(name: "Discord", tier: .limited),
         AppSupport(name: "Obsidian", tier: .unverified)
     ]
 }

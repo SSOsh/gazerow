@@ -175,6 +175,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             printOverlayLaunchResultIfNeeded(
                 OverlayLaunchReporter.failure(logCode: failure.logCode)
             )
+            printOverlayFailureDetailsIfNeeded(failure)
             requestAccessibilityPermissionIfNeeded(for: failure)
         }
     }
@@ -290,6 +291,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print(message)
                 fflush(stdout)
             }
+    }
+
+    /// no-candidate 같은 평가 실패의 민감정보 없는 scan 집계만 stdout에 출력한다.
+    private func printOverlayFailureDetailsIfNeeded(_ failure: OverlaySessionStartFailure) {
+        guard launchOptions.showsOverlayOnLaunch else {
+            return
+        }
+
+        OverlayLaunchReporter.failureDetails(failure).forEach { message in
+            print(message)
+            fflush(stdout)
+        }
     }
 
     /// 런치 옵션 기반 평가에서 특정 overlay label을 keyboard 입력 없이 confirm한다.

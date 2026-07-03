@@ -1,3 +1,5 @@
+import Foundation
+
 /// 런치 옵션 기반 overlay smoke 결과를 stdout에 남기기 위한 formatter.
 ///
 /// @author suho.do
@@ -14,6 +16,29 @@ enum OverlayLaunchReporter {
 
     static func failure(logCode: String) -> String {
         "GAZEROW_OVERLAY_RESULT failure reason=\(logCode)"
+    }
+
+    static func failureDetails(_ failure: OverlaySessionStartFailure) -> [String] {
+        switch failure {
+        case .noCandidates(let context, let scanResult):
+            return [
+                [
+                    "GAZEROW_OVERLAY_SCAN_SUMMARY",
+                    "bundle=\(context.application.bundleIdentifier)",
+                    "candidates=0",
+                    "nodes=\(scanResult.nodesVisited)",
+                    "duration_ms=\(durationMilliseconds(scanResult.scanDuration))",
+                    "depth_limit=\(scanResult.didHitDepthLimit)",
+                    "node_limit=\(scanResult.didHitNodeLimit)",
+                    "timeout=\(scanResult.didTimeout)",
+                    "failed_child_reads=\(scanResult.failedChildReadCount)"
+                ].joined(separator: " ")
+            ]
+        case .sessionDisabled,
+             .targetResolutionFailed,
+             .scanFailed:
+            return []
+        }
     }
 
     static func clickResult(
@@ -62,6 +87,10 @@ enum OverlayLaunchReporter {
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
             .joined(separator: "_")
+    }
+
+    private static func durationMilliseconds(_ duration: TimeInterval) -> Int {
+        Int((duration * 1_000).rounded())
     }
 
     private static func methodCode(_ method: ClickExecutionMethod) -> String {

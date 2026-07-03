@@ -2,10 +2,11 @@
 
 ## 변경 이력
 - v1: Slack/Notion 등 Post-MVP 앱 확대 검증을 위한 재사용 실행 스크립트와 작업 목록을 정의.
+- v2: Discord 재검증 결과를 `no_candidates`에서 window-control-only Limited로 갱신하고 no-candidates 진단 stdout을 추가.
 
 ## 1. 상태
 
-현재 상태: `SLACK_LIMITED_NOTION_PASS_DISCORD_UNSUPPORTED`
+현재 상태: `SLACK_LIMITED_NOTION_PASS_DISCORD_LIMITED`
 
 TICKET-010/TICKET-011 local MVP freeze 기준 앱 5개는 모두 pass했다. Post-MVP에서는 Slack, Notion 등 추가 앱의 overlay label coverage와 click action 실행 가능성을 같은 기준으로 수집한다.
 
@@ -30,7 +31,7 @@ TICKET-010/TICKET-011 local MVP freeze 기준 앱 5개는 모두 pass했다. Pos
 - [x] 3.4 Notion representative click task
 - [x] 3.5 App Support Tier 갱신
 - [!] 3.6 Discord overlay label map smoke
-  - issue: target resolve는 성공했지만 `GAZEROW_OVERLAY_RESULT failure reason=no_candidates`.
+  - issue: 현재 재검증 smoke에서 window-control `AXButton` 후보 3개만 수집되어 대표 앱 UI click task를 안전하게 정할 수 없음.
 - [x] 3.7 Obsidian 설치 여부 확인
   - result: 현재 평가 환경에서 Obsidian 미설치.
 
@@ -57,8 +58,8 @@ scripts/evaluate_overlay_target.sh --bundle-id <bundle-id> --click-label <LABEL>
 | Slack | `scripts/evaluate_overlay_target.sh --bundle-id com.tinyspeck.slackmacgap --timeout 8` | limited, 3 labels, window-control candidates only |
 | Notion | `scripts/evaluate_overlay_target.sh --bundle-id notion.id --timeout 8` | pass, 57 labels |
 | Notion | `scripts/evaluate_overlay_target.sh --bundle-id notion.id --click-label AY --timeout 8 --no-label-map` | pass, `AXPress`, safeNavigation, fallback=false |
-| Discord | `scripts/evaluate_overlay_target.sh --bundle-id com.hnc.Discord --timeout 8` | unsupported, `no_candidates` |
-| Discord retry | `scripts/evaluate_overlay_target.sh --bundle-id com.hnc.Discord --timeout 10` | unsupported, `no_candidates` |
+| Discord | `scripts/evaluate_overlay_target.sh --bundle-id com.hnc.Discord --timeout 8` | limited, 3 labels, window-control candidates only |
+| Discord retry | `scripts/evaluate_overlay_target.sh --bundle-id com.hnc.Discord --timeout 10` | previous run returned `no_candidates`; current retry should be interpreted against current app state |
 | Obsidian | `mdfind 'kMDItemCFBundleIdentifier == "md.obsidian"'` | unverified, not installed |
 
 ## 4. 판정 기준
@@ -72,7 +73,7 @@ scripts/evaluate_overlay_target.sh --bundle-id <bundle-id> --click-label <LABEL>
 
 ## 5. 다음 작업
 
-Slack은 Limited, Notion은 Evaluation pass, Discord는 Unsupported, Obsidian은 Unverified로 반영했다. 다음 작업은 Discord의 `no_candidates` 원인 분석 또는 Obsidian 설치 환경에서 같은 스크립트로 평가를 재개하는 것이다.
+Slack과 Discord는 Limited, Notion은 Evaluation pass, Obsidian은 Unverified로 반영했다. 다음 작업은 Slack/Discord의 window-control-only candidate 원인 분석 또는 Obsidian 설치 환경에서 같은 스크립트로 평가를 재개하는 것이다.
 
 ---
 
