@@ -38,6 +38,7 @@ enum FocusChangeMethod: Equatable {
     case arrowUp
     case arrowDown
     case labelJump
+    case gaze
 }
 
 /// focus engine 이벤트. TICKET-008의 interaction log 입력으로 쓸 수 있다.

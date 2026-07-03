@@ -155,6 +155,18 @@ final class OverlaySessionController {
         return lastClickResult
     }
 
+    func focusNearestLabel(to gazePoint: CGPoint) -> FocusEngineEvent? {
+        guard var session = activeSession else {
+            return nil
+        }
+
+        let event = session.focusEngine.focusNearest(to: gazePoint)
+        activeSession = session
+        overlayPresenter.updateFocus(focusedLabelID: session.focusEngine.focusedItemID)
+        record(event, context: session.snapshot.context)
+        return event
+    }
+
     private func executeClickIfPossible(
         confirmResult: DryRunConfirmResult,
         session: inout OverlaySessionState
@@ -420,6 +432,8 @@ private extension FocusChangeMethod {
             "arrowDown"
         case .labelJump:
             "labelJump"
+        case .gaze:
+            "gaze"
         }
     }
 }

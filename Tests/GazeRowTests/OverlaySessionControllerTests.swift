@@ -541,6 +541,38 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
     }
 
+    func test_focusNearestLabel_gazePoint로_overlayFocus를_갱신하고_기록() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let recorder = StubInteractionRecorder()
+        let timestamp = Date(timeIntervalSince1970: 40)
+        let hasher = WindowTitleHasher(salt: SessionSalt(value: "test-salt"))
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            recorder: recorder,
+            windowTitleHasher: hasher,
+            dateProvider: { timestamp }
+        )
+
+        // when
+        let event = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then
+        XCTAssertEqual(event, .focusChanged(from: 0, to: 1, method: .gaze))
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+        XCTAssertEqual(presenter.focusUpdates, [0, 1])
+        XCTAssertEqual(
+            recorder.events,
+            [
+                InteractionEvent(
+                    timestamp: timestamp,
+                    kind: .focusChanged(method: "gaze"),
+                    windowTitleHash: hasher.hash("Finder")
+                )
+            ]
+        )
+    }
+
     func test_handleKeyboardCommand_closeOverlay는_session을_정리() {
         // given
         let presenter = StubOverlayPresenter()

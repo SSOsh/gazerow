@@ -125,6 +125,30 @@ final class FocusEngineTests: XCTestCase {
         XCTAssertEqual(result.event, .dryRunConfirm(index: 1))
     }
 
+    func test_focusNearest_gazePoint에_가장가까운_item으로_focus이동() {
+        // given
+        var sut = FocusEngine(items: items)
+
+        // when
+        let event = sut.focusNearest(to: CGPoint(x: 4, y: 43))
+
+        // then
+        XCTAssertEqual(sut.focusedItemID, 2)
+        XCTAssertEqual(event, .focusChanged(from: 0, to: 2, method: .gaze))
+    }
+
+    func test_focusNearest_item이_없으면_focus를_비움() {
+        // given
+        var sut = FocusEngine(items: [])
+
+        // when
+        let event = sut.focusNearest(to: CGPoint(x: 4, y: 43))
+
+        // then
+        XCTAssertNil(event)
+        XCTAssertNil(sut.focusedItemID)
+    }
+
     func test_init_layout에서_focus_item을_생성() {
         // given
         let layout = OverlayLayout(
