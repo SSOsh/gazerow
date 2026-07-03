@@ -12,18 +12,29 @@ struct OnboardingView: View {
     /// 시트 표시 상태를 소유하는 onboarding 상태.
     let onboarding: OnboardingState
 
+    /// 표시 언어.
+    let language: AppLanguage
+
+    init(
+        onboarding: OnboardingState,
+        language: AppLanguage = AppLanguageSettings().selectedLanguage
+    ) {
+        self.onboarding = onboarding
+        self.language = language
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
 
-            Text(AppState.accessibilityRationale)
+            Text(appText.accessibilityRationale)
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
             stepsSection
 
-            Text(AppContent.nonMedicalDisclaimer)
+            Text(content.nonMedicalDisclaimer)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -32,7 +43,7 @@ struct OnboardingView: View {
 
             HStack {
                 Spacer()
-                Button("Get Started") {
+                Button(content.getStartedButton) {
                     onboarding.complete()
                 }
                 .keyboardShortcut(.defaultAction)
@@ -40,6 +51,14 @@ struct OnboardingView: View {
         }
         .padding(24)
         .frame(width: 440, height: 380)
+    }
+
+    private var content: AppContent.Localized {
+        AppContent.localized(for: language)
+    }
+
+    private var appText: AppState.LocalizedText {
+        AppState.localized(for: language)
     }
 
     // MARK: - Sections
@@ -50,10 +69,10 @@ struct OnboardingView: View {
                 .font(.system(size: 28))
                 .foregroundStyle(.tint)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Welcome to \(AppState.appName)")
+                Text(content.welcomeTitle)
                     .font(.title2)
                     .fontWeight(.semibold)
-                Text("Local keyboard-click utility")
+                Text(content.appSubtitle)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -62,9 +81,9 @@ struct OnboardingView: View {
 
     private var stepsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Setup")
+            Text(content.setupTitle)
                 .font(.headline)
-            ForEach(Array(AppContent.setupSteps.enumerated()), id: \.offset) { index, step in
+            ForEach(Array(content.setupSteps.enumerated()), id: \.offset) { index, step in
                 HStack(alignment: .top, spacing: 8) {
                     Text("\(index + 1).")
                         .fontWeight(.medium)

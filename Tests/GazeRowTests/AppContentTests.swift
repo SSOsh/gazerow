@@ -34,6 +34,19 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(limitations.contains("representative click task still needs verification"))
     }
 
+    func test_overlayUsageSteps_핵심조작을_순서대로_안내한다() {
+        // given
+        let steps = AppContent.overlayUsageSteps
+        let joined = steps.joined(separator: "\n")
+
+        // when & then
+        XCTAssertFalse(steps.isEmpty)
+        XCTAssertTrue(joined.contains("label"))
+        XCTAssertTrue(joined.contains("Return"))
+        XCTAssertTrue(joined.contains("Esc"))
+        XCTAssertTrue(joined.contains("physical key"))
+    }
+
     func test_windowControlShortcutsNotice_frontmost창과_권한조건을_안내한다() {
         // given
         let notice = AppContent.windowControlShortcutsNotice
@@ -41,5 +54,38 @@ final class AppContentTests: XCTestCase {
         // when & then
         XCTAssertTrue(notice.contains("frontmost window"))
         XCTAssertTrue(notice.contains("Accessibility"))
+    }
+
+    func test_supportDonationContent는_커피값후원과_계좌번호추후추가를_안내한다() {
+        // given
+        let message = AppContent.supportDonationMessage
+
+        // when & then
+        XCTAssertEqual(AppContent.supportDonationMenuTitle, "Support GazeRow")
+        XCTAssertEqual(AppContent.supportDonationTitle, "Support GazeRow")
+        XCTAssertTrue(message.contains("커피값 후원"))
+        XCTAssertTrue(message.contains("계좌번호는 추후 추가 예정"))
+    }
+
+    func test_localized_english는_기존영문콘텐츠를_제공한다() {
+        // given
+        let content = AppContent.localized(for: .english)
+
+        // when & then
+        XCTAssertEqual(content.languageLabel, "Language")
+        XCTAssertEqual(content.permissionsTitle, "Permissions")
+        XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("physical key"))
+    }
+
+    func test_localized_korean은_한국어설정콘텐츠를_제공한다() {
+        // given
+        let content = AppContent.localized(for: .korean)
+        let appText = AppState.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(content.languageLabel, "언어")
+        XCTAssertEqual(content.permissionsTitle, "권한")
+        XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("한글 키보드"))
+        XCTAssertTrue(appText.privacyNotice.contains("화면 녹화"))
     }
 }

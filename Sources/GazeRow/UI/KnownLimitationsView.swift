@@ -12,9 +12,16 @@ struct KnownLimitationsView: View {
     /// 시트를 닫기 위한 dismiss 액션.
     @Environment(\.dismiss) private var dismiss
 
+    /// 표시 언어.
+    let language: AppLanguage
+
+    init(language: AppLanguage = AppLanguageSettings().selectedLanguage) {
+        self.language = language
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Known Limitations")
+            Text(content.knownLimitationsTitle)
                 .font(.title2)
                 .fontWeight(.semibold)
 
@@ -28,7 +35,7 @@ struct KnownLimitationsView: View {
 
             HStack {
                 Spacer()
-                Button("Done") { dismiss() }
+                Button(content.doneButton) { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -36,11 +43,15 @@ struct KnownLimitationsView: View {
         .frame(width: 460, height: 480)
     }
 
+    private var content: AppContent.Localized {
+        AppContent.localized(for: language)
+    }
+
     // MARK: - Sections
 
     private var limitationsSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(AppContent.knownLimitations, id: \.self) { item in
+            ForEach(content.knownLimitations, id: \.self) { item in
                 HStack(alignment: .top, spacing: 8) {
                     Text("•").foregroundStyle(.secondary)
                     Text(item)
@@ -53,9 +64,9 @@ struct KnownLimitationsView: View {
 
     private var fallbackSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Click Safety")
+            Text(content.clickSafetyTitle)
                 .font(.headline)
-            Text(AppContent.fallbackDisabledNotice)
+            Text(content.fallbackDisabledNotice)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -64,7 +75,7 @@ struct KnownLimitationsView: View {
 
     private var appSupportSection: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("App Support")
+            Text(content.appSupportTitle)
                 .font(.headline)
             ForEach(AppContent.appSupport) { app in
                 HStack {
@@ -80,10 +91,10 @@ struct KnownLimitationsView: View {
     /// 지원 등급을 색상 배지로 표현한다.
     private func tierBadge(_ tier: AppContent.SupportTier) -> some View {
         let (label, color): (String, Color) = switch tier {
-        case .supported: ("Supported", .green)
-        case .limited: ("Limited", .orange)
-        case .unsupported: ("Unsupported", .red)
-        case .unverified: ("Unverified", .secondary)
+        case .supported: (content.supportedBadge, .green)
+        case .limited: (content.limitedBadge, .orange)
+        case .unsupported: (content.unsupportedBadge, .red)
+        case .unverified: (content.unverifiedBadge, .secondary)
         }
         return Text(label)
             .font(.caption)

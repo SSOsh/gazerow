@@ -18,13 +18,15 @@ final class MVPDefaultPolicyTests: XCTestCase {
         let defaults = makeDefaults()
         let sut = MVPDefaultPolicy(
             interactionLogStore: InteractionLogStore(defaults: defaults),
-            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults)
+            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults),
+            cameraGazeSettings: CameraGazeSettings(defaults: defaults)
         )
 
         // then
         XCTAssertTrue(sut.isGazeDisabled)
+        XCTAssertTrue(sut.isCameraGazeOptInDisabled)
         XCTAssertTrue(sut.isCoordinateFallbackDisabled)
-        XCTAssertTrue(sut.requiresSecondConfirmForRiskyAction)
+        XCTAssertFalse(sut.requiresSecondConfirmForRiskyAction)
         XCTAssertTrue(sut.isInteractionLogOptInDisabled)
         XCTAssertTrue(sut.isDebugExportHidden)
         XCTAssertTrue(sut.passesAutomatedFreezeDefaults)
@@ -36,7 +38,8 @@ final class MVPDefaultPolicyTests: XCTestCase {
         let sut = MVPDefaultPolicy(
             clickConfiguration: ClickExecutionConfiguration(isCoordinateFallbackEnabled: true),
             interactionLogStore: InteractionLogStore(defaults: defaults),
-            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults)
+            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults),
+            cameraGazeSettings: CameraGazeSettings(defaults: defaults)
         )
 
         // then
@@ -51,7 +54,8 @@ final class MVPDefaultPolicyTests: XCTestCase {
 
         let sut = MVPDefaultPolicy(
             interactionLogStore: InteractionLogStore(defaults: defaults),
-            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults)
+            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults),
+            cameraGazeSettings: CameraGazeSettings(defaults: defaults)
         )
 
         // then
@@ -66,11 +70,29 @@ final class MVPDefaultPolicyTests: XCTestCase {
 
         let sut = MVPDefaultPolicy(
             interactionLogStore: InteractionLogStore(defaults: defaults),
-            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults)
+            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults),
+            cameraGazeSettings: CameraGazeSettings(defaults: defaults)
         )
 
         // then
         XCTAssertFalse(sut.isDebugExportHidden)
+        XCTAssertFalse(sut.passesAutomatedFreezeDefaults)
+    }
+
+    func test_cameraGazeOptIn이_켜지면_freeze_자동검증_실패() {
+        // given
+        let defaults = makeDefaults()
+        defaults.set(true, forKey: CameraGazeSettings.optInKey)
+
+        let sut = MVPDefaultPolicy(
+            interactionLogStore: InteractionLogStore(defaults: defaults),
+            debugFeatureVisibility: DebugFeatureVisibility(defaults: defaults),
+            cameraGazeSettings: CameraGazeSettings(defaults: defaults)
+        )
+
+        // then
+        XCTAssertFalse(sut.isGazeDisabled)
+        XCTAssertFalse(sut.isCameraGazeOptInDisabled)
         XCTAssertFalse(sut.passesAutomatedFreezeDefaults)
     }
 }

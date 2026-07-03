@@ -18,19 +18,29 @@ struct MVPDefaultPolicy {
     /// debug UI 노출 정책.
     private let debugFeatureVisibility: DebugFeatureVisibility
 
+    /// camera gaze focus opt-in 상태.
+    private let cameraGazeSettings: CameraGazeSettings
+
     init(
         clickConfiguration: ClickExecutionConfiguration = ClickExecutionConfiguration(),
         interactionLogStore: InteractionLogStore = InteractionLogStore(),
-        debugFeatureVisibility: DebugFeatureVisibility = DebugFeatureVisibility()
+        debugFeatureVisibility: DebugFeatureVisibility = DebugFeatureVisibility(),
+        cameraGazeSettings: CameraGazeSettings = CameraGazeSettings()
     ) {
         self.clickConfiguration = clickConfiguration
         self.interactionLogStore = interactionLogStore
         self.debugFeatureVisibility = debugFeatureVisibility
+        self.cameraGazeSettings = cameraGazeSettings
     }
 
-    /// gaze/camera 기능은 MVP 기본값에서 비활성이다.
+    /// gaze 기능은 명시 opt-in 전까지 기본값에서 비활성이다.
     var isGazeDisabled: Bool {
-        AppState.gazeStatus.contains("Disabled")
+        !cameraGazeSettings.isOptInEnabled
+    }
+
+    /// camera 권한 요청 경로는 있어도 기본 opt-in은 꺼져 있어야 한다.
+    var isCameraGazeOptInDisabled: Bool {
+        !cameraGazeSettings.isOptInEnabled
     }
 
     /// 좌표 클릭 fallback은 기본 off다.
@@ -38,7 +48,7 @@ struct MVPDefaultPolicy {
         !clickConfiguration.isCoordinateFallbackEnabled
     }
 
-    /// 위험 action은 second confirm을 요구한다.
+    /// 위험 action의 second confirm 요구 여부. 기본값은 off(1회 확인 클릭)다.
     var requiresSecondConfirmForRiskyAction: Bool {
         clickConfiguration.requiresSecondConfirmForRiskyAction
     }
@@ -57,8 +67,8 @@ struct MVPDefaultPolicy {
     var passesAutomatedFreezeDefaults: Bool {
         isGazeDisabled
             && isCoordinateFallbackDisabled
-            && requiresSecondConfirmForRiskyAction
             && isInteractionLogOptInDisabled
             && isDebugExportHidden
+            && isCameraGazeOptInDisabled
     }
 }
