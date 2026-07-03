@@ -18,6 +18,9 @@ struct LogDirectory {
     /// AX debug export 파일명.
     static let debugExportFileName = "debug-export.txt"
 
+    /// gaze calibration sample 저장 파일명(JSON).
+    static let gazeCalibrationFileName = "gaze-calibration.json"
+
     /// 파일 시스템 접근에 사용할 FileManager.
     private let fileManager: FileManager
 
@@ -57,6 +60,11 @@ struct LogDirectory {
     /// debug export 파일 URL. 상위 디렉토리를 보장 생성한다.
     func debugExportURL() throws -> URL {
         try resolveDirectory().appendingPathComponent(Self.debugExportFileName)
+    }
+
+    /// gaze calibration 파일 URL. 상위 디렉토리를 보장 생성한다.
+    func gazeCalibrationURL() throws -> URL {
+        try resolveDirectory().appendingPathComponent(Self.gazeCalibrationFileName)
     }
 
     /// base 디렉토리(override 또는 Application Support)를 결정한다.
