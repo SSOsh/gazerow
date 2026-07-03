@@ -76,6 +76,31 @@ final class ClickExecutorTests: XCTestCase {
         XCTAssertEqual(client.performedActions, [AccessibilityAction.confirm])
     }
 
+    func test_execute_AXShowDefaultUI_action만_있으면_AXShowDefaultUI로_성공() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.row,
+            title: "Downloads",
+            frame: CGRect(x: 10, y: 20, width: 30, height: 40),
+            actions: [AccessibilityAction.showDefaultUI]
+        )
+        let client = FakeClickExecutionClient(actionResults: [AccessibilityAction.showDefaultUI: .success])
+        let sut = ClickExecutor(client: client)
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .accessibilityAction(AccessibilityAction.showDefaultUI),
+            riskClass: .safeNavigation,
+            fallbackUsed: false
+        )
+        XCTAssertEqual(client.performedActions, [AccessibilityAction.showDefaultUI])
+    }
+
     func test_execute_AXPress와_AXOpen이_함께_있으면_AXPress를_우선한다() {
         // given
         let target = ClickTarget(

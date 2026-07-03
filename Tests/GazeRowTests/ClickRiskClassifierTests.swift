@@ -36,6 +36,22 @@ final class ClickRiskClassifierTests: XCTestCase {
         XCTAssertEqual(riskClass, .safeNavigation)
     }
 
+    func test_classify_showDefaultUI_action은_safeNavigation() {
+        // given
+        let target = clickTarget(
+            role: AccessibilityRole.row,
+            title: nil,
+            actions: [AccessibilityAction.showDefaultUI]
+        )
+        let sut = ClickRiskClassifier()
+
+        // when
+        let riskClass = sut.classify(target)
+
+        // then
+        XCTAssertEqual(riskClass, .safeNavigation)
+    }
+
     func test_classify_checkbox는_stateChange() {
         // given
         let target = clickTarget(

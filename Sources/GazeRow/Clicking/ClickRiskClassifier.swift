@@ -33,7 +33,8 @@ struct ClickRiskClassifier {
 
         if target.actions.contains(AccessibilityAction.press)
             || target.actions.contains(AccessibilityAction.confirm)
-            || target.actions.contains(AccessibilityAction.open) {
+            || target.actions.contains(AccessibilityAction.open)
+            || target.actions.contains(AccessibilityAction.showDefaultUI) {
             return .safeNavigation
         }
 

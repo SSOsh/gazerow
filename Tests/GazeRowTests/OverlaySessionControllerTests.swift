@@ -291,6 +291,62 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(observedResults, [clickExecutor.result])
     }
 
+    func test_clickLabel_label로_focus후_confirm을_실행한다() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(
+                    method: .axPress,
+                    riskClass: .safeNavigation,
+                    fallbackUsed: false
+                )
+            )
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        let result = sut.clickLabel("B")
+
+        // then
+        XCTAssertEqual(result, .some(clickExecutor.result))
+        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [1])
+        XCTAssertEqual(presenter.focusUpdates, [0, 1])
+        XCTAssertNil(sut.activeSession)
+    }
+
+    func test_clickLabel_label이없으면_clickExecutor를_호출하지_않고_failure를_반환한다() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(
+                    method: .axPress,
+                    riskClass: .safeNavigation,
+                    fallbackUsed: false
+                )
+            )
+        )
+        var observedResults: [Result<ClickExecutionSuccess, OverlaySessionClickFailure>] = []
+        let sut = makeStartedSessionController(
+            clickExecutor: clickExecutor,
+            clickResultObserver: { result in
+                observedResults.append(result)
+            }
+        )
+
+        // when
+        let result = sut.clickLabel("Z")
+
+        // then
+        XCTAssertEqual(result, .some(.failure(.missingFocusedTarget(index: -1))))
+        XCTAssertTrue(clickExecutor.requests.isEmpty)
+        XCTAssertEqual(observedResults, [.failure(.missingFocusedTarget(index: -1))])
+        XCTAssertNotNil(sut.activeSession)
+    }
+
     func test_handleKeyboardCommand_click실패면_overlaySession을_유지() {
         // given
         let clickExecutor = StubOverlayClickExecutor(

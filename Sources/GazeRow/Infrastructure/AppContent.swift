@@ -38,7 +38,7 @@ enum AppContent {
     /// 좌표 클릭 fallback이 기본 비활성임을 알리는 문구.
     static let fallbackDisabledNotice = """
     Coordinate-based click fallback (CGEventPost) is disabled by default to \
-    reduce the risk of mis-clicks. Clicks use the accessibility AXPress action.
+    reduce the risk of mis-clicks. Clicks use supported accessibility actions.
     """
 
     /// 첫 실행 안내에서 소개하는 setup 단계.
@@ -54,12 +54,11 @@ enum AppContent {
     static let knownLimitations: [String] = [
         "Only the frontmost app's focused window is scanned.",
         "Some apps expose an incomplete accessibility tree, so candidates may be missing.",
-        "Clicks rely on AXPress; elements without a click action may not be actionable.",
+        "Clicks rely on accessibility actions such as AXPress, AXConfirm, AXOpen, and AXShowDefaultUI; elements without a supported action may not be actionable.",
         "Coordinate-click fallback is off by default and must be enabled in debug.",
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
         "Gaze/camera features are Post-MVP and disabled in this build.",
-        "Finder sidebar candidates are visible but need fixed-task reevaluation.",
-        "VS Code Activity Bar candidates are visible but need fixed-task reevaluation."
+        "Slack and Notion are not yet verified in the MVP evaluation set."
     ]
 
     // MARK: - Diagnostics
@@ -81,10 +80,10 @@ enum AppContent {
 
     /// 지원/제한/미확인 앱 구분 목록.
     static let appSupport: [AppSupport] = [
-        AppSupport(name: "Finder", tier: .limited),
+        AppSupport(name: "Finder", tier: .supported),
         AppSupport(name: "Safari", tier: .supported),
         AppSupport(name: "Chrome", tier: .supported),
-        AppSupport(name: "VS Code", tier: .limited),
+        AppSupport(name: "VS Code", tier: .supported),
         AppSupport(name: "System Settings", tier: .supported),
         AppSupport(name: "Slack", tier: .unverified),
         AppSupport(name: "Notion", tier: .unverified)

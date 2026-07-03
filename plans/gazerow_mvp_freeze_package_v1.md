@@ -20,12 +20,13 @@
 - v17: local `.app` bundle 생성 스크립트와 191 tests freeze 검증 결과를 반영.
 - v18: overlay panel AX/AppKit 좌표 변환, Finder overlay visibility smoke, 193 tests freeze 검증 결과를 반영.
 - v19: 좌표 보정 후 VS Code overlay visibility smoke 결과를 반영.
+- v20: `--click-overlay-label` 평가 옵션, `AXShowDefaultUI` 실행 지원, Finder/VS Code fixed task pass, 200 tests freeze 검증 결과를 반영.
 
 ## 1. 상태
 
-현재 상태: `DRAFT_PREP_COMPLETE_PENDING_FIXED_TASK_REEVALUATION`
+현재 상태: `LOCAL_MVP_FREEZE_GO`
 
-이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했으며 local MVP freeze 블로커로 두지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 true를 반환했고, target bundle launch option과 target window fallback을 추가해 5개 앱 overlay activation smoke를 통과했다. 2026-07-02 20:20 KST 실제 click task는 Safari/Chrome/System Settings pass, Finder/VS Code fail로 3/5 success를 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. known limitations와 app support tier도 이 결과에 맞춰 갱신했고, 내부 사용자 평가 runbook(`gazerow_internal_user_evaluation_v1.md`)도 준비했다. 이후 Command+Shift+Space overlay activation shortcut, Finder/VS Code candidate coverage, scanner 기본 depth, Finder sidebar candidate용 `AXOpen` 실행, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout 출력, overlay panel AX/AppKit 좌표 변환을 보강했다. Finder와 VS Code는 좌표 보정 후 전체 화면 캡처 기준 overlay visibility smoke를 통과했다. `scripts/verify_mvp_freeze.sh`는 193 tests, 0 failures로 통과했다. TICKET-011 최종 확정에는 Finder/VS Code fixed task 재평가와 go/no-go 판정이 남아 있다.
+이 문서는 TICKET-011의 local MVP freeze 산출물을 정리한다. freeze package, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했으며 local MVP freeze 블로커로 두지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 true를 반환했고, target bundle launch option과 target window fallback을 추가해 5개 앱 overlay activation smoke를 통과했다. 2026-07-02 20:20 KST 실제 click task는 Safari/Chrome/System Settings pass, Finder/VS Code fail로 3/5 success를 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. known limitations와 app support tier도 이 결과에 맞춰 갱신했고, 내부 사용자 평가 runbook(`gazerow_internal_user_evaluation_v1.md`)도 준비했다. 이후 Command+Shift+Space overlay activation shortcut, Finder/VS Code candidate coverage, scanner 기본 depth, Finder sidebar candidate용 `AXOpen`, `AXConfirm`, `AXShowDefaultUI` 실행, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout 출력, `--click-overlay-label` 평가 옵션, overlay panel AX/AppKit 좌표 변환을 보강했다. Finder와 VS Code는 좌표 보정 후 전체 화면 캡처 기준 overlay visibility smoke를 통과했고, fixed task 재평가도 Finder `AXShowDefaultUI`, VS Code `AXPress`로 pass했다. `scripts/verify_mvp_freeze.sh`는 200 tests, 0 failures로 통과했다.
 
 ## 2. Freeze 대상
 
@@ -48,11 +49,13 @@
 - AX tree scanner와 clickable candidate 수집
 - selectable container candidate 수집(`AXRow` / `AXCell` / `AXImage`)
 - Finder sidebar candidate용 `AXOpen` click execution
+- Finder row candidate용 `AXShowDefaultUI` click execution
 - launch-option click result stdout reporting
+- launch-option label click evaluation option
 - overlay panel AX/AppKit coordinate conversion
 - overlay label layout/rendering
 - keyboard focus movement와 label jump
-- keyboard-confirmed `AXPress` / `AXConfirm` / `AXOpen` click execution
+- keyboard-confirmed `AXPress` / `AXConfirm` / `AXOpen` / `AXShowDefaultUI` click execution
 - risky action second confirm 정책
 - kill switch
 - first-run onboarding
@@ -143,20 +146,19 @@ Freeze 전 확인:
 
 ## 7. 지원 앱/제한 앱/미확인 앱
 
-TICKET-010 실제 click task와 30분 crash-free session 결과 기준이며, Finder/VS Code fixed task 재평가 전까지는 provisional 상태다.
+TICKET-010 실제 click task, Finder/VS Code fixed task 재평가, 30분 crash-free session 결과 기준이다.
 
 | 앱 | 현재 등급 | Freeze 전 필요한 확인 |
 | --- | --- | --- |
-| Finder | Limited | sidebar row candidate 수집 확인 후 fixed task 재평가 |
+| Finder | Evaluation pass | sidebar row task pass via `AXShowDefaultUI` |
 | Safari | Evaluation pass | toolbar button task pass |
 | Chrome | Evaluation pass | address bar focus task pass |
-| VS Code | Limited | Activity Bar candidate 수집 확인 후 fixed task 재평가 |
+| VS Code | Evaluation pass | Activity Bar item task pass via `AXPress` |
 | System Settings | Evaluation pass | pane navigation task pass |
-| Limited apps | Finder, VS Code | known limitations 최종 갱신 |
 | Slack | Unverified | Post-MVP 검증 |
 | Notion | Unverified | Post-MVP 검증 |
 
-Freeze package 확정 시 `gazerow_known_limitations_v1.md`의 App Support Tiers를 TICKET-010 결과와 일치시킨다.
+`gazerow_known_limitations_v1.md`의 App Support Tiers는 TICKET-010 결과와 일치한다.
 
 ## 8. TICKET-010 연결
 
@@ -166,12 +168,11 @@ Freeze 진행 조건:
 - [x] fallback off 상태에서 critical misclick count 0
 - [x] 30분 수동 세션 crash 없음
 - [x] 내부 사용자 3명 gate는 Post-MVP로 defer(ED-008)
-- [ ] abandoned attempt count가 task당 1회 이하
+- [x] abandoned attempt count가 task당 1회 이하
 
 현재 차단:
 
-- Finder/VS Code fixed task 재평가 미완료
-- 최종 go/no-go 판정 미작성
+- 없음. Post-MVP 내부 사용자 평가와 추가 앱 검증은 freeze 블로커가 아니다.
 
 ## 9. Code Signing / Notarization 체크리스트 초안
 
@@ -193,11 +194,11 @@ Freeze 진행 조건:
 ## 10. Freeze 판정
 
 ```text
-Decision: CONDITIONAL_GO_PENDING_FIXED_TASK_REEVALUATION
-Reason: 5개 앱 중 3개 task success, critical misclick 0건, 30분 crash-free session은 충족했다. 내부 사용자 gate는 ED-008에 따라 Post-MVP로 defer했다.
-Required fixes before freeze: Finder/VS Code fixed task 재평가
-Known limitations to update: Finder sidebar row와 VS Code Activity Bar는 candidate 수집 확인 후 fixed task 재평가 필요
-Next ticket: Finder/VS Code fixed task 재평가 후 TICKET-011 최종 확정
+Decision: GO_FOR_LOCAL_MVP_FREEZE
+Reason: 5개 평가 앱 모두 task success, critical misclick 0건, 30분 crash-free session, freeze verification을 충족했다. 내부 사용자 gate는 ED-008에 따라 Post-MVP로 defer했다.
+Required fixes before freeze: none for local MVP
+Known limitations to update: none for evaluated MVP apps
+Next ticket: Post-MVP 앱 확대 검증 또는 내부 사용자 3명 평가 재개
 ```
 
 ---

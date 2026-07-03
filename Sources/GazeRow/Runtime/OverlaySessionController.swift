@@ -132,6 +132,29 @@ final class OverlaySessionController {
         return event
     }
 
+    @discardableResult
+    func clickLabel(_ label: String) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure>? {
+        let normalizedLabel = label.uppercased()
+        guard let session = activeSession else {
+            return nil
+        }
+
+        guard session.snapshot.layout.labels.contains(where: { $0.text == normalizedLabel }) else {
+            let result: Result<ClickExecutionSuccess, OverlaySessionClickFailure> = .failure(
+                .missingFocusedTarget(index: -1)
+            )
+            lastClickResult = result
+            clickResultObserver(result)
+            return result
+        }
+
+        for character in normalizedLabel {
+            _ = handleKeyboardCommand(.typeLabel(character))
+        }
+        _ = handleKeyboardCommand(.dryRunConfirm)
+        return lastClickResult
+    }
+
     private func executeClickIfPossible(
         confirmResult: DryRunConfirmResult,
         session: inout OverlaySessionState

@@ -63,6 +63,10 @@ struct ClickExecutor<Client: ClickExecutionClient> {
             return AccessibilityAction.open
         }
 
+        if target.actions.contains(AccessibilityAction.showDefaultUI) {
+            return AccessibilityAction.showDefaultUI
+        }
+
         return nil
     }
 

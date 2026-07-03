@@ -169,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 OverlayLaunchReporter.success(labelCount: snapshot.layout.metrics.labelCount)
             )
             printOverlayLabelMapIfNeeded(snapshot)
+            clickOverlayLabelIfRequested()
         case .failure(let failure):
             AppLogger.overlay.info("overlay start failed reason=\(failure.logCode, privacy: .public)")
             printOverlayLaunchResultIfNeeded(
@@ -289,6 +290,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print(message)
                 fflush(stdout)
             }
+    }
+
+    /// 런치 옵션 기반 평가에서 특정 overlay label을 keyboard 입력 없이 confirm한다.
+    private func clickOverlayLabelIfRequested() {
+        guard let label = launchOptions.clickOverlayLabel else {
+            return
+        }
+
+        _ = overlaySessionController.clickLabel(label)
     }
 
     /// 런치 옵션 기반 평가에서 keyboard confirm click 결과를 stdout에 출력한다.

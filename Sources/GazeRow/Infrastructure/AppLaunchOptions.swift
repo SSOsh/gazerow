@@ -9,6 +9,7 @@ struct AppLaunchOptions: Equatable {
     let showsOverlayOnLaunch: Bool
     let targetBundleIdentifier: String?
     let printsOverlayLabelMap: Bool
+    let clickOverlayLabel: String?
 
     static var current: AppLaunchOptions {
         AppLaunchOptions(arguments: CommandLine.arguments)
@@ -19,6 +20,7 @@ struct AppLaunchOptions: Equatable {
         showsOverlayOnLaunch = arguments.contains("--show-overlay-on-launch")
         targetBundleIdentifier = Self.value(after: "--target-bundle-id", in: arguments)
         printsOverlayLabelMap = arguments.contains("--print-overlay-label-map")
+        clickOverlayLabel = Self.value(after: "--click-overlay-label", in: arguments)
     }
 
     private static func value(after option: String, in arguments: [String]) -> String? {

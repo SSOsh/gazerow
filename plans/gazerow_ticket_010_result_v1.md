@@ -27,10 +27,11 @@
 - v24: SwiftPM 바이너리 평가에서 overlay keyboard 입력이 Finder로 전달되는 한계를 확인하고 local `.app` bundle 생성 스크립트를 추가.
 - v25: overlay panel AX/AppKit 좌표 변환과 window level 보강 후 Finder overlay 표시 smoke를 통과.
 - v26: 좌표 보정 후 VS Code overlay 표시 smoke를 통과.
+- v27: `--click-overlay-label` 평가 옵션과 `AXShowDefaultUI` 실행 지원 후 Finder/VS Code fixed task 재평가를 통과.
 
 ## 1. 상태
 
-현재 상태: `CRASH_FREE_SESSION_PASS_PENDING_FIXED_TASK_REEVALUATION`
+현재 상태: `TICKET_010_PASS`
 
 자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 당시 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않았다.
 
@@ -59,6 +60,8 @@
 이후 overlay panel이 AX top-left frame을 그대로 AppKit bottom-left window frame으로 사용하던 문제를 보정했다. `OverlayScreenFrameMapper`로 panel frame만 AppKit 좌표로 변환하고, overlay level을 `statusBar`로 올렸다. 전체 화면 캡처(`/tmp/gazerow_overlay_smoke.png`)에서 Finder window 위 label 표시가 확인됐다. Computer Use 앱별 스냅샷은 다른 프로세스 overlay를 제외하므로 이 검증에는 사용하지 않는다.
 
 같은 좌표 보정 빌드로 VS Code overlay 표시 smoke도 수행했다. `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map`는 `GAZEROW_OVERLAY_RESULT success labels=29`를 출력했고, 전체 화면 캡처(`/tmp/gazerow_vscode_overlay_smoke.png`)에서 Activity Bar와 toolbar 후보 label이 VS Code window 위에 표시됨을 확인했다. 이 검증은 overlay visibility와 candidate map 확인이며, VS Code fixed task click 성공 판정은 아직 아니다.
+
+마지막으로 자동 UI 도구의 keyboard focus 한계를 우회하지 않고 같은 overlay session 내부에서 특정 label을 confirm할 수 있도록 `--click-overlay-label <LABEL>` 평가 옵션을 추가했다. Finder sidebar row가 노출하는 `AXShowDefaultUI` action도 click executor에 연결했다. 재평가 결과 Finder는 label `AA` row에서 `GAZEROW_OVERLAY_CLICK_RESULT success method=accessibilityAction.AXShowDefaultUI risk=safeNavigation fallback=false`, VS Code는 Activity Bar label `AO`에서 `GAZEROW_OVERLAY_CLICK_RESULT success method=axPress risk=stateChange fallback=false`를 출력했다. 이에 따라 TICKET-010의 5개 앱 click task와 Finder/VS Code fixed task 재평가는 모두 pass로 확정한다.
 
 ## 2. 평가 전 체크리스트
 
@@ -128,8 +131,13 @@
 | overlay frame mapper focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'OverlayWindowControllerTests\|OverlayLayoutEngineTests\|OverlaySessionControllerTests'` | pass, 30 tests, 0 failures |
 | Finder overlay visibility smoke | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` + `screencapture` | pass, 248 labels, overlay labels visible on full-screen capture |
 | VS Code overlay visibility smoke | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` + `screencapture` | pass, 29 labels, Activity Bar and toolbar labels visible on full-screen capture |
+| click label option focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'ClickExecutorTests\|ClickRiskClassifierTests\|AppLaunchOptionsTests\|OverlaySessionControllerTests\|AccessibilityScannerTests'` | pass, 64 tests, 0 failures |
+| Finder fixed task reevaluation | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map --click-overlay-label AA` | pass, 84 labels, `AXShowDefaultUI`, safeNavigation, fallback=false |
+| VS Code fixed task reevaluation | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map --click-overlay-label AO` | pass, 32 labels, `AXPress`, stateChange, fallback=false |
 | full test after overlay frame mapper update | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 193 tests, 0 failures |
 | freeze verification after overlay frame mapper update | `scripts/verify_mvp_freeze.sh` | pass, 193 tests, 0 failures, MVP-excluded check passed |
+| full test after fixed task reevaluation update | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 200 tests, 0 failures |
+| freeze verification after fixed task reevaluation update | `scripts/verify_mvp_freeze.sh` | pass, 200 tests, 0 failures, MVP-excluded check passed |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -147,7 +155,7 @@
 - 현재 빌드는 overlay 표시, keyboard focus/label jump, focus interaction log, AXPress click execution, risky action second confirm, click attempt/completed interaction log 진입점까지 갖췄다.
 - 이전 차단 사유였던 runtime wiring 부재는 해소됐다.
 - Accessibility 권한과 5개 앱 overlay activation smoke는 통과했다.
-- TICKET-010 5개 앱 실제 click task는 3 pass / 2 fail이다.
+- TICKET-010 5개 앱 실제 click task는 fixed task 재평가 포함 5 pass / 0 fail이다.
 - 이후 Finder/VS Code candidate coverage는 selectable role 수집과 scanner 기본 depth 확장으로 개선했다.
 - Finder label map은 19개에서 63개로 증가했고 `AXRow` / `AXCell` 후보가 수집된다.
 - VS Code label map은 3개에서 29개로 증가했고 Activity Bar `AXRadioButton` 후보가 수집된다.
@@ -155,7 +163,7 @@
 - `AXConfirm`으로만 노출되는 candidate 실행도 지원한다.
 - overlay 표시 시 app activation과 key window 전환을 보강했다.
 - launch-option 평가 중 keyboard confirm click 결과를 `GAZEROW_OVERLAY_CLICK_RESULT`로 stdout에 출력한다.
-- Finder sidebar row와 VS Code Activity Bar item fixed task는 보강 후 재평가가 필요하다.
+- Finder sidebar row와 VS Code Activity Bar item fixed task는 보강 후 재평가에서 pass했다.
 
 ## 3.2 5개 앱 overlay activation smoke
 
@@ -358,13 +366,13 @@ AppSupportReport
 
 | 앱 | Task success | Candidate count | Useful candidates | Click success | Correction count | Abandoned attempts | Critical misclick |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Finder | fail | 19 | 0 | 0 | 0 | 1 | 0 |
+| Finder | pass | 84 | 1 | 1 | 0 | 0 | 0 |
 | Safari | pass | 35 | 1 | 1 | 0 | 0 | 0 |
 | Chrome | pass | 46 | 1 | 1 | 0 | 0 | 0 |
-| VS Code | fail | 3 | 0 | 0 | 0 | 1 | 0 |
+| VS Code | pass | 32 | 1 | 1 | 0 | 0 | 0 |
 | System Settings | pass | 13 | 1 | 1 | 0 | 0 | 0 |
 
-초기 5개 앱 중 3개 앱에서 task success를 기록했다. Finder와 VS Code는 overlay activation은 성공했지만 고정 task target이 candidate로 수집되지 않아 실패로 판정했다. 이후 selectable container candidate coverage와 Finder sidebar candidate용 `AXOpen` 실행을 보강했으므로 Finder/VS Code fixed task는 재평가가 필요하다.
+초기 5개 앱 중 3개 앱에서 task success를 기록한 뒤 Finder/VS Code candidate coverage, label click 평가 옵션, `AXShowDefaultUI` 실행 지원을 보강했다. 재평가 결과 Finder sidebar row와 VS Code Activity Bar item도 click success를 기록해 최종 5/5 task success로 판정한다.
 
 ## 6. Safety 결과
 
@@ -379,11 +387,11 @@ AppSupportReport
 ## 7. Go/No-Go 판정
 
 ```text
-Decision: CONDITIONAL_GO_PENDING_FIXED_TASK_REEVALUATION
-Reason: 기존 5개 앱 평가에서 3개 task 성공, critical misclick 0건, 30분 crash-free session은 충족했다. 내부 사용자 gate는 ED-008에 따라 Post-MVP로 defer했다. Finder/VS Code candidate coverage와 click result stdout을 보강했으므로 fixed task 재평가가 필요하다.
-Required fixes before freeze: Finder/VS Code fixed task 재평가
-Known limitations to document: Finder/VS Code는 보강 후 재평가 전까지 Limited 유지
-Next ticket: Finder/VS Code 재평가 후 TICKET-011 freeze 최종 확정
+Decision: GO_FOR_LOCAL_MVP_FREEZE
+Reason: 5개 평가 앱 모두 task success, critical misclick 0건, 30분 crash-free session을 충족했다. 내부 사용자 gate는 ED-008에 따라 Post-MVP로 defer했다.
+Required fixes before freeze: none for local MVP
+Known limitations to document: Slack/Notion 등 미검증 앱은 Post-MVP 검증 대상으로 유지
+Next ticket: Post-MVP 앱 확대 검증 또는 내부 사용자 3명 평가 재개
 ```
 
 ## 8. 남은 수동 작업
@@ -402,13 +410,13 @@ Next ticket: Finder/VS Code 재평가 후 TICKET-011 freeze 최종 확정
   - 2026-07-02 19:57:41 KST precheck에서 `AXIsProcessTrusted()`가 true 반환
 - [x] 5개 앱 overlay activation smoke
 - [x] Finder task 수행
-  - result: fail, sidebar row candidate 미수집
+  - result: initial fail, fixed task reevaluation pass via `AXShowDefaultUI`
 - [x] Safari task 수행
   - result: pass, Tab Overview toolbar button opened
 - [x] Chrome task 수행
   - result: pass, address bar focused/selected after second confirm
 - [x] VS Code task 수행
-  - result: fail, Activity Bar item candidate 미수집
+  - result: initial fail, fixed task reevaluation pass via `AXPress`
 - [x] System Settings task 수행
   - result: pass, toolbar Back button moved pane without toggling settings
 - [x] 30분 crash-free manual session 기록
@@ -422,9 +430,11 @@ Next ticket: Finder/VS Code 재평가 후 TICKET-011 freeze 최종 확정
 - [x] launch-option 평가용 click result stdout 출력
 - [x] local `.app` bundle 생성 스크립트 추가
 - [x] overlay panel AX/AppKit 좌표 변환 및 표시 smoke
-- [ ] Finder fixed task 재평가
-- [ ] VS Code fixed task 재평가
-- [ ] go/no-go 결론 작성
+- [x] `--click-overlay-label` 평가 옵션 추가
+- [x] `AXShowDefaultUI` click execution 지원
+- [x] Finder fixed task 재평가
+- [x] VS Code fixed task 재평가
+- [x] go/no-go 결론 작성
 
 ---
 

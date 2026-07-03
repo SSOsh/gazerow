@@ -105,4 +105,37 @@ final class AppLaunchOptionsTests: XCTestCase {
         // then
         XCTAssertFalse(sut.printsOverlayLabelMap)
     }
+
+    func test_init_clickOverlayLabel_값이있으면_반환() {
+        // given
+        let arguments = ["GazeRow", "--click-overlay-label", "AK"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertEqual(sut.clickOverlayLabel, "AK")
+    }
+
+    func test_init_clickOverlayLabel_값이없으면_nil() {
+        // given
+        let arguments = ["GazeRow", "--click-overlay-label"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertNil(sut.clickOverlayLabel)
+    }
+
+    func test_init_clickOverlayLabel_다음값이다른옵션이면_nil() {
+        // given
+        let arguments = ["GazeRow", "--click-overlay-label", "--show-overlay-on-launch"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertNil(sut.clickOverlayLabel)
+    }
 }

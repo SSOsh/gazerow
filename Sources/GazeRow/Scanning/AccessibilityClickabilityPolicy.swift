@@ -17,6 +17,8 @@ struct AccessibilityClickabilityPolicy {
     private func hasClickAction(_ snapshot: AccessibilityElementSnapshot) -> Bool {
         snapshot.actions.contains(AccessibilityAction.press)
             || snapshot.actions.contains(AccessibilityAction.confirm)
+            || snapshot.actions.contains(AccessibilityAction.open)
+            || snapshot.actions.contains(AccessibilityAction.showDefaultUI)
     }
 
     private var clickableRoles: Set<String> {

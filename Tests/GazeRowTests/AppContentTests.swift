@@ -7,26 +7,25 @@ import XCTest
 /// @since 2026-07-02
 final class AppContentTests: XCTestCase {
 
-    func test_appSupport_Ticket010제한앱을_limited로_표시한다() {
+    func test_appSupport_Ticket010통과앱을_supported로_표시한다() {
         // given
         let supportByName = Dictionary(
             uniqueKeysWithValues: AppContent.appSupport.map { ($0.name, $0.tier) }
         )
 
         // when & then
-        XCTAssertEqual(supportByName["Finder"], .limited)
-        XCTAssertEqual(supportByName["VS Code"], .limited)
+        XCTAssertEqual(supportByName["Finder"], .supported)
+        XCTAssertEqual(supportByName["VS Code"], .supported)
         XCTAssertEqual(supportByName["Safari"], .supported)
         XCTAssertEqual(supportByName["Chrome"], .supported)
         XCTAssertEqual(supportByName["System Settings"], .supported)
     }
 
-    func test_knownLimitations_Ticket010실패사유를_포함한다() {
+    func test_knownLimitations_PostMVP미검증앱을_포함한다() {
         // given
         let limitations = AppContent.knownLimitations.joined(separator: "\n")
 
         // when & then
-        XCTAssertTrue(limitations.contains("Finder sidebar candidates are visible"))
-        XCTAssertTrue(limitations.contains("VS Code Activity Bar candidates are visible"))
+        XCTAssertTrue(limitations.contains("Slack and Notion are not yet verified"))
     }
 }
