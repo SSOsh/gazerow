@@ -203,7 +203,7 @@ final class OverlaySessionController {
             overlayPresenter.updateStatus(
                 OverlayInteractionStatus(
                     focusedLabel: focusedLabel,
-                    message: "Clicked \(focusedLabel ?? "target")",
+                    message: "Clicked",
                     tone: .success
                 )
             )
@@ -310,11 +310,11 @@ final class OverlaySessionController {
     }
 
     private func focusedMessage(for session: OverlaySessionState) -> String? {
-        guard let label = labelText(for: session.focusEngine.focusedItemID, in: session) else {
+        guard labelText(for: session.focusEngine.focusedItemID, in: session) != nil else {
             return nil
         }
 
-        return "Focused \(label)"
+        return "Focused"
     }
 
     private func feedback(
@@ -323,8 +323,8 @@ final class OverlaySessionController {
         session: OverlaySessionState
     ) -> (message: String?, tone: OverlayInteractionStatus.Tone) {
         if typingResult.isExactMatch,
-           let label = labelText(for: typingResult.matchedItemID, in: session) {
-            return ("Focused \(label)", .success)
+           labelText(for: typingResult.matchedItemID, in: session) != nil {
+            return ("Focused", .success)
         }
 
         if !typingResult.buffer.isEmpty {

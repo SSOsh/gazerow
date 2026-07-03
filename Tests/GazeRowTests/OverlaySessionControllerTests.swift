@@ -167,7 +167,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "B", message: "Focused B", tone: .success)
+            OverlayInteractionStatus(focusedLabel: "B", message: "Focused", tone: .success)
         )
     }
 
@@ -338,7 +338,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.focusUpdates, [0, 1, 1])
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "B", message: "Clicked B", tone: .success)
+            OverlayInteractionStatus(focusedLabel: "B", message: "Clicked", tone: .success)
         )
         XCTAssertNil(sut.activeSession)
     }

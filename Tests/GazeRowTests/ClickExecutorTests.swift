@@ -203,6 +203,38 @@ final class ClickExecutorTests: XCTestCase {
         XCTAssertEqual(result, .failure(.missingPressAction))
     }
 
+    func test_execute_overlayConfirm설정은_action없는_target을_좌표클릭으로_실행() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.row,
+            title: "Applications",
+            frame: CGRect(x: 10, y: 20, width: 180, height: 32),
+            actions: []
+        )
+        let client = FakeClickExecutionClient(
+            axPressResult: .failure("should not be used"),
+            coordinateClickResult: .success
+        )
+        let sut = ClickExecutor(
+            client: client,
+            configuration: .overlayConfirmedClick
+        )
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .coordinateFallback,
+            riskClass: .unknownRisk,
+            fallbackUsed: true
+        )
+        XCTAssertEqual(client.performedActions, [])
+        XCTAssertEqual(client.clickedPoint, target.centerPoint)
+    }
+
     func test_execute_기본설정은_위험_action도_1회로_AXPress_실행() {
         // given
         let target = ClickTarget(

@@ -42,7 +42,7 @@ struct OverlayView: View {
             }
 
             OverlayStatusView(status: status)
-                .frame(maxWidth: statusWidth, alignment: .leading)
+                .frame(width: statusWidth, alignment: .leading)
                 .position(
                     x: statusWidth / 2 + 8,
                     y: layout.localBounds.height - 22
@@ -80,20 +80,23 @@ private struct OverlayStatusView: View {
 
     var body: some View {
         HStack(spacing: 10) {
+            Text(primaryText)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer(minLength: 12)
+
             if let focusedLabel = status.focusedLabel {
-                Text("Focus \(focusedLabel)")
-                    .fontWeight(.semibold)
-            }
-
-            if !status.typedLabelBuffer.isEmpty {
-                Text("Typed \(status.typedLabelBuffer)")
-                    .fontWeight(.medium)
-            }
-
-            if let message = status.message {
-                Text(message)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                Text(focusedLabel)
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Color.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 5))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(Color.white.opacity(0.55), lineWidth: 1)
+                    }
             }
         }
         .font(.system(size: 12, weight: .regular, design: .rounded))
@@ -118,6 +121,22 @@ private struct OverlayStatusView: View {
         case .failure:
             Color.red.opacity(0.86)
         }
+    }
+
+    private var primaryText: String {
+        if let message = status.message {
+            if !status.typedLabelBuffer.isEmpty {
+                return "\(message) · Typed \(status.typedLabelBuffer)"
+            }
+
+            return message
+        }
+
+        if !status.typedLabelBuffer.isEmpty {
+            return "Typed \(status.typedLabelBuffer)"
+        }
+
+        return "Ready"
     }
 }
 

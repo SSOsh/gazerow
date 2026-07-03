@@ -24,11 +24,15 @@ struct ClickExecutor<Client: ClickExecutionClient> {
     ) -> Result<ClickExecutionSuccess, ClickExecutionFailure> {
         let target = request.target
 
-        guard let action = preferredAccessibilityAction(for: target) else {
-            return .failure(.missingPressAction)
-        }
-
         let riskClass = riskClassifier.classify(target)
+
+        guard let action = preferredAccessibilityAction(for: target) else {
+            guard configuration.isCoordinateFallbackEnabled else {
+                return .failure(.missingPressAction)
+            }
+
+            return executeCoordinateClick(target: target, riskClass: riskClass)
+        }
 
         if configuration.requiresSecondConfirmForRiskyAction,
            riskClass.requiresSecondConfirm,
