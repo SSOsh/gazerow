@@ -16,6 +16,27 @@ enum OverlayLaunchReporter {
         "GAZEROW_OVERLAY_RESULT failure reason=\(logCode)"
     }
 
+    static func clickResult(
+        _ result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+    ) -> String {
+        switch result {
+        case .success(let success):
+            return [
+                "GAZEROW_OVERLAY_CLICK_RESULT",
+                "success",
+                "method=\(methodCode(success.method))",
+                "risk=\(riskCode(success.riskClass))",
+                "fallback=\(success.fallbackUsed)"
+            ].joined(separator: " ")
+        case .failure(let failure):
+            return [
+                "GAZEROW_OVERLAY_CLICK_RESULT",
+                "failure",
+                "reason=\(failureCode(failure))"
+            ].joined(separator: " ")
+        }
+    }
+
     static func labelMap(layout: OverlayLayout, candidates: [ClickableCandidate]) -> [String] {
         layout.labels.map { label in
             let candidate = candidates[label.id]
@@ -41,5 +62,68 @@ enum OverlayLaunchReporter {
             .components(separatedBy: .whitespacesAndNewlines)
             .filter { !$0.isEmpty }
             .joined(separator: "_")
+    }
+
+    private static func methodCode(_ method: ClickExecutionMethod) -> String {
+        switch method {
+        case .axPress:
+            "axPress"
+        case .accessibilityAction(let action):
+            "accessibilityAction.\(action)"
+        case .coordinateFallback:
+            "coordinateFallback"
+        }
+    }
+
+    private static func riskCode(_ riskClass: ClickRiskClass) -> String {
+        switch riskClass {
+        case .safeNavigation:
+            "safeNavigation"
+        case .stateChange:
+            "stateChange"
+        case .destructive:
+            "destructive"
+        case .externalEffect:
+            "externalEffect"
+        case .unknownRisk:
+            "unknownRisk"
+        }
+    }
+
+    private static func failureCode(_ failure: OverlaySessionClickFailure) -> String {
+        switch failure {
+        case .scanFailed(let scanFailure):
+            "scan_failed.\(scanFailureCode(scanFailure))"
+        case .missingFocusedTarget:
+            "missing_focused_target"
+        case .executionFailed(let executionFailure):
+            "execution_failed.\(executionFailureCode(executionFailure))"
+        }
+    }
+
+    private static func scanFailureCode(_ failure: AccessibilityScanFailure) -> String {
+        switch failure {
+        case .accessibilityPermissionDenied:
+            "accessibility_permission_denied"
+        case .focusedWindowUnavailable:
+            "focused_window_unavailable"
+        case .childrenUnavailable:
+            "children_unavailable"
+        }
+    }
+
+    private static func executionFailureCode(_ failure: ClickExecutionFailure) -> String {
+        switch failure {
+        case .missingPressAction:
+            "missing_action"
+        case .secondConfirmRequired(let riskClass):
+            "second_confirm_required.\(riskCode(riskClass))"
+        case .axPressFailed:
+            "ax_press_failed"
+        case .coordinateFallbackDisabled:
+            "coordinate_fallback_disabled"
+        case .coordinateFallbackFailed:
+            "coordinate_fallback_failed"
+        }
     }
 }

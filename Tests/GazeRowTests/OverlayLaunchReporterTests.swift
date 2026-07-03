@@ -52,6 +52,37 @@ final class OverlayLaunchReporterTests: XCTestCase {
         )
     }
 
+    func test_clickResult_success_method와_risk를_출력한다() {
+        // given
+        let success = ClickExecutionSuccess(
+            method: .accessibilityAction(AccessibilityAction.open),
+            riskClass: .safeNavigation,
+            fallbackUsed: false
+        )
+
+        // when
+        let message = OverlayLaunchReporter.clickResult(.success(success))
+
+        // then
+        XCTAssertEqual(
+            message,
+            "GAZEROW_OVERLAY_CLICK_RESULT success method=accessibilityAction.AXOpen risk=safeNavigation fallback=false"
+        )
+    }
+
+    func test_clickResult_failure_reason을_출력한다() {
+        // when
+        let message = OverlayLaunchReporter.clickResult(
+            .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive)))
+        )
+
+        // then
+        XCTAssertEqual(
+            message,
+            "GAZEROW_OVERLAY_CLICK_RESULT failure reason=execution_failed.second_confirm_required.destructive"
+        )
+    }
+
     func test_labelMap_label과_candidate정보를_출력한다() {
         // given
         let layout = OverlayLayout(

@@ -17,6 +17,7 @@ final class OverlaySessionController {
     private let windowTitleHasher: WindowTitleHasher
     private let dateProvider: () -> Date
     private let isSessionEnabled: () -> Bool
+    private let clickResultObserver: @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void
     private(set) var activeSession: OverlaySessionState?
     private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
 
@@ -28,7 +29,8 @@ final class OverlaySessionController {
         clickExecutor: any OverlaySessionClickExecuting = AXOverlaySessionClickExecutor(),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         dateProvider: @escaping () -> Date = Date.init,
-        isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled }
+        isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled },
+        clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) {
         self.targetResolver = targetResolver
         self.scanner = scanner
@@ -38,6 +40,7 @@ final class OverlaySessionController {
         self.windowTitleHasher = windowTitleHasher
         self.dateProvider = dateProvider
         self.isSessionEnabled = isSessionEnabled
+        self.clickResultObserver = clickResultObserver
     }
 
     func start() -> OverlaySessionStartResult {
@@ -146,6 +149,7 @@ final class OverlaySessionController {
             isSecondConfirmProvided: isSecondConfirmProvided
         )
         lastClickResult = result
+        clickResultObserver(result)
         recordClick(result: result, context: session.snapshot.context)
 
         switch result {

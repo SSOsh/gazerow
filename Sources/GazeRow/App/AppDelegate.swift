@@ -36,7 +36,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
     private lazy var overlaySessionController = OverlaySessionController(
-        targetResolver: makeTargetResolver()
+        targetResolver: makeTargetResolver(),
+        clickResultObserver: { [weak self] result in
+            self?.printOverlayClickResultIfNeeded(result)
+        }
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -286,6 +289,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print(message)
                 fflush(stdout)
             }
+    }
+
+    /// 런치 옵션 기반 평가에서 keyboard confirm click 결과를 stdout에 출력한다.
+    private func printOverlayClickResultIfNeeded(
+        _ result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+    ) {
+        guard launchOptions.showsOverlayOnLaunch else {
+            return
+        }
+
+        print(OverlayLaunchReporter.clickResult(result))
+        fflush(stdout)
     }
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.

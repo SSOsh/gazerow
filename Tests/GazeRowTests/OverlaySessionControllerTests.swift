@@ -265,6 +265,32 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
     }
 
+    func test_handleKeyboardCommand_click결과를_observer에_전달한다() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(
+                    method: .axPress,
+                    riskClass: .safeNavigation,
+                    fallbackUsed: false
+                )
+            )
+        )
+        var observedResults: [Result<ClickExecutionSuccess, OverlaySessionClickFailure>] = []
+        let sut = makeStartedSessionController(
+            clickExecutor: clickExecutor,
+            clickResultObserver: { result in
+                observedResults.append(result)
+            }
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(observedResults, [clickExecutor.result])
+    }
+
     func test_handleKeyboardCommand_click실패면_overlaySession을_유지() {
         // given
         let clickExecutor = StubOverlayClickExecutor(
@@ -506,7 +532,8 @@ final class OverlaySessionControllerTests: XCTestCase {
         recorder: StubInteractionRecorder = StubInteractionRecorder(),
         clickExecutor: StubOverlayClickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt(value: "default-test-salt")),
-        dateProvider: @escaping () -> Date = Date.init
+        dateProvider: @escaping () -> Date = Date.init,
+        clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) -> OverlaySessionController {
         let context = makeContext()
         let resolver = StubOverlayTargetResolver(result: .success(context))
@@ -527,7 +554,8 @@ final class OverlaySessionControllerTests: XCTestCase {
             interactionRecorder: recorder,
             clickExecutor: clickExecutor,
             windowTitleHasher: windowTitleHasher,
-            dateProvider: dateProvider
+            dateProvider: dateProvider,
+            clickResultObserver: clickResultObserver
         )
         _ = sut.start()
         return sut
