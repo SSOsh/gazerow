@@ -123,6 +123,7 @@ gazerow/
   plans/                      # 계획/티켓/결정 문서
   scripts/
     verify_mvp_freeze.sh      # TICKET-011 freeze 사전 검증
+    evaluate_overlay_target.sh # Post-MVP 앱 overlay/click 평가 실행
 ```
 
 ## 평가 준비 문서
@@ -133,6 +134,7 @@ gazerow/
 - `plans/gazerow_internal_user_evaluation_v1.md`: TICKET-010 내부 사용자 3명 평가 runbook
 - `plans/gazerow_mvp_freeze_package_v1.md`: TICKET-011 MVP freeze package 초안
 - `plans/gazerow_distribution_checklist_v1.md`: 외부 배포 전 signing/notarization 체크리스트 초안
+- `plans/gazerow_post_mvp_app_evaluation_v1.md`: Post-MVP 앱 확대 검증 절차와 진행 상태
 
 ## 진행 상황 요약
 
@@ -183,6 +185,10 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --
 
 # 로컬 평가용 label map 출력
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.Safari --print-overlay-label-map
+
+# 재사용 가능한 overlay/click 평가 스크립트
+scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder
+scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --click-label AA --no-label-map
 
 # 로컬 .app 번들 생성(LaunchServices/activation 재평가용)
 scripts/build_local_app.sh
@@ -361,7 +367,7 @@ scripts/verify_mvp_freeze.sh
 ## 하지 않는 것 (현재 범위 외)
 
 - Post-MVP 내부 사용자 3명 평가
-- Post-MVP 앱 확대 검증(Slack, Notion 등)
+- Post-MVP 앱 확대 검증 결과 확정(Slack, Notion 등)
 - Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
 
 ## 다음 티켓

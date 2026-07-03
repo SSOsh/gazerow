@@ -2,6 +2,7 @@
 
 ## 변경 이력
 - v1: 다른 컴퓨터나 새 세션에서 GazeRow 작업을 이어받기 위한 읽기 순서, 현재 상태, 다음 액션, 미결정 항목을 정리.
+- v2: TICKET-010/011 local MVP freeze GO, Finder/VS Code fixed task pass, Post-MVP 앱 평가 스크립트 준비 상태를 반영.
 
 ## 1. 목적
 
@@ -10,15 +11,15 @@
 목표:
 
 - 어떤 파일을 어떤 순서로 읽어야 하는지 명확히 한다.
-- 현재 구현된 MVP 범위와 아직 남은 평가 작업을 구분한다.
-- 다음 작업자가 `TICKET-010` 평가를 바로 준비할 수 있게 한다.
+- 현재 구현된 MVP freeze 범위와 Post-MVP 평가 작업을 구분한다.
+- 다음 작업자가 Slack/Notion 등 추가 앱 평가를 바로 준비할 수 있게 한다.
 
 ## 2. 현재 상태
 
-현재는 TICKET-001부터 TICKET-009까지 구현됐고, TICKET-010 사전 검증과 TICKET-011 freeze 준비 산출물이 완료된 상태다.
+현재는 TICKET-001부터 TICKET-011 local MVP freeze까지 완료된 상태다.
 TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 완료했다.
 
-2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결했고, 2026-07-02 19:42:19 KST에는 Show Overlay 권한 실패 시 권한 요청 프롬프트와 System Settings 이동을 연결했다. 2026-07-02 19:45:35 KST에는 `--request-accessibility` 런치 옵션을 추가했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한이 승인되어 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 target bundle launch option과 target window fallback을 추가해 Finder, Safari, Chrome, VS Code, System Settings overlay activation smoke를 통과했다. 2026-07-02 20:20 KST에는 실제 click task를 수행해 Safari, Chrome, System Settings는 pass, Finder와 VS Code는 fixed task target candidate 미수집으로 fail을 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. 이후 candidate coverage와 scanner 기본 depth를 보강해 Finder label map은 63개, VS Code label map은 29개로 증가했으며 VS Code Activity Bar `AXRadioButton` 후보가 수집된다. Finder sidebar candidate용 `AXOpen` 실행, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout 출력도 보강했지만 Finder/VS Code fixed task 재평가가 필요하다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했고, 최종 go/no-go 판정은 아직 남아 있다.
+2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결했고, 2026-07-02 19:42:19 KST에는 Show Overlay 권한 실패 시 권한 요청 프롬프트와 System Settings 이동을 연결했다. 2026-07-02 19:45:35 KST에는 `--request-accessibility` 런치 옵션을 추가했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한이 승인되어 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 target bundle launch option과 target window fallback을 추가해 Finder, Safari, Chrome, VS Code, System Settings overlay activation smoke를 통과했다. 2026-07-02 20:20 KST에는 실제 click task를 수행해 Safari, Chrome, System Settings는 pass, Finder와 VS Code는 fixed task target candidate 미수집으로 fail을 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. 이후 candidate coverage와 scanner 기본 depth, Finder sidebar candidate용 `AXOpen`, `AXConfirm`, `AXShowDefaultUI`, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout, `--click-overlay-label` 평가 옵션, overlay panel AX/AppKit 좌표 변환을 보강했다. Finder/VS Code fixed task 재평가는 Finder `AXShowDefaultUI`, VS Code `AXPress`로 pass했다. `scripts/verify_mvp_freeze.sh`는 200 tests, 0 failures로 통과했고 local MVP freeze decision은 `GO_FOR_LOCAL_MVP_FREEZE`다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했다.
 
 완료된 구현/문서:
 
@@ -41,9 +42,12 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - Command+Shift+Space overlay activation shortcut
 - Finder/VS Code candidate coverage 보강 및 label map smoke 확인
 - Finder sidebar candidate용 `AXOpen` click execution
+- `AXConfirm` / `AXShowDefaultUI` click execution
 - Overlay keyboard input 수신을 위한 app activation 보강
 - launch-option 평가용 click result stdout 출력
+- launch-option label click 평가 옵션(`--click-overlay-label`)
 - local `.app` bundle 생성 스크립트(`scripts/build_local_app.sh`)
+- Post-MVP 앱 평가 스크립트(`scripts/evaluate_overlay_target.sh`)
 - `--request-accessibility` 런치 옵션
 - `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션
 - `--print-overlay-label-map` 로컬 평가용 label map 출력 옵션
@@ -61,6 +65,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - `gazerow_ticket_010_result_v1.md`
 - `gazerow_internal_user_evaluation_v1.md`
 - `gazerow_mvp_freeze_package_v1.md`
+- `gazerow_post_mvp_app_evaluation_v1.md`
 
 현재 기준 문서:
 
@@ -87,6 +92,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 4. `gazerow_ticket_010_result_v1.md`
 5. `gazerow_mvp_freeze_package_v1.md`
 6. `gazerow_distribution_checklist_v1.md`
+7. `gazerow_post_mvp_app_evaluation_v1.md`
 
 ## 4. 핵심 결정 요약
 
@@ -96,9 +102,10 @@ Accepted:
 - 초기 사용자는 macOS 키보드 중심 개발자 또는 파워유저다.
 - MVP는 범용 접근성/의료 보조 제품으로 포지셔닝하지 않는다.
 - 초기 앱은 Finder, Safari, Chrome, VS Code, System Settings다.
-- MVP 성공 기준은 초기 5개 앱 중 3개 이상 task 성공이다.
+- MVP 성공 기준은 초기 5개 앱 중 3개 이상 task 성공이며, 현재 결과는 5/5 pass다.
 - 모든 click은 keyboard confirm이 필요하다.
 - `AXPress`를 우선 사용한다.
+- `AXConfirm`, `AXOpen`, `AXShowDefaultUI`도 fallback이 아닌 접근성 action으로 지원한다.
 - `CGEventPost` fallback은 기본 off다.
 - Camera, Screen Recording, telemetry는 MVP에서 제외한다.
 - Interaction 로그 파일 저장은 사용자 opt-in이다.
@@ -121,22 +128,23 @@ Deferred:
 | Runtime activation/wiring | 완료 | TICKET-010 5개 앱 task 수행 전제 |
 | Overlay activation shortcut | 완료 | Command+Shift+Space 또는 메뉴바 Show Overlay |
 | 권한 요청 UX | 완료 | Settings `Request Permission`, Show Overlay 권한 실패 경로, `--request-accessibility` 런치 옵션 |
-| Accessibility 권한 | granted | scanner/overlay 대상 조회와 AXPress 실행 |
-| 5개 앱 overlay activation smoke | 완료 | Finder 63, Safari 35, Chrome 46, VS Code 29, System Settings 11 labels |
-| 5개 앱 실제 click task | 재평가 필요 | Safari/Chrome/System Settings pass, Finder/VS Code는 candidate coverage/click result stdout 보강 후 재평가 |
+| Accessibility 권한 | granted | scanner/overlay 대상 조회와 AX action 실행 |
+| 5개 앱 overlay activation smoke | 완료 | Finder/Safari/Chrome/VS Code/System Settings pass |
+| 5개 앱 실제 click task | 완료 | Finder/Safari/Chrome/VS Code/System Settings 5/5 pass |
 | 30분 crash-free session | 완료 | 2026-07-02 20:46:31~21:16:31 KST, 1800초 crash 0건 |
 | 내부 사용자 평가 runbook | 완료 | `gazerow_internal_user_evaluation_v1.md` |
 | 평가자 3명 | Post-MVP deferred | ED-008에 따라 local MVP freeze gate에서 제외, 평가자 확보 시 runbook으로 재개 |
 | 평가 macOS version | TBD | 평가표 필수 기록 |
-| 초기 5개 앱 실행 가능 여부 | 3/5 task pass, 재평가 필요 | Finder sidebar row와 VS Code Activity Bar candidate 수집 확인 |
+| 초기 5개 앱 실행 가능 여부 | 5/5 task pass | Finder sidebar row와 VS Code Activity Bar fixed task까지 pass |
 
 ## 6. 바로 다음 작업
 
 추천 순서:
 
-1. Finder/VS Code fixed task 재평가
-2. `gazerow_ticket_010_result_v1.md`에 go/no-go 결론 작성
-3. `gazerow_mvp_freeze_package_v1.md`와 README 상태 최종 갱신
+1. Slack/Notion 설치 여부와 bundle id 확인
+2. `scripts/evaluate_overlay_target.sh`로 overlay label map smoke 실행
+3. 대표 click task label을 정해 `--click-label` 평가 실행
+4. `gazerow_post_mvp_app_evaluation_v1.md`와 App Support Tier 갱신
 
 ## 7. 작업 중 지켜야 할 제한
 
