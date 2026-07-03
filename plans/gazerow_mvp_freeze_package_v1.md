@@ -211,6 +211,7 @@ Latest verification:
 - 2026-07-03 11:05 KST `scripts/verify_mvp_freeze.sh` pass
 - Build pass, 207 tests / 0 failures, MVP-excluded permission/framework reference check pass
 - Post-MVP scanner changes verified separately with Slack 43-label smoke + `BI` click pass and Discord 6-label smoke
+- 2026-07-03 v2 재검증(Claude): `scripts/verify_mvp_freeze.sh` pass, build pass, 335 tests / 0 failures (5회 반복 안정), excluded screen/input 참조 검사 pass. 핵심 5개 앱 overlay smoke success(Finder 46 / Safari 35 / Chrome 69 / VS Code 3 / System Settings 64, bundle id `com.apple.systempreferences`)
 
 ---
 

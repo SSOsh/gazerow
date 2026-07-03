@@ -53,7 +53,7 @@
 | Safari | `com.apple.Safari` | toolbar button 클릭 | AXPress 또는 안전한 keyboard-confirmed 흐름으로 UI 반응 확인 |
 | Chrome | `com.google.Chrome` | 주소창 focus | keyboard confirm 후 텍스트 입력 가능 상태 |
 | VS Code | `com.microsoft.VSCode` | Activity Bar item 이동 | target view 전환 |
-| System Settings | `com.apple.systempreferences` 또는 `com.apple.SystemSettings` | button/toggle focus 및 실행 | 상태 변화 또는 target pane 이동 |
+| System Settings | `com.apple.systempreferences` | button/toggle focus 및 실행 | 상태 변화 또는 target pane 이동 |
 
 ## 4. 앱별 평가 기록
 

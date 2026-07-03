@@ -376,6 +376,7 @@ scripts/verify_mvp_freeze.sh
 - [x] TICKET-010 결과 기반 known limitations/app support 갱신
 - [x] MVP freeze 최종 go/no-go 확정
 - [x] 2026-07-03 freeze 재검증(`scripts/verify_mvp_freeze.sh`): build pass, 207 tests / 0 failures, MVP-excluded 참조 검사 pass
+- [x] 2026-07-03 v2 재검증(Claude): build pass, 335 tests / 0 failures(5회 반복 안정), excluded screen/input 참조 검사 pass, 핵심 5개 앱 overlay smoke success(Finder 46 / Safari 35 / Chrome 69 / VS Code 3 / System Settings 64)
 
 ## 하지 않는 것 (현재 범위 외)
 

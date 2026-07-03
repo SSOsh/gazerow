@@ -2,6 +2,7 @@
 
 ## 변경 이력
 - v1: 릴리즈 전 결함 발견을 위한 자동/수동 테스트 목록과 Post-MVP 개발 후보를 통합 정리.
+- v2: 2026-07-03 Claude 자동/정적/smoke 테스트 실행 결과를 반영. 현재 기준 상태를 실측값으로 갱신하고, 핵심 5개 앱 overlay smoke 결과를 기록. System Settings smoke bundle id 오기(`com.apple.SystemSettings` → `com.apple.systempreferences`)를 수정.
 
 ## 1. 목적
 
@@ -22,23 +23,39 @@
 
 ## 2. 현재 기준 상태
 
-작성 시점 기준 확인 결과:
+최신 확인 결과 (2026-07-03 Claude 실행):
 
 | 항목 | 결과 |
 | --- | --- |
-| 기준 일시 | 2026-07-03 21:13 KST |
+| 기준 일시 | 2026-07-03 (v2 재검증) |
 | 기준 위치 | `/Users/suho/Github/gazerow` |
 | Freeze 검증 | `scripts/verify_mvp_freeze.sh` pass |
 | Build | pass |
 | Unit tests | 335 tests / 0 failures |
+| Test 5회 반복 | 5회 모두 335 / 0, flaky 없음 |
 | Excluded permission/framework grep | pass |
-| Finder overlay smoke | pass, `labels=62` |
+| 정적 검증(fallback/secure field/debug/raw text/author) | pass |
+| 로컬 `.app` 번들 생성 | pass (adhoc 서명, arm64) |
+
+핵심 5개 앱 overlay smoke 결과 (label map 미출력, click 미실행):
+
+| 앱 | bundle id | 결과 |
+| --- | --- | --- |
+| Finder | `com.apple.finder` | success, `labels=46` |
+| Safari | `com.apple.Safari` | success, `labels=35` |
+| Chrome | `com.google.Chrome` | success, `labels=69` |
+| VS Code | `com.microsoft.VSCode` | success, `labels=3` (빈 Welcome 화면 기준, 실제 워크스페이스 재측정 권장) |
+| System Settings | `com.apple.systempreferences` | success, `labels=64` |
 
 실행한 명령:
 
 ```bash
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/verify_mvp_freeze.sh
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --timeout 8 --min-labels 1 --no-label-map
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/evaluate_overlay_target.sh --bundle-id com.apple.Safari --timeout 8 --min-labels 1 --no-label-map
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/evaluate_overlay_target.sh --bundle-id com.google.Chrome --timeout 8 --min-labels 1 --no-label-map
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/evaluate_overlay_target.sh --bundle-id com.microsoft.VSCode --timeout 10 --min-labels 1 --no-label-map
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer scripts/evaluate_overlay_target.sh --bundle-id com.apple.systempreferences --timeout 8 --min-labels 1 --no-label-map
 ```
 
 현재 문서화된 지원 상태:
@@ -139,7 +156,7 @@ scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --timeout 8 --mi
 scripts/evaluate_overlay_target.sh --bundle-id com.apple.Safari --timeout 8 --min-labels 1 --no-label-map
 scripts/evaluate_overlay_target.sh --bundle-id com.google.Chrome --timeout 8 --min-labels 1 --no-label-map
 scripts/evaluate_overlay_target.sh --bundle-id com.microsoft.VSCode --timeout 10 --min-labels 1 --no-label-map
-scripts/evaluate_overlay_target.sh --bundle-id com.apple.SystemSettings --timeout 8 --min-labels 1 --no-label-map
+scripts/evaluate_overlay_target.sh --bundle-id com.apple.systempreferences --timeout 8 --min-labels 1 --no-label-map
 ```
 
 확인할 결함:
