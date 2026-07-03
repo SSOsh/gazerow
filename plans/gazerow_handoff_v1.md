@@ -43,6 +43,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - Finder sidebar candidate용 `AXOpen` click execution
 - Overlay keyboard input 수신을 위한 app activation 보강
 - launch-option 평가용 click result stdout 출력
+- local `.app` bundle 생성 스크립트(`scripts/build_local_app.sh`)
 - `--request-accessibility` 런치 옵션
 - `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션
 - `--print-overlay-label-map` 로컬 평가용 label map 출력 옵션

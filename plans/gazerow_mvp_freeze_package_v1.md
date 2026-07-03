@@ -17,6 +17,7 @@
 - v14: overlay keyboard input 수신을 위한 app activation 보강과 188 tests 검증 결과를 반영.
 - v15: launch-option click result stdout 출력과 191 tests 검증 결과를 반영.
 - v16: ED-008에 따라 내부 사용자 gate를 Post-MVP defer로 정리하고 현재 차단 항목을 Finder/VS Code fixed task 재평가로 좁힘.
+- v17: local `.app` bundle 생성 스크립트와 191 tests freeze 검증 결과를 반영.
 
 ## 1. 상태
 
@@ -81,6 +82,10 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 
+# local .app bundle 생성
+scripts/build_local_app.sh
+open -n .build/local-app/GazeRow.app
+
 # freeze 사전 검증
 scripts/verify_mvp_freeze.sh
 ```
@@ -89,6 +94,7 @@ scripts/verify_mvp_freeze.sh
 
 - `xcode-select`가 Command Line Tools를 가리켜도 위처럼 `DEVELOPER_DIR`를 지정하면 된다.
 - 실행 후 Dock 아이콘 없이 메뉴바 status item이 표시된다.
+- SwiftPM 바이너리 실행에서 activation/keyboard focus 재현이 불안정하면 local `.app` bundle로 재평가한다.
 - Settings는 메뉴바 아이콘의 **Open Settings**로 연다.
 - 권한 요청 동선은 `swift run GazeRow -- --request-accessibility`로 바로 열 수 있다.
 - 실제 scanner/overlay 평가에는 Accessibility 권한이 필요하다.

@@ -24,6 +24,7 @@
 - v21: overlay 표시 시 keyboard input 수신을 위한 app activation 보강을 기록.
 - v22: launch-option 평가용 click result stdout 출력을 기록.
 - v23: ED-008에 따라 내부 사용자 gate를 Post-MVP defer로 정리하고 현재 차단 항목을 Finder/VS Code fixed task 재평가로 좁힘.
+- v24: SwiftPM 바이너리 평가에서 overlay keyboard 입력이 Finder로 전달되는 한계를 확인하고 local `.app` bundle 생성 스크립트를 추가.
 
 ## 1. 상태
 
@@ -50,6 +51,8 @@
 2026-07-02에는 내부 사용자 3명 평가를 직접 대체하지 않고, `gazerow_internal_user_evaluation_v1.md`에 평가 실행 절차와 기록지를 준비했다. 이후 ED-008 결정에 따라 외부 내부 사용자 3명을 확보하지 못한 상태에서는 local MVP freeze의 내부 사용자 gate를 Post-MVP로 defer한다. 평가 결과를 지어내지 않으며, 평가자 3명 확보 시 이 runbook으로 재개한다.
 
 2026-07-03 09:53 KST에는 launch-option 평가 중 keyboard confirm click 결과를 `GAZEROW_OVERLAY_CLICK_RESULT`로 stdout에 출력하도록 연결했다. Finder/VS Code fixed task 재평가 시 label map 출력과 함께 실제 click 성공/실패, 실행 방식, risk, fallback 여부를 기록할 수 있다. 이 변경은 재평가 준비이며 Finder/VS Code pass 판정으로 간주하지 않는다.
+
+2026-07-03에는 Finder fixed task 재평가를 다시 시도했다. Finder label map은 385개까지 수집됐고 sidebar 영역의 `AXCell` + `AXOpen` 후보가 확인됐다. 다만 SwiftPM 바이너리 실행 상태에서는 Computer Use 키 입력이 overlay가 아니라 Finder 목록 검색/선택으로 전달되어 keyboard confirm click 결과를 얻지 못했다. 이 상태를 pass로 기록하지 않고, LaunchServices/activation 경로로 재평가하기 위해 `scripts/build_local_app.sh`를 추가했다. 스크립트는 `.build/local-app/GazeRow.app` 생성을 통과했지만, 자동 UI 도구에서는 accessory 앱이 별도 앱으로 노출되지 않아 Finder/VS Code fixed task는 실제 사용자 키보드 입력으로 최종 확인해야 한다.
 
 ## 2. 평가 전 체크리스트
 
@@ -113,6 +116,9 @@
 | click result reporter focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'OverlayLaunchReporterTests\|OverlaySessionControllerTests'` | pass, 28 tests, 0 failures |
 | full test after click result reporter update | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 191 tests, 0 failures |
 | freeze verification after click result reporter update | `scripts/verify_mvp_freeze.sh` | pass, 191 tests, 0 failures, MVP-excluded check passed |
+| Finder fixed task reevaluation attempt | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` | inconclusive, 385 labels, sidebar `AXCell` + `AXOpen` candidates visible, keyboard input delivered to Finder instead of overlay |
+| local app bundle script | `scripts/build_local_app.sh` | pass, `.build/local-app/GazeRow.app` created |
+| freeze verification after local app bundle script | `scripts/verify_mvp_freeze.sh` | pass, 191 tests, 0 failures, MVP-excluded check passed |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -403,6 +409,7 @@ Next ticket: Finder/VS Code 재평가 후 TICKET-011 freeze 최종 확정
 - [x] `AXConfirm` candidate click execution 지원
 - [x] overlay keyboard input 수신을 위한 app activation 보강
 - [x] launch-option 평가용 click result stdout 출력
+- [x] local `.app` bundle 생성 스크립트 추가
 - [ ] Finder fixed task 재평가
 - [ ] VS Code fixed task 재평가
 - [ ] go/no-go 결론 작성

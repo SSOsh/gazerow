@@ -184,6 +184,10 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --
 
 # 로컬 평가용 label map 출력
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.Safari --print-overlay-label-map
+
+# 로컬 .app 번들 생성(LaunchServices/activation 재평가용)
+scripts/build_local_app.sh
+open -n .build/local-app/GazeRow.app
 ```
 
 > **주의**: `xcode-select`가 Command Line Tools를 가리키면 SwiftPM manifest
@@ -194,6 +198,8 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --
 아이콘 클릭 → **Open Settings** / **Quit** 으로 동작을 확인할 수 있다.
 Accessibility 권한이 없으면 Settings의 **Request Permission** 또는 위 런치 옵션으로
 권한 요청 동선을 열 수 있다.
+SwiftPM 바이너리 실행에서 macOS 앱 activation/키 입력 재현이 불안정하면
+`scripts/build_local_app.sh`로 `.build/local-app/GazeRow.app`을 만든 뒤 실행한다.
 
 ```bash
 # 테스트 실행
