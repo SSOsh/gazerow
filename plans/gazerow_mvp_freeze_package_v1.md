@@ -203,6 +203,12 @@ Known limitations to update: none for evaluated MVP apps
 Next ticket: Discord representative click 검증, Obsidian 설치 환경 검증, 또는 내부 사용자 3명 평가 재개
 ```
 
+Latest verification:
+
+- 2026-07-03 11:05 KST `scripts/verify_mvp_freeze.sh` pass
+- Build pass, 207 tests / 0 failures, MVP-excluded permission/framework reference check pass
+- Post-MVP scanner changes verified separately with Slack 43-label smoke + `BI` click pass and Discord 6-label smoke
+
 ---
 
 @author suho.do

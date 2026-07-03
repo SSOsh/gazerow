@@ -3,6 +3,7 @@
 ## 변경 이력
 - v1: 다른 컴퓨터나 새 세션에서 GazeRow 작업을 이어받기 위한 읽기 순서, 현재 상태, 다음 액션, 미결정 항목을 정리.
 - v2: TICKET-010/011 local MVP freeze GO, Finder/VS Code fixed task pass, Post-MVP 앱 평가 스크립트 준비 상태를 반영.
+- v3: Post-MVP Slack pass, Discord Limited 개선 상태와 2026-07-03 freeze 재검증 결과를 반영.
 
 ## 1. 목적
 
@@ -19,7 +20,9 @@
 현재는 TICKET-001부터 TICKET-011 local MVP freeze까지 완료된 상태다.
 TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 완료했다.
 
-2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결했고, 2026-07-02 19:42:19 KST에는 Show Overlay 권한 실패 시 권한 요청 프롬프트와 System Settings 이동을 연결했다. 2026-07-02 19:45:35 KST에는 `--request-accessibility` 런치 옵션을 추가했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한이 승인되어 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 target bundle launch option과 target window fallback을 추가해 Finder, Safari, Chrome, VS Code, System Settings overlay activation smoke를 통과했다. 2026-07-02 20:20 KST에는 실제 click task를 수행해 Safari, Chrome, System Settings는 pass, Finder와 VS Code는 fixed task target candidate 미수집으로 fail을 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. 이후 candidate coverage와 scanner 기본 depth, Finder sidebar candidate용 `AXOpen`, `AXConfirm`, `AXShowDefaultUI`, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout, `--click-overlay-label` 평가 옵션, overlay panel AX/AppKit 좌표 변환을 보강했다. Finder/VS Code fixed task 재평가는 Finder `AXShowDefaultUI`, VS Code `AXPress`로 pass했다. `scripts/verify_mvp_freeze.sh`는 200 tests, 0 failures로 통과했고 local MVP freeze decision은 `GO_FOR_LOCAL_MVP_FREEZE`다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했다.
+2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결했고, 2026-07-02 19:42:19 KST에는 Show Overlay 권한 실패 시 권한 요청 프롬프트와 System Settings 이동을 연결했다. 2026-07-02 19:45:35 KST에는 `--request-accessibility` 런치 옵션을 추가했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한이 승인되어 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 target bundle launch option과 target window fallback을 추가해 Finder, Safari, Chrome, VS Code, System Settings overlay activation smoke를 통과했다. 2026-07-02 20:20 KST에는 실제 click task를 수행해 Safari, Chrome, System Settings는 pass, Finder와 VS Code는 fixed task target candidate 미수집으로 fail을 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. 이후 candidate coverage와 scanner 기본 depth, Finder sidebar candidate용 `AXOpen`, `AXConfirm`, `AXShowDefaultUI`, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout, `--click-overlay-label` 평가 옵션, overlay panel AX/AppKit 좌표 변환을 보강했다. Finder/VS Code fixed task 재평가는 Finder `AXShowDefaultUI`, VS Code `AXPress`로 pass했다. 2026-07-03 11:05 KST 기준 `scripts/verify_mvp_freeze.sh`는 207 tests, 0 failures와 MVP-excluded 참조 검사로 통과했고 local MVP freeze decision은 `GO_FOR_LOCAL_MVP_FREEZE`다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했다.
+
+Post-MVP 앱 확대 검증에서는 AX child attribute 스캔 확장과 decorative image candidate filtering을 반영했다. Slack은 43 labels와 Messages tab `BI` click pass(`axPress`, fallback=false)로 Evaluation pass가 됐다. Discord는 로그인/계정 추가 화면 기준 6 labels까지 수집되지만 대표 click task 미확정이라 Limited로 유지한다. Obsidian은 현재 평가 환경에 미설치다.
 
 완료된 구현/문서:
 
@@ -48,6 +51,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - launch-option label click 평가 옵션(`--click-overlay-label`)
 - local `.app` bundle 생성 스크립트(`scripts/build_local_app.sh`)
 - Post-MVP 앱 평가 스크립트(`scripts/evaluate_overlay_target.sh`)
+- Post-MVP Slack Evaluation pass, Discord Limited, Obsidian Unverified 반영
 - `--request-accessibility` 런치 옵션
 - `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션
 - `--print-overlay-label-map` 로컬 평가용 label map 출력 옵션

@@ -367,6 +367,7 @@ scripts/verify_mvp_freeze.sh
 - [x] distribution signing/notarization checklist 초안
 - [x] TICKET-010 결과 기반 known limitations/app support 갱신
 - [x] MVP freeze 최종 go/no-go 확정
+- [x] 2026-07-03 freeze 재검증(`scripts/verify_mvp_freeze.sh`): build pass, 207 tests / 0 failures, MVP-excluded 참조 검사 pass
 
 ## 하지 않는 것 (현재 범위 외)
 
