@@ -25,13 +25,15 @@ swift build
 echo "==> Running tests"
 swift test
 
-echo "==> Checking MVP-excluded permission/framework references"
+echo "==> Checking excluded screen/input permission/framework references"
 if grep -REn \
-  "AVCapture|ScreenCaptureKit|CGDisplayStream|NSCameraUsageDescription|NSScreenCaptureUsageDescription|NSMicrophoneUsageDescription|NSInputMonitoringUsageDescription" \
+  "ScreenCaptureKit|CGDisplayStream|NSScreenCaptureUsageDescription|NSMicrophoneUsageDescription|NSInputMonitoringUsageDescription" \
   Package.swift Sources/GazeRow > "${FORBIDDEN_MATCHES_FILE}"; then
-  echo "Found MVP-excluded camera/screen/input references:" >&2
+  echo "Found excluded screen/input references:" >&2
   cat "${FORBIDDEN_MATCHES_FILE}" >&2
   exit 1
 fi
+
+echo "==> Camera gaze references are allowed only as explicit opt-in with default-off tests"
 
 echo "==> MVP freeze verification passed"

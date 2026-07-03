@@ -59,11 +59,21 @@ cat > "${APP_DIR}/Contents/Info.plist" <<'PLIST'
   <true/>
   <key>NSHighResolutionCapable</key>
   <true/>
+  <key>NSCameraUsageDescription</key>
+  <string>GazeRow uses the camera only when you enable experimental gaze focus. Frames stay local and clicks still require keyboard confirmation.</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
 </dict>
 </plist>
 PLIST
+
+echo "==> Signing local app bundle"
+codesign \
+  --force \
+  --sign - \
+  --identifier dev.local.gazerow \
+  --requirements '=designated => identifier "dev.local.gazerow"' \
+  "${APP_DIR}" >/dev/null
 
 echo "==> Local app ready"
 echo "${APP_DIR}"
