@@ -30,4 +30,9 @@ enum AppLogger {
     ///
     /// - Note: raw window title, text value 등 민감정보는 이 로거로 기록하지 않는다.
     static let interaction = Logger(subsystem: subsystem, category: "interaction")
+
+    /// gaze focus activation 관련 로거.
+    ///
+    /// - Note: raw camera frame이나 얼굴 이미지는 이 로거로 기록하지 않는다.
+    static let gaze = Logger(subsystem: subsystem, category: "gaze")
 }

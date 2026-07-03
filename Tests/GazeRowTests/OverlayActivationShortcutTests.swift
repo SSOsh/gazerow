@@ -23,6 +23,41 @@ final class OverlayActivationShortcutTests: XCTestCase {
         XCTAssertTrue(result)
     }
 
+    func test_matches_ControlOptionSpace이면_true() {
+        // given
+        let sut = OverlayActivationShortcut.fallbackShortcut
+        let input = OverlayActivationShortcutInput(
+            keyCode: OverlayActivationKeyCode.space,
+            modifiers: [.control, .option]
+        )
+
+        // when
+        let result = sut.matches(input)
+
+        // then
+        XCTAssertTrue(result)
+    }
+
+    func test_matchesAny는_기본_또는_보조_단축키이면_true() {
+        // given
+        let defaultInput = OverlayActivationShortcutInput(
+            keyCode: OverlayActivationKeyCode.space,
+            modifiers: [.command, .shift]
+        )
+        let fallbackInput = OverlayActivationShortcutInput(
+            keyCode: OverlayActivationKeyCode.space,
+            modifiers: [.control, .option]
+        )
+
+        // when
+        let defaultResult = OverlayActivationShortcut.matchesAny(defaultInput)
+        let fallbackResult = OverlayActivationShortcut.matchesAny(fallbackInput)
+
+        // then
+        XCTAssertTrue(defaultResult)
+        XCTAssertTrue(fallbackResult)
+    }
+
     func test_matches_capsLock은_무시() {
         // given
         let sut = OverlayActivationShortcut.defaultShortcut
@@ -108,5 +143,13 @@ final class OverlayActivationShortcutTests: XCTestCase {
 
         // then
         XCTAssertEqual(result, "Command+Shift+Space")
+    }
+
+    func test_activationDisplayName은_기본과_보조_단축키를_함께_반환() {
+        // when
+        let result = OverlayActivationShortcut.activationDisplayName
+
+        // then
+        XCTAssertEqual(result, "Command+Shift+Space / Control+Option+Space")
     }
 }

@@ -1,4 +1,4 @@
-import AppKit
+@preconcurrency import AppKit
 
 /// frontmost app 조회 abstraction.
 ///
@@ -27,6 +27,90 @@ struct NSWorkspaceFrontmostApplicationProvider: FrontmostApplicationProviding {
             localizedName: application.localizedName ?? "Unknown Application",
             bundleIdentifier: application.bundleIdentifier ?? "unknown.bundle",
             processIdentifier: application.processIdentifier
+        )
+    }
+}
+
+/// GazeRow가 frontmost가 된 상태에서는 직전에 활성화된 외부 앱을 반환한다.
+///
+/// 메뉴바 메뉴나 Settings window에서 overlay를 실행하면 `NSWorkspace.frontmostApplication`
+/// 이 GazeRow 자기 자신을 가리킬 수 있다. 이 provider는 그런 경우 직전 non-GazeRow
+/// 앱을 target으로 사용해 사용자가 보고 있던 앱 위에 overlay를 띄운다.
+///
+/// @author suho.do
+/// @since 2026-07-03
+@MainActor
+final class RecentNonSelfApplicationProvider: FrontmostApplicationProviding {
+    private let ownBundleIdentifier: String
+    private let currentApplicationProvider: any FrontmostApplicationProviding
+    private let notificationCenter: NotificationCenter
+    private var observer: NSObjectProtocol?
+    private(set) var lastNonSelfApplication: TargetApplication?
+
+    init(
+        ownBundleIdentifier: String = AppState.bundleIdentifier,
+        currentApplicationProvider: any FrontmostApplicationProviding = NSWorkspaceFrontmostApplicationProvider(),
+        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
+    ) {
+        self.ownBundleIdentifier = ownBundleIdentifier
+        self.currentApplicationProvider = currentApplicationProvider
+        self.notificationCenter = notificationCenter
+        recordIfNonSelf(currentApplicationProvider.frontmostApplication())
+        installActivationObserver()
+    }
+
+    deinit {
+        if let observer {
+            notificationCenter.removeObserver(observer)
+        }
+    }
+
+    func frontmostApplication() -> TargetApplication? {
+        guard let current = currentApplicationProvider.frontmostApplication() else {
+            return lastNonSelfApplication
+        }
+
+        guard current.bundleIdentifier == ownBundleIdentifier else {
+            recordIfNonSelf(current)
+            return current
+        }
+
+        return lastNonSelfApplication
+    }
+
+    func recordIfNonSelf(_ application: TargetApplication?) {
+        guard let application,
+              application.bundleIdentifier != ownBundleIdentifier else {
+            return
+        }
+
+        lastNonSelfApplication = application
+    }
+
+    private func installActivationObserver() {
+        observer = notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let runningApplication = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                as? NSRunningApplication else {
+                return
+            }
+
+            Task { @MainActor in
+                self?.recordIfNonSelf(TargetApplication(runningApplication: runningApplication))
+            }
+        }
+    }
+}
+
+private extension TargetApplication {
+    init(runningApplication: NSRunningApplication) {
+        self.init(
+            localizedName: runningApplication.localizedName ?? "Unknown Application",
+            bundleIdentifier: runningApplication.bundleIdentifier ?? "unknown.bundle",
+            processIdentifier: runningApplication.processIdentifier
         )
     }
 }

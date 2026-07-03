@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import SwiftUI
 
 /// AppKit lifecycle과 메뉴바 status item을 담당하는 delegate.
 ///
@@ -16,6 +17,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 메뉴바에 표시되는 status item. 강한 참조로 생명주기 동안 유지한다.
     private var statusItem: NSStatusItem?
 
+    /// Settings window를 직접 관리한다. LSUIElement 앱에서는 SwiftUI Settings scene
+    /// selector가 환경에 따라 열리지 않을 수 있어 AppKit window를 SSOT로 둔다.
+    private var settingsWindow: NSWindow?
+
     /// kill switch 메뉴 항목. 세션 상태에 따라 타이틀을 갱신한다.
     private var sessionMenuItem: NSMenuItem?
 
@@ -25,6 +30,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// overlay activation local keyDown monitor token.
     private var localShortcutMonitor: Any?
 
+    /// Carbon 기반 전역 hotkey 등록기.
+    private var globalHotKeyControllers: [GlobalHotKeyController] = []
+
     /// onboarding 완료 여부 판정용 상태.
     private let onboarding = OnboardingState()
 
@@ -33,6 +41,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Accessibility 권한 요청/설정 이동을 담당한다.
     private let permissionManager = PermissionManager()
+
+    /// camera gaze opt-in 상태 저장소.
+    private let cameraGazeSettings = CameraGazeSettings()
+
+    /// camera 권한 상태 조회기.
+    private let cameraPermissionManager = CameraPermissionManager()
+
+    /// gaze calibration sample 저장소.
+    private let gazeCalibrationStore = GazeCalibrationStore()
+
+    /// 진행 중인 one-shot gaze 캡처 컨트롤러(캡처 동안만 유지).
+    private var gazeOneShotController: GazeOneShotFocusController?
+
+    /// 진행 중인 calibration window controller(표시 동안만 유지).
+    private var gazeCalibrationWindowController: GazeCalibrationWindowController?
+
+    /// calibration 요청 알림 관측 토큰.
+    private var gazeCalibrationObserver: (any NSObjectProtocol)?
+
+    /// 메뉴/Settings가 frontmost가 되었을 때 직전 외부 앱을 overlay 대상으로 삼는다.
+    private lazy var frontmostApplicationProvider = RecentNonSelfApplicationProvider()
 
     /// 실행 시 전달된 로컬 평가/복구 옵션.
     private let launchOptions = AppLaunchOptions.current
@@ -51,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupStatusItem()
         installOverlayActivationShortcut()
+        observeGazeCalibrationRequests()
         AppLogger.lifecycle.info("app launched")
 
         // 첫 실행이면 Settings를 열어 onboarding 시트가 뜨게 한다.
@@ -64,6 +94,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         removeOverlayActivationShortcut()
+        if let gazeCalibrationObserver {
+            NotificationCenter.default.removeObserver(gazeCalibrationObserver)
+            self.gazeCalibrationObserver = nil
+        }
         AppLogger.lifecycle.info("app terminated")
     }
 
@@ -106,6 +140,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         showOverlay.target = self
         menu.addItem(showOverlay)
 
+        let support = NSMenuItem(
+            title: localizedContent.supportDonationMenuTitle,
+            action: #selector(showSupportDonation),
+            keyEquivalent: ""
+        )
+        support.target = self
+        menu.addItem(support)
+
         menu.addItem(.separator())
 
         // kill switch: 세션 즉시 중단/재개 경로 (SD-006).
@@ -135,24 +177,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Settings window를 연다.
     @objc private func openSettings() {
+        let window = settingsWindow ?? makeSettingsWindow()
+        settingsWindow = window
+
+        window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        // macOS 14+ 에서 SwiftUI Settings scene을 여는 표준 selector.
-        if #available(macOS 14.0, *) {
-            NSApp.sendAction(
-                Selector(("showSettingsWindow:")),
-                to: nil,
-                from: nil
-            )
-        } else {
-            NSApp.sendAction(
-                Selector(("showPreferencesWindow:")),
-                to: nil,
-                from: nil
-            )
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
         }
 
         AppLogger.lifecycle.info("settings opened")
+    }
+
+    /// 커피값 후원 안내를 표시한다.
+    @objc private func showSupportDonation() {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.messageText = localizedContent.supportDonationTitle
+        alert.informativeText = localizedContent.supportDonationMessage
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+
+        AppLogger.lifecycle.info("support donation opened")
+    }
+
+    private var localizedContent: AppContent.Localized {
+        AppContent.localized(for: AppLanguageSettings().selectedLanguage)
+    }
+
+    /// 메뉴바 앱용 Settings window를 생성한다.
+    private func makeSettingsWindow() -> NSWindow {
+        let hostingController = NSHostingController(rootView: SettingsView())
+        let window = NSWindow(contentViewController: hostingController)
+
+        window.title = "GazeRow Settings"
+        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.isReleasedWhenClosed = false
+        window.center()
+
+        return window
     }
 
     /// 세션 활성/비활성(kill switch)을 토글하고 메뉴 타이틀을 갱신한다.
@@ -183,11 +248,168 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// gaze focus(Control+Shift+Space) 동선을 실행한다.
+    ///
+    /// opt-in·카메라 권한·캘리브레이션이 모두 준비된 경우에만 overlay를 띄우고,
+    /// one-shot으로 gaze point를 한 번 추정해 최근접 label로 focus를 옮긴다.
+    /// 자동 클릭은 하지 않는다(사용자가 Enter로 확정).
+    @objc private func showGazeOverlay() {
+        let decision = makeGazeActivationGate().evaluate()
+        guard decision == .proceed else {
+            handleGazeBlocked(decision)
+            return
+        }
+
+        guard case .success = overlaySessionController.start() else {
+            AppLogger.gaze.info("gaze overlay start failed")
+            return
+        }
+
+        startGazeOneShotCapture()
+    }
+
+    /// 현재 상태 기준 gaze 실행 게이트를 만든다.
+    private func makeGazeActivationGate() -> GazeActivationGate {
+        GazeActivationGate(
+            isOptInEnabled: { [cameraGazeSettings] in
+                cameraGazeSettings.isOptInEnabled
+            },
+            isCameraAuthorized: { [cameraPermissionManager] in
+                cameraPermissionManager.refresh()
+                return cameraPermissionManager.cameraStatus.isAuthorized
+            },
+            isCalibrationReady: { [gazeCalibrationStore] in
+                GazeCalibrationModel(samples: gazeCalibrationStore.load()).isReady
+            }
+        )
+    }
+
+    /// gaze 실행 차단 사유를 설명한 뒤, 사용자가 동의하면 해당 설정으로 이동한다.
+    ///
+    /// 시스템 설정 창이 이유 없이 튀어나오는 혼란을 막기 위해 먼저 안내 alert를
+    /// 띄우고, 확인을 누른 경우에만 다음 단계(설정/카메라 권한)로 안내한다.
+    private func handleGazeBlocked(_ decision: GazeActivationDecision) {
+        guard case .blocked(let reason) = decision else {
+            return
+        }
+
+        AppLogger.gaze.info("gaze blocked reason=\(String(describing: reason), privacy: .public)")
+
+        let guidance = GazeActivationBlockGuidance(reason: reason)
+        guard presentGazeBlockedAlert(guidance) else {
+            return
+        }
+
+        routeToGazeSetup(for: reason)
+    }
+
+    /// 차단 안내 alert를 띄우고, 사용자가 이동 버튼을 눌렀는지 여부를 돌려준다.
+    private func presentGazeBlockedAlert(_ guidance: GazeActivationBlockGuidance) -> Bool {
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.messageText = guidance.title
+        alert.informativeText = guidance.message
+        alert.addButton(withTitle: guidance.actionButtonTitle)
+        alert.addButton(withTitle: guidance.cancelButtonTitle)
+
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    /// 차단 사유에 맞는 설정 화면으로 이동한다.
+    private func routeToGazeSetup(for reason: GazeActivationBlockReason) {
+        switch reason {
+        case .cameraPermissionDenied:
+            cameraPermissionManager.openCameraSettings()
+        case .optInDisabled, .calibrationUnavailable:
+            openSettings()
+        }
+    }
+
+    /// one-shot gaze 캡처를 시작하고, 성공 시 최근접 label로 focus를 옮긴다.
+    private func startGazeOneShotCapture() {
+        let estimator = GazePointEstimator(
+            calibrationModel: GazeCalibrationModel(samples: gazeCalibrationStore.load())
+        )
+        let controller = GazeOneShotFocusController(pointEstimator: estimator)
+        gazeOneShotController = controller
+
+        controller.start { [weak self] result in
+            Task { @MainActor in
+                self?.handleGazeCaptureResult(result)
+            }
+        }
+    }
+
+    /// Settings에서 오는 calibration 시작 요청을 관측한다.
+    private func observeGazeCalibrationRequests() {
+        gazeCalibrationObserver = NotificationCenter.default.addObserver(
+            forName: .gazeCalibrationRequested,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.startGazeCalibration()
+            }
+        }
+    }
+
+    /// full-screen calibration overlay를 띄워 캘리브레이션을 시작한다.
+    private func startGazeCalibration() {
+        guard gazeCalibrationWindowController == nil else {
+            return
+        }
+
+        let controller = GazeCalibrationWindowController { [weak self] result in
+            self?.gazeCalibrationWindowController = nil
+            switch result {
+            case .success(let samples):
+                AppLogger.gaze.info("calibration saved count=\(samples.count, privacy: .public)")
+            case .failure(let failure):
+                AppLogger.gaze.info("calibration ended reason=\(String(describing: failure), privacy: .public)")
+            }
+        }
+        gazeCalibrationWindowController = controller
+        controller.present()
+    }
+
+    /// one-shot gaze 캡처 결과를 overlay focus로 반영한다.
+    @MainActor
+    private func handleGazeCaptureResult(_ result: Result<CGPoint, GazeOneShotFailure>) {
+        gazeOneShotController = nil
+
+        switch result {
+        case .success(let point):
+            _ = overlaySessionController.focusNearestLabel(to: point)
+            AppLogger.gaze.info("gaze focus moved")
+        case .failure(let failure):
+            AppLogger.gaze.info("gaze capture failed reason=\(String(describing: failure), privacy: .public)")
+        }
+    }
+
     /// 앱 안팎에서 동작하는 overlay activation shortcut monitor를 설치한다.
     private func installOverlayActivationShortcut() {
+        let registrationStatuses = registerGlobalHotKeys()
+        printHotKeyRegistrationIfNeeded(registrationStatuses)
+
         globalShortcutMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let overlayCommand = Self.focusKeyboardCommand(from: event)
             let input = OverlayActivationShortcutInput(event: event)
-            guard OverlayActivationShortcut.defaultShortcut.matches(input) else {
+
+            if let overlayCommand {
+                Task { @MainActor in
+                    _ = self?.handleOverlayKeyboardCommand(overlayCommand)
+                }
+            }
+
+            if GazeActivationShortcut.matches(input) {
+                Task { @MainActor in
+                    self?.showGazeOverlay()
+                }
+                return
+            }
+
+            guard OverlayActivationShortcut.matchesAny(input) else {
                 Task { @MainActor in
                     self?.handleWindowControlShortcut(input)
                 }
@@ -200,9 +422,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         localShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if let overlayCommand = Self.focusKeyboardCommand(from: event),
+               MainActor.assumeIsolated({ self?.handleOverlayKeyboardCommand(overlayCommand) == true }) {
+                return nil
+            }
+
             let input = OverlayActivationShortcutInput(event: event)
 
-            guard OverlayActivationShortcut.defaultShortcut.matches(input) else {
+            if GazeActivationShortcut.matches(input) {
+                Task { @MainActor in
+                    self?.showGazeOverlay()
+                }
+                return nil
+            }
+
+            guard OverlayActivationShortcut.matchesAny(input) else {
                 Task { @MainActor in
                     self?.handleWindowControlShortcut(input)
                 }
@@ -214,6 +448,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return nil
         }
+    }
+
+    private static func focusKeyboardCommand(from event: NSEvent) -> FocusKeyboardCommand? {
+        FocusKeyboardCommandMapper().command(
+            for: FocusKeyboardInput(
+                keyCode: event.keyCode,
+                charactersIgnoringModifiers: event.charactersIgnoringModifiers,
+                isShiftPressed: event.modifierFlags.contains(.shift)
+            )
+        )
+    }
+
+    @MainActor
+    private func handleOverlayKeyboardCommand(_ command: FocusKeyboardCommand) -> Bool {
+        guard overlaySessionController.activeSession != nil else {
+            return false
+        }
+
+        _ = overlaySessionController.handleKeyboardCommand(command)
+        return true
+    }
+
+    /// overlay/gaze activation용 Carbon hotkey들을 등록한다.
+    private func registerGlobalHotKeys() -> [OSStatus] {
+        var controllers = GlobalHotKeyDefinition.overlayActivationDefinitions.map { definition in
+            GlobalHotKeyController(definition: definition) { [weak self] in
+                self?.showOverlay()
+            }
+        }
+        controllers.append(
+            GlobalHotKeyController(definition: .gazeActivation) { [weak self] in
+                self?.showGazeOverlay()
+            }
+        )
+        globalHotKeyControllers = controllers
+
+        let statuses = globalHotKeyControllers.map { controller in
+            controller.register()
+        }
+        AppLogger.overlay.info("global hotkey registration statuses=\(statuses.map(String.init).joined(separator: ","), privacy: .public)")
+        return statuses
     }
 
     /// 고정키 입력을 표준 윈도우 컨트롤 동작으로 해석해 실행한다.
@@ -231,6 +506,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// overlay activation shortcut monitor를 제거한다.
     private func removeOverlayActivationShortcut() {
+        globalHotKeyControllers.forEach { controller in
+            controller.unregister()
+        }
+        globalHotKeyControllers = []
+
         if let globalShortcutMonitor {
             NSEvent.removeMonitor(globalShortcutMonitor)
             self.globalShortcutMonitor = nil
@@ -281,7 +561,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// launch option에 명시 target이 있으면 해당 앱을 우선 대상으로 삼는다.
     private func makeTargetResolver() -> TargetResolver {
         guard let bundleIdentifier = launchOptions.targetBundleIdentifier else {
-            return TargetResolver()
+            return TargetResolver(frontmostApplicationProvider: frontmostApplicationProvider)
         }
 
         return TargetResolver(
@@ -345,6 +625,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         print(OverlayLaunchReporter.clickResult(result))
+        fflush(stdout)
+    }
+
+    /// 로컬 진단 옵션에서 Carbon hotkey 등록 결과를 stdout에 출력한다.
+    private func printHotKeyRegistrationIfNeeded(_ statuses: [OSStatus]) {
+        guard launchOptions.printsHotKeyRegistration else {
+            return
+        }
+
+        let statusText = statuses.map(String.init).joined(separator: ",")
+        print("GAZEROW_HOTKEY_REGISTRATION statuses=\(statusText)")
         fflush(stdout)
     }
 

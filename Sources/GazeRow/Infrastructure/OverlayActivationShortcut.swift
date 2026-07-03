@@ -9,6 +9,14 @@ struct OverlayActivationShortcut: Equatable {
         keyCode: OverlayActivationKeyCode.space,
         requiredModifiers: [.command, .shift]
     )
+    static let fallbackShortcut = OverlayActivationShortcut(
+        keyCode: OverlayActivationKeyCode.space,
+        requiredModifiers: [.control, .option]
+    )
+    static let defaultShortcuts = [
+        defaultShortcut,
+        fallbackShortcut
+    ]
 
     let keyCode: UInt16
     let requiredModifiers: NSEvent.ModifierFlags
@@ -19,8 +27,24 @@ struct OverlayActivationShortcut: Equatable {
             && input.normalizedModifiers == normalizedRequiredModifiers
     }
 
+    static func matchesAny(_ input: OverlayActivationShortcutInput) -> Bool {
+        defaultShortcuts.contains { shortcut in
+            shortcut.matches(input)
+        }
+    }
+
+    static var activationDisplayName: String {
+        defaultShortcuts.map(\.displayName).joined(separator: " / ")
+    }
+
     var displayName: String {
-        "Command+Shift+Space"
+        if requiredModifiers == [.command, .shift] {
+            return "Command+Shift+Space"
+        }
+        if requiredModifiers == [.control, .option] {
+            return "Control+Option+Space"
+        }
+        return "Space"
     }
 
     private var normalizedRequiredModifiers: NSEvent.ModifierFlags {
