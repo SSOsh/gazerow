@@ -55,6 +55,10 @@ struct SettingsView: View {
 
             Divider()
 
+            shortcutsSection
+
+            Divider()
+
             privacySection
 
             Divider()
@@ -66,7 +70,7 @@ struct SettingsView: View {
             Spacer(minLength: 0)
         }
         .padding(24)
-        .frame(width: 420, height: 560)
+        .frame(width: 420, height: 640)
         .onAppear {
             refreshPermission()
             onboarding.presentIfNeeded()
@@ -203,6 +207,28 @@ struct SettingsView: View {
                 in: Capsule()
             )
             .foregroundStyle(active ? Color.green : Color.secondary)
+    }
+
+    /// overlay 활성화와 window control 고정키를 안내하는 섹션.
+    ///
+    /// 표시하는 단축키 목록은 `OverlayActivationShortcut` / `WindowControlShortcutSet`
+    /// 코드 정의를 SSOT로 삼아 하드코딩을 피한다.
+    private var shortcutsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Shortcuts")
+                .font(.headline)
+
+            labeledRow("Show overlay", OverlayActivationShortcut.defaultShortcut.displayName)
+
+            ForEach(WindowControlShortcutSet.default.shortcuts, id: \.keyCode) { shortcut in
+                labeledRow(shortcut.action.displayName, shortcut.displayName)
+            }
+
+            Text(AppContent.windowControlShortcutsNotice)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private var privacySection: some View {

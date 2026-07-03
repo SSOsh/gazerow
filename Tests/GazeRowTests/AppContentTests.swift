@@ -33,4 +33,13 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(limitations.contains("Discord now exposes app UI candidates"))
         XCTAssertTrue(limitations.contains("representative click task still needs verification"))
     }
+
+    func test_windowControlShortcutsNotice_frontmost창과_권한조건을_안내한다() {
+        // given
+        let notice = AppContent.windowControlShortcutsNotice
+
+        // when & then
+        XCTAssertTrue(notice.contains("frontmost window"))
+        XCTAssertTrue(notice.contains("Accessibility"))
+    }
 }

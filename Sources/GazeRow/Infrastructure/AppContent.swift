@@ -63,6 +63,15 @@ enum AppContent {
         "Discord now exposes app UI candidates through expanded AX child scanning, but a representative click task still needs verification."
     ]
 
+    // MARK: - Shortcuts
+
+    /// window control 고정키 안내 문구.
+    static let windowControlShortcutsNotice = """
+    Window shortcuts act on the frontmost window's standard title-bar buttons \
+    (close, minimize, zoom) using accessibility actions. They work only while \
+    GazeRow has Accessibility permission.
+    """
+
     // MARK: - Diagnostics
 
     /// interaction 로그 저장 opt-in 토글 안내 문구.
