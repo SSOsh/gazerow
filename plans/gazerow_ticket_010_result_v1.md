@@ -21,6 +21,7 @@
 - v18: scanner 기본 depth 확장 후 Finder/VS Code label map smoke 개선 결과를 기록.
 - v19: Finder sidebar candidate용 `AXOpen` click execution 지원을 기록.
 - v20: `AXConfirm` candidate click execution 지원을 기록.
+- v21: overlay 표시 시 keyboard input 수신을 위한 app activation 보강을 기록.
 
 ## 1. 상태
 
@@ -103,6 +104,8 @@
 | freeze verification after AXOpen update | `scripts/verify_mvp_freeze.sh` | pass, 186 tests, 0 failures, MVP-excluded check passed |
 | AXConfirm click execution focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'ClickExecutorTests'` | pass, 10 tests, 0 failures |
 | freeze verification after AXConfirm update | `scripts/verify_mvp_freeze.sh` | pass, 187 tests, 0 failures, MVP-excluded check passed |
+| overlay window activation focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'OverlayWindowControllerTests'` | pass, 1 test, 0 failures |
+| freeze verification after overlay activation update | `scripts/verify_mvp_freeze.sh` | pass, 188 tests, 0 failures, MVP-excluded check passed |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -126,6 +129,7 @@
 - VS Code label map은 3개에서 29개로 증가했고 Activity Bar `AXRadioButton` 후보가 수집된다.
 - Finder sidebar candidate용 `AXOpen` 실행을 지원한다.
 - `AXConfirm`으로만 노출되는 candidate 실행도 지원한다.
+- overlay 표시 시 app activation과 key window 전환을 보강했다.
 - Finder sidebar row와 VS Code Activity Bar item fixed task는 보강 후 재평가가 필요하다.
 
 ## 3.2 5개 앱 overlay activation smoke
@@ -388,6 +392,7 @@ Next ticket: Finder/VS Code 재평가와 내부 사용자 3명 평가 후 TICKET
 - [x] Finder/VS Code candidate coverage 보강
 - [x] Finder sidebar candidate용 `AXOpen` click execution 지원
 - [x] `AXConfirm` candidate click execution 지원
+- [x] overlay keyboard input 수신을 위한 app activation 보강
 - [ ] Finder fixed task 재평가
 - [ ] VS Code fixed task 재평가
 - [ ] 내부 사용자 3명 평가 기록

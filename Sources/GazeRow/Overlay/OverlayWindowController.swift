@@ -11,13 +11,18 @@ final class OverlayWindowController {
     private var currentLayout: OverlayLayout?
     private let layoutEngine: OverlayLayoutEngine
     private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
+    private let applicationActivator: @MainActor () -> Void
 
     init(
         layoutEngine: OverlayLayoutEngine = OverlayLayoutEngine(),
-        displayInfoProvider: @escaping @MainActor (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo
+        displayInfoProvider: @escaping @MainActor (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo,
+        applicationActivator: @escaping @MainActor () -> Void = {
+            NSApp.activate(ignoringOtherApps: true)
+        }
     ) {
         self.layoutEngine = layoutEngine
         self.displayInfoProvider = displayInfoProvider
+        self.applicationActivator = applicationActivator
     }
 
     var isVisible: Bool {
@@ -55,7 +60,7 @@ final class OverlayWindowController {
 
         let panel = OverlayPanel(
             contentRect: layout.targetFrame,
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
@@ -74,6 +79,7 @@ final class OverlayWindowController {
         self.panel = panel
         currentLayout = layout
         render(layout: layout, focusedLabelID: nil)
+        applicationActivator()
         panel.orderFrontRegardless()
         panel.makeKey()
     }

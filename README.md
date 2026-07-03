@@ -308,6 +308,7 @@ scripts/verify_mvp_freeze.sh
 - [x] 메뉴바 activation에서 target resolve / scan / overlay show 연결
 - [x] activation 실패 사유 sanitized log code 기록
 - [x] overlay keyboard focus / label jump wiring
+- [x] overlay 표시 시 keyboard input 수신을 위한 app activation 보강
 - [x] focus / label jump interaction log wiring
 - [x] focused label AXPress click wiring
 - [x] risky action second confirm runtime flow

@@ -18,7 +18,7 @@
 현재는 TICKET-001부터 TICKET-009까지 구현됐고, TICKET-010 사전 검증과 TICKET-011 freeze 준비 산출물이 완료된 상태다.
 TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activation/click runtime wiring이 없어 5개 앱 task를 수행할 수 없음이 확인됐다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard command를 FocusEngine 및 focused label highlight update에 연결했다. focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 완료했다.
 
-2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결했고, 2026-07-02 19:42:19 KST에는 Show Overlay 권한 실패 시 권한 요청 프롬프트와 System Settings 이동을 연결했다. 2026-07-02 19:45:35 KST에는 `--request-accessibility` 런치 옵션을 추가했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한이 승인되어 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 target bundle launch option과 target window fallback을 추가해 Finder, Safari, Chrome, VS Code, System Settings overlay activation smoke를 통과했다. 2026-07-02 20:20 KST에는 실제 click task를 수행해 Safari, Chrome, System Settings는 pass, Finder와 VS Code는 fixed task target candidate 미수집으로 fail을 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. 이후 candidate coverage와 scanner 기본 depth를 보강해 Finder label map은 63개, VS Code label map은 29개로 증가했으며 VS Code Activity Bar `AXRadioButton` 후보가 수집된다. Finder sidebar candidate용 `AXOpen` 실행도 지원하지만 Finder/VS Code fixed task 재평가가 필요하다. 내부 사용자 3명 평가와 최종 go/no-go 판정은 아직 남아 있다.
+2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결했고, 2026-07-02 19:42:19 KST에는 Show Overlay 권한 실패 시 권한 요청 프롬프트와 System Settings 이동을 연결했다. 2026-07-02 19:45:35 KST에는 `--request-accessibility` 런치 옵션을 추가했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한이 승인되어 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 target bundle launch option과 target window fallback을 추가해 Finder, Safari, Chrome, VS Code, System Settings overlay activation smoke를 통과했다. 2026-07-02 20:20 KST에는 실제 click task를 수행해 Safari, Chrome, System Settings는 pass, Finder와 VS Code는 fixed task target candidate 미수집으로 fail을 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. 이후 candidate coverage와 scanner 기본 depth를 보강해 Finder label map은 63개, VS Code label map은 29개로 증가했으며 VS Code Activity Bar `AXRadioButton` 후보가 수집된다. Finder sidebar candidate용 `AXOpen` 실행과 overlay keyboard input 수신을 위한 app activation도 보강했지만 Finder/VS Code fixed task 재평가가 필요하다. 내부 사용자 3명 평가와 최종 go/no-go 판정은 아직 남아 있다.
 
 완료된 구현/문서:
 
@@ -41,6 +41,7 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 - Command+Shift+Space overlay activation shortcut
 - Finder/VS Code candidate coverage 보강 및 label map smoke 확인
 - Finder sidebar candidate용 `AXOpen` click execution
+- Overlay keyboard input 수신을 위한 app activation 보강
 - `--request-accessibility` 런치 옵션
 - `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션
 - `--print-overlay-label-map` 로컬 평가용 label map 출력 옵션
