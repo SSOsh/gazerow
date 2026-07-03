@@ -117,6 +117,96 @@ final class GazeOneShotFocusControllerTests: XCTestCase {
         XCTAssertEqual(frameProvider.stopCallCount, 1)
     }
 
+    func test_start하면_타임아웃이_예약된다() {
+        // given
+        let frameProvider = MockGazeFrameProvider()
+        let scheduler = ManualTimeoutScheduler()
+        let sut = GazeOneShotFocusController(
+            pointEstimator: makeReadyEstimator(),
+            frameProvider: frameProvider,
+            landmarkDetector: ConfigurableLandmarkDetector(),
+            timeout: 2.0,
+            timeoutScheduler: scheduler
+        )
+
+        // when
+        sut.start { _ in }
+
+        // then
+        XCTAssertEqual(scheduler.scheduledInterval, 2.0)
+    }
+
+    func test_얼굴을_못_얻은_채_타임아웃되면_카메라를_끄고_noFaceDetected로_종료() {
+        // given: 얼굴이 계속 없는 상황
+        let frameProvider = MockGazeFrameProvider()
+        let detector = ConfigurableLandmarkDetector()
+        detector.detections = []
+        let scheduler = ManualTimeoutScheduler()
+        let sut = GazeOneShotFocusController(
+            pointEstimator: makeReadyEstimator(),
+            frameProvider: frameProvider,
+            landmarkDetector: detector,
+            timeoutScheduler: scheduler
+        )
+        var results: [Result<CGPoint, GazeOneShotFailure>] = []
+
+        // when: 얼굴 없는 프레임만 오다가 타임아웃 발생
+        sut.start { results.append($0) }
+        frameProvider.emit(makePixelBuffer())
+        XCTAssertTrue(results.isEmpty)
+        scheduler.fire()
+
+        // then: 카메라가 꺼지고 실패로 종료
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results.first, .failure(.noFaceDetected))
+        XCTAssertEqual(frameProvider.stopCallCount, 1)
+        XCTAssertNil(frameProvider.onFrame)
+    }
+
+    func test_유효_feature로_성공하면_타임아웃_예약이_취소된다() {
+        // given
+        let frameProvider = MockGazeFrameProvider()
+        let detector = ConfigurableLandmarkDetector()
+        detector.detections = [makeDetection()]
+        let scheduler = ManualTimeoutScheduler()
+        let sut = GazeOneShotFocusController(
+            pointEstimator: makeReadyEstimator(),
+            frameProvider: frameProvider,
+            landmarkDetector: detector,
+            timeoutScheduler: scheduler
+        )
+
+        // when
+        sut.start { _ in }
+        frameProvider.emit(makePixelBuffer())
+
+        // then: 성공 종료 시 예약된 타임아웃이 취소됨
+        XCTAssertGreaterThanOrEqual(scheduler.cancelCallCount, 1)
+    }
+
+    func test_성공_후_타임아웃이_발화해도_completion은_추가로_불리지_않는다() {
+        // given
+        let frameProvider = MockGazeFrameProvider()
+        let detector = ConfigurableLandmarkDetector()
+        detector.detections = [makeDetection()]
+        let scheduler = ManualTimeoutScheduler()
+        let sut = GazeOneShotFocusController(
+            pointEstimator: makeReadyEstimator(),
+            frameProvider: frameProvider,
+            landmarkDetector: detector,
+            timeoutScheduler: scheduler
+        )
+        var callCount = 0
+
+        // when: 성공 종료 후 뒤늦게 타임아웃 핸들러가 호출돼도 무시돼야 함
+        sut.start { _ in callCount += 1 }
+        frameProvider.emit(makePixelBuffer())
+        scheduler.fire()
+
+        // then
+        XCTAssertEqual(callCount, 1)
+    }
+
     func test_여러_유효_프레임이_와도_completion은_정확히_한_번() {
         // given
         let frameProvider = MockGazeFrameProvider()
@@ -237,6 +327,27 @@ private final class MockGazeFrameProvider: GazeFrameProviding {
 
     func emit(_ pixelBuffer: CVPixelBuffer) {
         onFrame?(pixelBuffer)
+    }
+}
+
+private final class ManualTimeoutScheduler: GazeOneShotTimeoutScheduling {
+    private(set) var scheduledInterval: TimeInterval?
+    private(set) var cancelCallCount = 0
+    private var handler: (() -> Void)?
+
+    func schedule(after interval: TimeInterval, handler: @escaping () -> Void) {
+        scheduledInterval = interval
+        self.handler = handler
+    }
+
+    func cancel() {
+        cancelCallCount += 1
+        handler = nil
+    }
+
+    /// 예약된 타임아웃을 수동으로 발화시킨다(시간 지연 없이 검증).
+    func fire() {
+        handler?()
     }
 }
 

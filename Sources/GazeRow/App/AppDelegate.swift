@@ -228,6 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 현재 frontmost window를 기준으로 overlay session을 시작한다.
     @objc private func showOverlay() {
+        AppLogger.overlay.info("overlay shortcut fired (no camera)")
         switch overlaySessionController.start() {
         case .success(let snapshot):
             AppLogger.overlay.info(
@@ -254,6 +255,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// one-shot으로 gaze point를 한 번 추정해 최근접 label로 focus를 옮긴다.
     /// 자동 클릭은 하지 않는다(사용자가 Enter로 확정).
     @objc private func showGazeOverlay() {
+        AppLogger.gaze.info("gaze shortcut fired (Control+Shift+Space)")
         let decision = makeGazeActivationGate().evaluate()
         guard decision == .proceed else {
             handleGazeBlocked(decision)
