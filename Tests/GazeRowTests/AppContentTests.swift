@@ -19,7 +19,7 @@ final class AppContentTests: XCTestCase {
         XCTAssertEqual(supportByName["Safari"], .supported)
         XCTAssertEqual(supportByName["Chrome"], .supported)
         XCTAssertEqual(supportByName["System Settings"], .supported)
-        XCTAssertEqual(supportByName["Slack"], .limited)
+        XCTAssertEqual(supportByName["Slack"], .supported)
         XCTAssertEqual(supportByName["Notion"], .supported)
         XCTAssertEqual(supportByName["Discord"], .limited)
         XCTAssertEqual(supportByName["Obsidian"], .unverified)
@@ -30,7 +30,7 @@ final class AppContentTests: XCTestCase {
         let limitations = AppContent.knownLimitations.joined(separator: "\n")
 
         // when & then
-        XCTAssertTrue(limitations.contains("Slack currently exposes only window-control candidates"))
-        XCTAssertTrue(limitations.contains("Discord currently exposes only window-control candidates"))
+        XCTAssertTrue(limitations.contains("Discord now exposes app UI candidates"))
+        XCTAssertTrue(limitations.contains("representative click task still needs verification"))
     }
 }

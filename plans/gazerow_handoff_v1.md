@@ -12,7 +12,7 @@
 
 - 어떤 파일을 어떤 순서로 읽어야 하는지 명확히 한다.
 - 현재 구현된 MVP freeze 범위와 Post-MVP 평가 작업을 구분한다.
-- 다음 작업자가 Slack/Discord candidate 개선, Obsidian 설치 환경 검증, 내부 사용자 평가를 바로 준비할 수 있게 한다.
+- 다음 작업자가 Discord representative click 검증, Obsidian 설치 환경 검증, 내부 사용자 평가를 바로 준비할 수 있게 한다.
 
 ## 2. 현재 상태
 
@@ -141,7 +141,7 @@ Deferred:
 
 추천 순서:
 
-1. Slack/Discord window-control-only candidate 원인 분석
+1. Discord representative click label 확정 및 `--click-label` 평가
 2. Obsidian 설치 환경에서 `scripts/evaluate_overlay_target.sh`로 overlay label map smoke 실행
 3. 대표 click task label을 정해 `--click-label` 평가 실행
 4. 내부 사용자 3명 평가자가 확보되면 `gazerow_internal_user_evaluation_v1.md`로 평가 재개

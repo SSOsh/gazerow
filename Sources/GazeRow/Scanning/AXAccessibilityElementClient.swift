@@ -9,6 +9,7 @@ import Foundation
 @MainActor
 struct AXAccessibilityElementClient: AccessibilityElementClient {
     private let rootElementSelector = AccessibilityRootElementSelector<AXUIElement>()
+    private let childAttributeCollector = AccessibilityChildAttributeCollector<AXUIElement>()
     private let messagingTimeout: Float = 1.0
 
     func rootElement(for context: TargetContext) -> Result<AXUIElement, AccessibilityScanFailure> {
@@ -115,10 +116,19 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
     }
 
     func children(of element: AXUIElement) -> Result<[AXUIElement], AccessibilityScanFailure> {
+        childAttributeCollector.collect { attribute in
+            copyChildElements(attribute, from: element)
+        }
+    }
+
+    private func copyChildElements(
+        _ attribute: String,
+        from element: AXUIElement
+    ) -> Result<[AXUIElement], AccessibilityScanFailure> {
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(
             element,
-            kAXChildrenAttribute as CFString,
+            attribute as CFString,
             &value
         )
 

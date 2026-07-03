@@ -60,8 +60,7 @@ enum AppContent {
         "Coordinate-click fallback is off by default and must be enabled in debug.",
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
         "Gaze/camera features are Post-MVP and disabled in this build.",
-        "Slack currently exposes only window-control candidates in the Post-MVP smoke test.",
-        "Discord currently exposes only window-control candidates in the Post-MVP smoke test."
+        "Discord now exposes app UI candidates through expanded AX child scanning, but a representative click task still needs verification."
     ]
 
     // MARK: - Diagnostics
@@ -88,7 +87,7 @@ enum AppContent {
         AppSupport(name: "Chrome", tier: .supported),
         AppSupport(name: "VS Code", tier: .supported),
         AppSupport(name: "System Settings", tier: .supported),
-        AppSupport(name: "Slack", tier: .limited),
+        AppSupport(name: "Slack", tier: .supported),
         AppSupport(name: "Notion", tier: .supported),
         AppSupport(name: "Discord", tier: .limited),
         AppSupport(name: "Obsidian", tier: .unverified)
