@@ -35,7 +35,7 @@ GazeRow는 키보드 중심 사용자를 위한 **생산성 유틸리티**다.
 
 ## 4. App Support Tiers (앱 지원 등급)
 
-TICKET-010 실제 click task 결과 기준이며, 30분 crash-free session과 내부 사용자 평가 전까지는 provisional 상태다.
+TICKET-010 실제 click task 결과 기준이며, Finder/VS Code fixed task 재평가 전까지는 provisional 상태다.
 
 | 앱 | 등급 |
 | --- | --- |

@@ -23,10 +23,11 @@
 - v20: `AXConfirm` candidate click execution 지원을 기록.
 - v21: overlay 표시 시 keyboard input 수신을 위한 app activation 보강을 기록.
 - v22: launch-option 평가용 click result stdout 출력을 기록.
+- v23: ED-008에 따라 내부 사용자 gate를 Post-MVP defer로 정리하고 현재 차단 항목을 Finder/VS Code fixed task 재평가로 좁힘.
 
 ## 1. 상태
 
-현재 상태: `CRASH_FREE_SESSION_PASS_PENDING_INTERNAL_USER_EVALUATION`
+현재 상태: `CRASH_FREE_SESSION_PASS_PENDING_FIXED_TASK_REEVALUATION`
 
 자동 사전 검증은 완료했다. 2026-07-02 12:19:56 KST에 로컬 GUI 수동 평가를 착수했지만, 당시 앱 런타임에는 target resolve, scanner, overlay, focus engine, click executor를 end-to-end로 실행하는 activation 진입점이 연결되어 있지 않았다.
 
@@ -46,7 +47,7 @@
 
 2026-07-02 20:46:31 KST부터 21:16:31 KST까지 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow`로 30분 crash-free session을 수행했다. 1분 간격으로 프로세스 생존을 확인했고 1800초 동안 crash 없이 유지됐다. 세션 종료 시 `SIGINT`로 정상 정리했으며 잔여 `GazeRow` 프로세스는 없었다.
 
-2026-07-02에는 내부 사용자 3명 평가를 직접 대체하지 않고, `gazerow_internal_user_evaluation_v1.md`에 평가 실행 절차와 기록지를 준비했다. 실제 User 1/User 2/User 3 결과가 입력되기 전까지 go/no-go 최종 판정은 보류한다.
+2026-07-02에는 내부 사용자 3명 평가를 직접 대체하지 않고, `gazerow_internal_user_evaluation_v1.md`에 평가 실행 절차와 기록지를 준비했다. 이후 ED-008 결정에 따라 외부 내부 사용자 3명을 확보하지 못한 상태에서는 local MVP freeze의 내부 사용자 gate를 Post-MVP로 defer한다. 평가 결과를 지어내지 않으며, 평가자 3명 확보 시 이 runbook으로 재개한다.
 
 2026-07-03 09:53 KST에는 launch-option 평가 중 keyboard confirm click 결과를 `GAZEROW_OVERLAY_CLICK_RESULT`로 stdout에 출력하도록 연결했다. Finder/VS Code fixed task 재평가 시 label map 출력과 함께 실제 click 성공/실패, 실행 방식, risk, fallback 여부를 기록할 수 있다. 이 변경은 재평가 준비이며 Finder/VS Code pass 판정으로 간주하지 않는다.
 
@@ -361,11 +362,11 @@ AppSupportReport
 ## 7. Go/No-Go 판정
 
 ```text
-Decision: CONDITIONAL_GO_PENDING_INTERNAL_USERS
-Reason: 기존 5개 앱 평가에서 3개 task 성공, critical misclick 0건, 30분 crash-free session은 충족했다. Finder/VS Code candidate coverage를 보강했으므로 fixed task 재평가가 필요하고, 내부 사용자 3명 평가도 아직 필요하다.
-Required fixes before freeze: Finder/VS Code fixed task 재평가, 내부 사용자 3명 평가
+Decision: CONDITIONAL_GO_PENDING_FIXED_TASK_REEVALUATION
+Reason: 기존 5개 앱 평가에서 3개 task 성공, critical misclick 0건, 30분 crash-free session은 충족했다. 내부 사용자 gate는 ED-008에 따라 Post-MVP로 defer했다. Finder/VS Code candidate coverage와 click result stdout을 보강했으므로 fixed task 재평가가 필요하다.
+Required fixes before freeze: Finder/VS Code fixed task 재평가
 Known limitations to document: Finder/VS Code는 보강 후 재평가 전까지 Limited 유지
-Next ticket: Finder/VS Code 재평가와 내부 사용자 3명 평가 후 TICKET-011 freeze 최종 확정
+Next ticket: Finder/VS Code 재평가 후 TICKET-011 freeze 최종 확정
 ```
 
 ## 8. 남은 수동 작업
@@ -396,6 +397,7 @@ Next ticket: Finder/VS Code 재평가와 내부 사용자 3명 평가 후 TICKET
 - [x] 30분 crash-free manual session 기록
   - result: 2026-07-02 20:46:31~21:16:31 KST, 1800초, crash 0건
 - [x] 내부 사용자 3명 평가 runbook 작성
+- [x] 내부 사용자 gate Post-MVP defer 결정 반영(ED-008)
 - [x] Finder/VS Code candidate coverage 보강
 - [x] Finder sidebar candidate용 `AXOpen` click execution 지원
 - [x] `AXConfirm` candidate click execution 지원
@@ -403,7 +405,6 @@ Next ticket: Finder/VS Code 재평가와 내부 사용자 3명 평가 후 TICKET
 - [x] launch-option 평가용 click result stdout 출력
 - [ ] Finder fixed task 재평가
 - [ ] VS Code fixed task 재평가
-- [ ] 내부 사용자 3명 평가 기록
 - [ ] go/no-go 결론 작성
 
 ---

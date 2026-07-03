@@ -6,7 +6,7 @@
 
 ## 1. 목적
 
-이 문서는 TICKET-010의 마지막 블로커인 내부 사용자 3명 평가를 수행하기 위한 runbook이다.
+이 문서는 Post-MVP로 defer된 내부 사용자 3명 평가를 수행하기 위한 runbook이다.
 
 이미 충족한 조건:
 
@@ -15,7 +15,7 @@
 - 30분 crash-free session: pass, 1800초
 - known limitations/app support tier 갱신
 
-아직 필요한 조건:
+Post-MVP 재개 시 필요한 조건:
 
 - 내부 사용자 3명 중 2명 이상이 3분 안에 기본 흐름 이해
 - 내부 사용자 3명 중 2명 이상이 계속 쓸 가치 있음으로 평가
@@ -30,7 +30,7 @@
 - Finder, Safari 또는 Chrome 사용 경험이 있는 사용자
 - GazeRow 구현 내용을 직접 작성하지 않은 사용자
 
-평가자가 3명 미만이면 TICKET-011 MVP freeze 최종 확정으로 넘기지 않는다.
+평가자가 3명 미만이면 이 runbook의 결과를 pass로 기록하지 않는다.
 
 ## 3. 평가 전 준비
 
