@@ -36,7 +36,10 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
 
     init(
         targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient> = OverlaySessionClickTargetResolver(client: AXAccessibilityElementClient()),
-        clickExecutor: ClickExecutor<AXClickExecutionClient> = ClickExecutor(client: AXClickExecutionClient())
+        clickExecutor: ClickExecutor<AXClickExecutionClient> = ClickExecutor(
+            client: AXClickExecutionClient(),
+            configuration: .overlayConfirmedClick
+        )
     ) {
         self.targetResolver = targetResolver
         self.clickExecutor = clickExecutor

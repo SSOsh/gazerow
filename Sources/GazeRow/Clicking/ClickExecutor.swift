@@ -36,6 +36,10 @@ struct ClickExecutor<Client: ClickExecutionClient> {
             return .failure(.secondConfirmRequired(riskClass: riskClass))
         }
 
+        if shouldPreferCoordinateClick(for: target) {
+            return executeCoordinateClick(target: target, riskClass: riskClass)
+        }
+
         switch client.performAXAction(action, on: target.element) {
         case .success:
             return .success(
@@ -87,6 +91,23 @@ struct ClickExecutor<Client: ClickExecutionClient> {
             return .failure(.coordinateFallbackDisabled(axFailureReason: reason))
         }
 
+        return executeCoordinateClick(target: target, riskClass: riskClass)
+    }
+
+    private func shouldPreferCoordinateClick(for target: ClickTarget<Client.Element>) -> Bool {
+        configuration.prefersCoordinateClickForUntitledSmallButtons
+            && configuration.isCoordinateFallbackEnabled
+            && target.role == AccessibilityRole.button
+            && (target.title == nil || target.title?.isEmpty == true)
+            && target.frame.width <= 44
+            && target.frame.height <= 44
+            && target.actions.contains(AccessibilityAction.press)
+    }
+
+    private func executeCoordinateClick(
+        target: ClickTarget<Client.Element>,
+        riskClass: ClickRiskClass
+    ) -> Result<ClickExecutionSuccess, ClickExecutionFailure> {
         switch client.performCoordinateClick(at: target.centerPoint) {
         case .success:
             return .success(

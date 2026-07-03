@@ -131,6 +131,60 @@ final class ClickExecutorTests: XCTestCase {
         XCTAssertEqual(client.performedActions, [AccessibilityAction.press])
     }
 
+    func test_execute_overlayConfirm설정은_작은_무제목_button을_좌표클릭으로_실행() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.button,
+            title: nil,
+            frame: CGRect(x: 82, y: 47, width: 28, height: 28),
+            actions: [AccessibilityAction.press, AccessibilityAction.showDefaultUI]
+        )
+        let client = FakeClickExecutionClient(
+            axPressResult: .success,
+            coordinateClickResult: .success
+        )
+        let sut = ClickExecutor(
+            client: client,
+            configuration: .overlayConfirmedClick
+        )
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .coordinateFallback,
+            riskClass: .safeNavigation,
+            fallbackUsed: true
+        )
+        XCTAssertEqual(client.performedActions, [])
+        XCTAssertEqual(client.clickedPoint, target.centerPoint)
+    }
+
+    func test_execute_overlayConfirm설정도_title있는_button은_AXPress를_우선한다() {
+        // given
+        let client = FakeClickExecutionClient(axPressResult: .success)
+        let sut = ClickExecutor(
+            client: client,
+            configuration: .overlayConfirmedClick
+        )
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: safeTarget))
+
+        // then
+        assertSuccess(
+            result,
+            method: .axPress,
+            riskClass: .safeNavigation,
+            fallbackUsed: false
+        )
+        XCTAssertEqual(client.performedActions, [AccessibilityAction.press])
+        XCTAssertFalse(client.didCoordinateClick)
+    }
+
     func test_execute_AXPress_action이_없으면_missingPressAction() {
         // given
         let target = ClickTarget(
@@ -149,7 +203,7 @@ final class ClickExecutorTests: XCTestCase {
         XCTAssertEqual(result, .failure(.missingPressAction))
     }
 
-    func test_execute_위험_action은_secondConfirm_요구() {
+    func test_execute_기본설정은_위험_action도_1회로_AXPress_실행() {
         // given
         let target = ClickTarget(
             element: 1,
@@ -159,6 +213,32 @@ final class ClickExecutorTests: XCTestCase {
             actions: [AccessibilityAction.press]
         )
         let sut = ClickExecutor(client: FakeClickExecutionClient(axPressResult: .success))
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .axPress,
+            riskClass: .destructive,
+            fallbackUsed: false
+        )
+    }
+
+    func test_execute_secondConfirm설정이_켜지면_위험_action은_secondConfirm_요구() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.button,
+            title: "Delete Project",
+            frame: CGRect(x: 10, y: 20, width: 30, height: 40),
+            actions: [AccessibilityAction.press]
+        )
+        let sut = ClickExecutor(
+            client: FakeClickExecutionClient(axPressResult: .success),
+            configuration: ClickExecutionConfiguration(requiresSecondConfirmForRiskyAction: true)
+        )
 
         // when
         let result = sut.execute(ClickExecutionRequest(target: target))
@@ -176,7 +256,10 @@ final class ClickExecutorTests: XCTestCase {
             frame: CGRect(x: 10, y: 20, width: 30, height: 40),
             actions: [AccessibilityAction.press]
         )
-        let sut = ClickExecutor(client: FakeClickExecutionClient(axPressResult: .success))
+        let sut = ClickExecutor(
+            client: FakeClickExecutionClient(axPressResult: .success),
+            configuration: ClickExecutionConfiguration(requiresSecondConfirmForRiskyAction: true)
+        )
 
         // when
         let result = sut.execute(

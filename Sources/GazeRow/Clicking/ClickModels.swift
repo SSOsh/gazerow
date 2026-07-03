@@ -3,20 +3,31 @@ import CoreGraphics
 /// click 실행 정책.
 ///
 /// 좌표 fallback은 오클릭 리스크 때문에 기본 비활성이다.
+/// 위험 action의 2단계 확인(second confirm)은 기본 비활성이며, 위험 버튼도 1회
+/// 확인(Enter)으로 실행한다. 필요 시 명시적으로 켤 수 있다.
 ///
 /// @author suho.do
 /// @since 2026-07-02
 struct ClickExecutionConfiguration: Equatable {
     let isCoordinateFallbackEnabled: Bool
     let requiresSecondConfirmForRiskyAction: Bool
+    let prefersCoordinateClickForUntitledSmallButtons: Bool
 
     init(
         isCoordinateFallbackEnabled: Bool = false,
-        requiresSecondConfirmForRiskyAction: Bool = true
+        requiresSecondConfirmForRiskyAction: Bool = false,
+        prefersCoordinateClickForUntitledSmallButtons: Bool = false
     ) {
         self.isCoordinateFallbackEnabled = isCoordinateFallbackEnabled
         self.requiresSecondConfirmForRiskyAction = requiresSecondConfirmForRiskyAction
+        self.prefersCoordinateClickForUntitledSmallButtons = prefersCoordinateClickForUntitledSmallButtons
     }
+
+    static let overlayConfirmedClick = ClickExecutionConfiguration(
+        isCoordinateFallbackEnabled: true,
+        requiresSecondConfirmForRiskyAction: false,
+        prefersCoordinateClickForUntitledSmallButtons: true
+    )
 }
 
 /// click 대상.
