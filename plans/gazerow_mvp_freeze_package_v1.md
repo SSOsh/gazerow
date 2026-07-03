@@ -18,12 +18,13 @@
 - v15: launch-option click result stdout 출력과 191 tests 검증 결과를 반영.
 - v16: ED-008에 따라 내부 사용자 gate를 Post-MVP defer로 정리하고 현재 차단 항목을 Finder/VS Code fixed task 재평가로 좁힘.
 - v17: local `.app` bundle 생성 스크립트와 191 tests freeze 검증 결과를 반영.
+- v18: overlay panel AX/AppKit 좌표 변환, Finder overlay visibility smoke, 193 tests freeze 검증 결과를 반영.
 
 ## 1. 상태
 
 현재 상태: `DRAFT_PREP_COMPLETE_PENDING_FIXED_TASK_REEVALUATION`
 
-이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했으며 local MVP freeze 블로커로 두지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 true를 반환했고, target bundle launch option과 target window fallback을 추가해 5개 앱 overlay activation smoke를 통과했다. 2026-07-02 20:20 KST 실제 click task는 Safari/Chrome/System Settings pass, Finder/VS Code fail로 3/5 success를 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. known limitations와 app support tier도 이 결과에 맞춰 갱신했고, 내부 사용자 평가 runbook(`gazerow_internal_user_evaluation_v1.md`)도 준비했다. 이후 Command+Shift+Space overlay activation shortcut, Finder/VS Code candidate coverage, scanner 기본 depth, Finder sidebar candidate용 `AXOpen` 실행, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout 출력을 보강했다. `scripts/verify_mvp_freeze.sh`는 191 tests, 0 failures로 통과했다. TICKET-011 최종 확정에는 Finder/VS Code fixed task 재평가와 go/no-go 판정이 남아 있다.
+이 문서는 TICKET-011의 준비 가능한 산출물을 정리한다. freeze package 초안, 기본값 자동 감사, 검증 스크립트, distribution checklist는 준비됐다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했으며 local MVP freeze 블로커로 두지 않는다. 2026-07-02 수동 평가 착수 결과 당시 빌드에는 end-to-end overlay activation/click runtime wiring이 없어 TICKET-010을 재시도할 수 없었다. 이후 메뉴바 activation에서 target resolve, scan, overlay show까지 1차 wiring을 완료했고, overlay keyboard focus wiring, focus/label jump interaction log wiring, focused label AXPress click wiring, risky action second confirm runtime flow, click attempt/completed interaction log wiring도 연결했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 true를 반환했고, target bundle launch option과 target window fallback을 추가해 5개 앱 overlay activation smoke를 통과했다. 2026-07-02 20:20 KST 실제 click task는 Safari/Chrome/System Settings pass, Finder/VS Code fail로 3/5 success를 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. known limitations와 app support tier도 이 결과에 맞춰 갱신했고, 내부 사용자 평가 runbook(`gazerow_internal_user_evaluation_v1.md`)도 준비했다. 이후 Command+Shift+Space overlay activation shortcut, Finder/VS Code candidate coverage, scanner 기본 depth, Finder sidebar candidate용 `AXOpen` 실행, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout 출력, overlay panel AX/AppKit 좌표 변환을 보강했다. `scripts/verify_mvp_freeze.sh`는 193 tests, 0 failures로 통과했다. TICKET-011 최종 확정에는 Finder/VS Code fixed task 재평가와 go/no-go 판정이 남아 있다.
 
 ## 2. Freeze 대상
 
@@ -47,6 +48,7 @@
 - selectable container candidate 수집(`AXRow` / `AXCell` / `AXImage`)
 - Finder sidebar candidate용 `AXOpen` click execution
 - launch-option click result stdout reporting
+- overlay panel AX/AppKit coordinate conversion
 - overlay label layout/rendering
 - keyboard focus movement와 label jump
 - keyboard-confirmed `AXPress` / `AXConfirm` / `AXOpen` click execution

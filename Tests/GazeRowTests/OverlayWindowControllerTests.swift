@@ -9,6 +9,43 @@ import XCTest
 @MainActor
 final class OverlayWindowControllerTests: XCTestCase {
 
+    func test_OverlayScreenFrameMapper_AX좌표를_AppKit좌표로_변환한다() {
+        // given
+        let sut = OverlayScreenFrameMapper(
+            screenFrames: [CGRect(x: 0, y: 0, width: 1440, height: 900)]
+        )
+
+        // when
+        let appKitFrame = sut.appKitFrame(
+            fromAXFrame: CGRect(x: 100, y: 120, width: 400, height: 300)
+        )
+
+        // then
+        XCTAssertEqual(appKitFrame, CGRect(x: 100, y: 480, width: 400, height: 300))
+        XCTAssertEqual(
+            sut.axFrame(fromAppKitFrame: appKitFrame),
+            CGRect(x: 100, y: 120, width: 400, height: 300)
+        )
+    }
+
+    func test_OverlayScreenFrameMapper_위쪽_보조화면도_union_maxY로_변환한다() {
+        // given
+        let sut = OverlayScreenFrameMapper(
+            screenFrames: [
+                CGRect(x: 0, y: 0, width: 1440, height: 900),
+                CGRect(x: 0, y: 900, width: 1440, height: 900)
+            ]
+        )
+
+        // when
+        let appKitFrame = sut.appKitFrame(
+            fromAXFrame: CGRect(x: 20, y: 100, width: 300, height: 200)
+        )
+
+        // then
+        XCTAssertEqual(appKitFrame, CGRect(x: 20, y: 1500, width: 300, height: 200))
+    }
+
     func test_show는_overlay_keyboard입력을_받도록_application을_activate한다() {
         // given
         var activateCallCount = 0

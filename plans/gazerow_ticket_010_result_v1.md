@@ -25,6 +25,7 @@
 - v22: launch-option 평가용 click result stdout 출력을 기록.
 - v23: ED-008에 따라 내부 사용자 gate를 Post-MVP defer로 정리하고 현재 차단 항목을 Finder/VS Code fixed task 재평가로 좁힘.
 - v24: SwiftPM 바이너리 평가에서 overlay keyboard 입력이 Finder로 전달되는 한계를 확인하고 local `.app` bundle 생성 스크립트를 추가.
+- v25: overlay panel AX/AppKit 좌표 변환과 window level 보강 후 Finder overlay 표시 smoke를 통과.
 
 ## 1. 상태
 
@@ -53,6 +54,8 @@
 2026-07-03 09:53 KST에는 launch-option 평가 중 keyboard confirm click 결과를 `GAZEROW_OVERLAY_CLICK_RESULT`로 stdout에 출력하도록 연결했다. Finder/VS Code fixed task 재평가 시 label map 출력과 함께 실제 click 성공/실패, 실행 방식, risk, fallback 여부를 기록할 수 있다. 이 변경은 재평가 준비이며 Finder/VS Code pass 판정으로 간주하지 않는다.
 
 2026-07-03에는 Finder fixed task 재평가를 다시 시도했다. Finder label map은 385개까지 수집됐고 sidebar 영역의 `AXCell` + `AXOpen` 후보가 확인됐다. 다만 SwiftPM 바이너리 실행 상태에서는 Computer Use 키 입력이 overlay가 아니라 Finder 목록 검색/선택으로 전달되어 keyboard confirm click 결과를 얻지 못했다. 이 상태를 pass로 기록하지 않고, LaunchServices/activation 경로로 재평가하기 위해 `scripts/build_local_app.sh`를 추가했다. 스크립트는 `.build/local-app/GazeRow.app` 생성을 통과했지만, 자동 UI 도구에서는 accessory 앱이 별도 앱으로 노출되지 않아 Finder/VS Code fixed task는 실제 사용자 키보드 입력으로 최종 확인해야 한다.
+
+이후 overlay panel이 AX top-left frame을 그대로 AppKit bottom-left window frame으로 사용하던 문제를 보정했다. `OverlayScreenFrameMapper`로 panel frame만 AppKit 좌표로 변환하고, overlay level을 `statusBar`로 올렸다. 전체 화면 캡처(`/tmp/gazerow_overlay_smoke.png`)에서 Finder window 위 label 표시가 확인됐다. Computer Use 앱별 스냅샷은 다른 프로세스 overlay를 제외하므로 이 검증에는 사용하지 않는다.
 
 ## 2. 평가 전 체크리스트
 
@@ -119,6 +122,10 @@
 | Finder fixed task reevaluation attempt | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` | inconclusive, 385 labels, sidebar `AXCell` + `AXOpen` candidates visible, keyboard input delivered to Finder instead of overlay |
 | local app bundle script | `scripts/build_local_app.sh` | pass, `.build/local-app/GazeRow.app` created |
 | freeze verification after local app bundle script | `scripts/verify_mvp_freeze.sh` | pass, 191 tests, 0 failures, MVP-excluded check passed |
+| overlay frame mapper focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'OverlayWindowControllerTests\|OverlayLayoutEngineTests\|OverlaySessionControllerTests'` | pass, 30 tests, 0 failures |
+| Finder overlay visibility smoke | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` + `screencapture` | pass, 248 labels, overlay labels visible on full-screen capture |
+| full test after overlay frame mapper update | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 193 tests, 0 failures |
+| freeze verification after overlay frame mapper update | `scripts/verify_mvp_freeze.sh` | pass, 193 tests, 0 failures, MVP-excluded check passed |
 
 ## 3.1 수동 평가 착수 결과
 
@@ -410,6 +417,7 @@ Next ticket: Finder/VS Code 재평가 후 TICKET-011 freeze 최종 확정
 - [x] overlay keyboard input 수신을 위한 app activation 보강
 - [x] launch-option 평가용 click result stdout 출력
 - [x] local `.app` bundle 생성 스크립트 추가
+- [x] overlay panel AX/AppKit 좌표 변환 및 표시 smoke
 - [ ] Finder fixed task 재평가
 - [ ] VS Code fixed task 재평가
 - [ ] go/no-go 결론 작성

@@ -11,17 +11,22 @@ final class OverlayWindowController {
     private var currentLayout: OverlayLayout?
     private let layoutEngine: OverlayLayoutEngine
     private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
+    private let screenFrameProvider: @MainActor () -> [CGRect]
     private let applicationActivator: @MainActor () -> Void
 
     init(
         layoutEngine: OverlayLayoutEngine = OverlayLayoutEngine(),
         displayInfoProvider: @escaping @MainActor (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo,
+        screenFrameProvider: @escaping @MainActor () -> [CGRect] = {
+            NSScreen.screens.map(\.frame)
+        },
         applicationActivator: @escaping @MainActor () -> Void = {
             NSApp.activate(ignoringOtherApps: true)
         }
     ) {
         self.layoutEngine = layoutEngine
         self.displayInfoProvider = displayInfoProvider
+        self.screenFrameProvider = screenFrameProvider
         self.applicationActivator = applicationActivator
     }
 
@@ -57,9 +62,12 @@ final class OverlayWindowController {
         onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) {
         close()
+        let panelFrame = OverlayScreenFrameMapper(
+            screenFrames: screenFrameProvider()
+        ).appKitFrame(fromAXFrame: layout.targetFrame)
 
         let panel = OverlayPanel(
-            contentRect: layout.targetFrame,
+            contentRect: panelFrame,
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -69,7 +77,7 @@ final class OverlayWindowController {
             onEscape()
         }
         panel.onKeyboardCommand = onKeyboardCommand
-        panel.level = .floating
+        panel.level = .statusBar
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false
@@ -108,13 +116,55 @@ final class OverlayWindowController {
     }
 
     static func defaultDisplayInfo(for targetFrame: CGRect) -> OverlayDisplayInfo {
-        let screen = NSScreen.screens.first { screen in
-            screen.frame.intersects(targetFrame)
+        let screens = NSScreen.screens
+        let mapper = OverlayScreenFrameMapper(screenFrames: screens.map(\.frame))
+        let screen = screens.first { screen in
+            mapper.axFrame(fromAppKitFrame: screen.frame).intersects(targetFrame)
         } ?? NSScreen.main
 
         return OverlayDisplayInfo(
             scaleFactor: screen?.backingScaleFactor ?? 1,
-            visibleFrame: screen?.visibleFrame
+            visibleFrame: screen.map { mapper.axFrame(fromAppKitFrame: $0.visibleFrame) }
+        )
+    }
+}
+
+/// AX top-left screen frame과 AppKit bottom-left window frame을 변환한다.
+///
+/// @author suho.do
+/// @since 2026-07-03
+struct OverlayScreenFrameMapper {
+    private let screenUnion: CGRect
+
+    init(screenFrames: [CGRect]) {
+        self.screenUnion = screenFrames.reduce(CGRect.null) { partialResult, frame in
+            partialResult.union(frame)
+        }
+    }
+
+    func appKitFrame(fromAXFrame axFrame: CGRect) -> CGRect {
+        guard !screenUnion.isNull else {
+            return axFrame
+        }
+
+        return CGRect(
+            x: axFrame.minX,
+            y: screenUnion.maxY - axFrame.maxY,
+            width: axFrame.width,
+            height: axFrame.height
+        )
+    }
+
+    func axFrame(fromAppKitFrame appKitFrame: CGRect) -> CGRect {
+        guard !screenUnion.isNull else {
+            return appKitFrame
+        }
+
+        return CGRect(
+            x: appKitFrame.minX,
+            y: screenUnion.maxY - appKitFrame.maxY,
+            width: appKitFrame.width,
+            height: appKitFrame.height
         )
     }
 }
