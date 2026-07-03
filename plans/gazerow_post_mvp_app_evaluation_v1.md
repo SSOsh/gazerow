@@ -17,6 +17,7 @@ TICKET-010/TICKET-011 local MVP freeze 기준 앱 5개는 모두 pass했다. Pos
 - [x] 1.1 bundle id 기반 overlay activation 스크립트 추가
 - [x] 1.2 optional label click 실행 옵션 추가
 - [x] 1.3 timeout, label map 출력 on/off, 실패 exit code 처리
+- [x] 1.6 minimum label count assertion 옵션 추가
 - [x] 1.4 Finder overlay smoke로 스크립트 동작 검증
 - [x] 1.5 Finder label click smoke로 click result 검증
 
@@ -42,6 +43,7 @@ Overlay visibility/candidate smoke:
 
 ```bash
 scripts/evaluate_overlay_target.sh --bundle-id <bundle-id>
+scripts/evaluate_overlay_target.sh --bundle-id <bundle-id> --min-labels <COUNT>
 ```
 
 Label click task:

@@ -191,6 +191,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --
 
 # 재사용 가능한 overlay/click 평가 스크립트
 scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder
+scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --min-labels 50
 scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --click-label AA --no-label-map
 
 # 로컬 .app 번들 생성(LaunchServices/activation 재평가용)
