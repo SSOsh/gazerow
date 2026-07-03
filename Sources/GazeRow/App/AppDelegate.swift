@@ -28,6 +28,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// onboarding 완료 여부 판정용 상태.
     private let onboarding = OnboardingState()
 
+    /// 고정키로 표준 윈도우 컨트롤(닫기/최소화/줌)을 실행하는 dispatcher.
+    private let windowControlDispatcher = WindowControlCommandDispatcher()
+
     /// Accessibility 권한 요청/설정 이동을 담당한다.
     private let permissionManager = PermissionManager()
 
@@ -185,6 +188,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         globalShortcutMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let input = OverlayActivationShortcutInput(event: event)
             guard OverlayActivationShortcut.defaultShortcut.matches(input) else {
+                Task { @MainActor in
+                    self?.handleWindowControlShortcut(input)
+                }
                 return
             }
 
@@ -197,6 +203,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let input = OverlayActivationShortcutInput(event: event)
 
             guard OverlayActivationShortcut.defaultShortcut.matches(input) else {
+                Task { @MainActor in
+                    self?.handleWindowControlShortcut(input)
+                }
                 return event
             }
 
@@ -205,6 +214,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return nil
         }
+    }
+
+    /// 고정키 입력을 표준 윈도우 컨트롤 동작으로 해석해 실행한다.
+    ///
+    /// overlay activation과 겹치지 않는 입력만 처리하며, 매칭이 없으면 무시한다.
+    private func handleWindowControlShortcut(_ input: OverlayActivationShortcutInput) {
+        guard let result = windowControlDispatcher.handle(input) else {
+            return
+        }
+
+        AppLogger.overlay.info(
+            "window control action result=\(result.logCode, privacy: .public)"
+        )
     }
 
     /// overlay activation shortcut monitor를 제거한다.
