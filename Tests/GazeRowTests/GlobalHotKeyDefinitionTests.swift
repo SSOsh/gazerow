@@ -7,6 +7,7 @@ import XCTest
 ///
 /// @author suho.do
 /// @since 2026-07-03
+@MainActor
 final class GlobalHotKeyDefinitionTests: XCTestCase {
 
     func test_overlayActivation은_CommandShiftSpace를_CarbonModifier로_변환() {
@@ -61,5 +62,30 @@ final class GlobalHotKeyDefinitionTests: XCTestCase {
 
         // then
         XCTAssertEqual(code, 0x477a5277)
+    }
+
+    func test_GlobalHotKeyController는_일치하는_hotKeyID만_처리한다() {
+        // given
+        var callCount = 0
+        let sut = GlobalHotKeyController(definition: .gazeActivation) {
+            callCount += 1
+        }
+        let overlayHotKeyID = EventHotKeyID(
+            signature: GlobalHotKeyDefinition.fourCharacterCode("GzRw"),
+            id: GlobalHotKeyDefinition.fallbackOverlayActivation.identifier
+        )
+        let gazeHotKeyID = EventHotKeyID(
+            signature: GlobalHotKeyDefinition.fourCharacterCode("GzRw"),
+            id: GlobalHotKeyDefinition.gazeActivation.identifier
+        )
+
+        // when
+        let overlayHandled = sut.handlePressedHotKey(hotKeyID: overlayHotKeyID)
+        let gazeHandled = sut.handlePressedHotKey(hotKeyID: gazeHotKeyID)
+
+        // then
+        XCTAssertFalse(overlayHandled)
+        XCTAssertTrue(gazeHandled)
+        XCTAssertEqual(callCount, 1)
     }
 }

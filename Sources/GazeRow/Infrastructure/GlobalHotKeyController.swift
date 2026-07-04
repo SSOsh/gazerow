@@ -78,8 +78,19 @@ final class GlobalHotKeyController {
         }
     }
 
-    fileprivate func handlePressedHotKey() {
+    func matches(hotKeyID: EventHotKeyID) -> Bool {
+        hotKeyID.signature == definition.signature
+            && hotKeyID.id == definition.identifier
+    }
+
+    @discardableResult
+    func handlePressedHotKey(hotKeyID: EventHotKeyID) -> Bool {
+        guard matches(hotKeyID: hotKeyID) else {
+            return false
+        }
+
         onPress()
+        return true
     }
 }
 
@@ -142,8 +153,12 @@ struct GlobalHotKeyDefinition: Equatable {
     }
 }
 
-private let hotKeyEventHandler: EventHandlerUPP = { _, _, userData in
+private let hotKeyEventHandler: EventHandlerUPP = { _, event, userData in
     guard let userData else {
+        return noErr
+    }
+
+    guard let hotKeyID = eventHotKeyID(from: event) else {
         return noErr
     }
 
@@ -152,8 +167,31 @@ private let hotKeyEventHandler: EventHandlerUPP = { _, _, userData in
         .takeUnretainedValue()
 
     Task { @MainActor in
-        controller.handlePressedHotKey()
+        controller.handlePressedHotKey(hotKeyID: hotKeyID)
     }
 
     return noErr
+}
+
+private func eventHotKeyID(from event: EventRef?) -> EventHotKeyID? {
+    guard let event else {
+        return nil
+    }
+
+    var hotKeyID = EventHotKeyID()
+    let status = GetEventParameter(
+        event,
+        EventParamName(kEventParamDirectObject),
+        EventParamType(typeEventHotKeyID),
+        nil,
+        MemoryLayout<EventHotKeyID>.size,
+        nil,
+        &hotKeyID
+    )
+
+    guard status == noErr else {
+        return nil
+    }
+
+    return hotKeyID
 }
