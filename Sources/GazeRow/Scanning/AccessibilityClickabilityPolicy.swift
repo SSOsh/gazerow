@@ -10,28 +10,36 @@ import Foundation
 struct AccessibilityClickabilityPolicy {
 
     func isClickable(_ snapshot: AccessibilityElementSnapshot) -> Bool {
-        if hasClickAction(snapshot) {
+        if hasClickAction(snapshot.actions) {
             return true
         }
 
         if snapshot.role == AccessibilityRole.image {
-            return hasSemanticText(snapshot)
+            return hasSemanticText(
+                title: snapshot.title,
+                value: snapshot.value,
+                help: snapshot.help
+            )
         }
 
-        return clickableRoles.contains(snapshot.role ?? "")
+        return isClickableRole(snapshot.role)
     }
 
-    private func hasClickAction(_ snapshot: AccessibilityElementSnapshot) -> Bool {
-        snapshot.actions.contains(AccessibilityAction.press)
-            || snapshot.actions.contains(AccessibilityAction.confirm)
-            || snapshot.actions.contains(AccessibilityAction.open)
-            || snapshot.actions.contains(AccessibilityAction.showDefaultUI)
+    func hasClickAction(_ actions: [String]) -> Bool {
+        actions.contains(AccessibilityAction.press)
+            || actions.contains(AccessibilityAction.confirm)
+            || actions.contains(AccessibilityAction.open)
+            || actions.contains(AccessibilityAction.showDefaultUI)
     }
 
-    private func hasSemanticText(_ snapshot: AccessibilityElementSnapshot) -> Bool {
-        hasText(snapshot.title)
-            || hasText(snapshot.value)
-            || hasText(snapshot.help)
+    func hasSemanticText(title: String?, value: String?, help: String?) -> Bool {
+        hasText(title)
+            || hasText(value)
+            || hasText(help)
+    }
+
+    func isClickableRole(_ role: String?) -> Bool {
+        clickableRoles.contains(role ?? "")
     }
 
     private func hasText(_ value: String?) -> Bool {

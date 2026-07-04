@@ -51,6 +51,7 @@ final class OverlaySessionController {
             return .failure(.sessionDisabled)
         }
 
+        let startedAt = dateProvider()
         let context: TargetContext
         switch targetResolver.resolve() {
         case .success(let resolvedContext):
@@ -59,6 +60,7 @@ final class OverlaySessionController {
             close()
             return .failure(.targetResolutionFailed(failure))
         }
+        let targetResolvedAt = dateProvider()
 
         let scanResult: AccessibilityScanResult
         switch scanner.scan(context: context) {
@@ -68,6 +70,7 @@ final class OverlaySessionController {
             close()
             return .failure(.scanFailed(failure))
         }
+        let scannedAt = dateProvider()
 
         guard !scanResult.candidates.isEmpty else {
             close()
@@ -85,6 +88,7 @@ final class OverlaySessionController {
                 _ = self?.handleKeyboardCommand(command)
             }
         )
+        let shownAt = dateProvider()
 
         let snapshot = OverlaySessionSnapshot(
             context: context,
@@ -100,6 +104,9 @@ final class OverlaySessionController {
         }.joined(separator: " ")
         AppLogger.interaction.info(
             "overlay candidates count=\(layout.labels.count, privacy: .public) map=\(labelMap, privacy: .public)"
+        )
+        AppLogger.overlay.info(
+            "overlay start timing targetMs=\(Self.milliseconds(from: startedAt, to: targetResolvedAt), privacy: .public) scanMs=\(Self.milliseconds(from: targetResolvedAt, to: scannedAt), privacy: .public) showMs=\(Self.milliseconds(from: scannedAt, to: shownAt), privacy: .public) totalMs=\(Self.milliseconds(from: startedAt, to: shownAt), privacy: .public) nodes=\(scanResult.nodesVisited, privacy: .public) candidates=\(scanResult.candidateCount, privacy: .public) timeout=\(scanResult.didTimeout, privacy: .public)"
         )
         if let activeSession {
             updateOverlayStatus(for: activeSession, message: "Ready", tone: .neutral)
@@ -377,6 +384,10 @@ final class OverlaySessionController {
         case .failure:
             true
         }
+    }
+
+    private static func milliseconds(from start: Date, to end: Date) -> Int {
+        max(0, Int((end.timeIntervalSince(start) * 1_000).rounded()))
     }
 }
 

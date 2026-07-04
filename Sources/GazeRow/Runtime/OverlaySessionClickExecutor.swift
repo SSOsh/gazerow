@@ -165,8 +165,7 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
 
             nodesVisited += 1
 
-            let snapshot = client.snapshot(of: item.element)
-            if let target = makeTarget(element: item.element, snapshot: snapshot),
+            if let target = makeTarget(element: item.element),
                targetKeys.insert(ClickTargetKey(target)).inserted {
                 targets.append(target)
             }
@@ -183,14 +182,27 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
         return targets
     }
 
-    private func makeTarget(
-        element: Client.Element,
-        snapshot: AccessibilityElementSnapshot
-    ) -> ClickTarget<Client.Element>? {
-        guard !snapshot.isSecureField,
-              let role = snapshot.role,
-              clickabilityPolicy.isClickable(snapshot),
-              let frame = snapshot.frame,
+    private func makeTarget(element: Client.Element) -> ClickTarget<Client.Element>? {
+        guard let role = client.role(of: element),
+              role != AccessibilityRole.secureTextField else {
+            return nil
+        }
+
+        let actions = client.actions(of: element)
+        let title: String?
+        if clickabilityPolicy.hasClickAction(actions)
+            || (role != AccessibilityRole.image && clickabilityPolicy.isClickableRole(role)) {
+            title = client.title(of: element)
+        } else if role == AccessibilityRole.image {
+            title = client.title(of: element)
+            guard hasSemanticText(in: element, title: title) else {
+                return nil
+            }
+        } else {
+            return nil
+        }
+
+        guard let frame = client.frame(of: element),
               frame.width > 0,
               frame.height > 0 else {
             return nil
@@ -199,11 +211,23 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
         return ClickTarget(
             element: element,
             role: role,
-            subrole: snapshot.subrole,
-            title: snapshot.title,
+            subrole: client.subrole(of: element),
+            title: title,
             frame: frame,
-            actions: snapshot.actions
+            actions: actions
         )
+    }
+
+    private func hasSemanticText(in element: Client.Element, title: String?) -> Bool {
+        if clickabilityPolicy.hasSemanticText(title: title, value: nil, help: nil) {
+            return true
+        }
+
+        if clickabilityPolicy.hasSemanticText(title: nil, value: client.value(of: element), help: nil) {
+            return true
+        }
+
+        return clickabilityPolicy.hasSemanticText(title: nil, value: nil, help: client.help(of: element))
     }
 
     private func isTimedOut(startedAt: Date) -> Bool {

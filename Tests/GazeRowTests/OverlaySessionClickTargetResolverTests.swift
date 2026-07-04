@@ -183,6 +183,36 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
         XCTAssertEqual(result.failureValue, .accessibilityPermissionDenied)
     }
 
+    func test_resolveTargets_후보가_아닌_node는_비싼속성을_읽지_않음() throws {
+        // given
+        let button = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(role: "AXGroup", frame: CGRect(x: 0, y: 0, width: 100, height: 100), actions: []),
+            children: [button]
+        )
+        let client = CountingClickTargetClient(root: .success(root))
+        let sut = OverlaySessionClickTargetResolver(client: client)
+
+        // when
+        let result = sut.resolveTargets(context: makeContext())
+
+        // then
+        let targets = try unwrapSuccess(result)
+        XCTAssertEqual(targets.map(\.element.id), [1])
+        XCTAssertEqual(client.snapshotCount, 0)
+        XCTAssertEqual(client.roleCount, 2)
+        XCTAssertEqual(client.actionsCount, 2)
+        XCTAssertEqual(client.titleCount, 1)
+        XCTAssertEqual(client.frameCount, 1)
+        XCTAssertEqual(client.subroleCount, 1)
+        XCTAssertEqual(client.valueCount, 0)
+        XCTAssertEqual(client.helpCount, 0)
+    }
+
     private func makeContext() -> TargetContext {
         TargetContext(
             application: TargetApplication(
@@ -264,6 +294,71 @@ private struct FakeClickTargetClient: AccessibilityElementClient {
 
     func snapshot(of element: FakeClickElement) -> AccessibilityElementSnapshot {
         element.snapshot
+    }
+
+    func children(of element: FakeClickElement) -> Result<[FakeClickElement], AccessibilityScanFailure> {
+        .success(element.children)
+    }
+}
+
+@MainActor
+private final class CountingClickTargetClient: AccessibilityElementClient {
+    let root: Result<FakeClickElement, AccessibilityScanFailure>
+    private(set) var snapshotCount = 0
+    private(set) var roleCount = 0
+    private(set) var subroleCount = 0
+    private(set) var titleCount = 0
+    private(set) var valueCount = 0
+    private(set) var helpCount = 0
+    private(set) var frameCount = 0
+    private(set) var actionsCount = 0
+
+    init(root: Result<FakeClickElement, AccessibilityScanFailure>) {
+        self.root = root
+    }
+
+    func rootElement(for context: TargetContext) -> Result<FakeClickElement, AccessibilityScanFailure> {
+        root
+    }
+
+    func snapshot(of element: FakeClickElement) -> AccessibilityElementSnapshot {
+        snapshotCount += 1
+        return element.snapshot
+    }
+
+    func role(of element: FakeClickElement) -> String? {
+        roleCount += 1
+        return element.snapshot.role
+    }
+
+    func subrole(of element: FakeClickElement) -> String? {
+        subroleCount += 1
+        return element.snapshot.subrole
+    }
+
+    func title(of element: FakeClickElement) -> String? {
+        titleCount += 1
+        return element.snapshot.title
+    }
+
+    func value(of element: FakeClickElement) -> String? {
+        valueCount += 1
+        return element.snapshot.value
+    }
+
+    func help(of element: FakeClickElement) -> String? {
+        helpCount += 1
+        return element.snapshot.help
+    }
+
+    func frame(of element: FakeClickElement) -> CGRect? {
+        frameCount += 1
+        return element.snapshot.frame
+    }
+
+    func actions(of element: FakeClickElement) -> [String] {
+        actionsCount += 1
+        return element.snapshot.actions
     }
 
     func children(of element: FakeClickElement) -> Result<[FakeClickElement], AccessibilityScanFailure> {

@@ -58,8 +58,7 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
 
             nodesVisited += 1
 
-            let snapshot = client.snapshot(of: item.element)
-            if let candidate = makeCandidate(from: snapshot),
+            if let candidate = makeCandidate(from: item.element),
                candidateKeys.insert(CandidateKey(candidate)).inserted {
                 candidates.append(candidate)
             }
@@ -93,11 +92,27 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
         dateProvider().timeIntervalSince(startedAt) > configuration.timeout
     }
 
-    private func makeCandidate(from snapshot: AccessibilityElementSnapshot) -> ClickableCandidate? {
-        guard !snapshot.isSecureField,
-              let role = snapshot.role,
-              clickabilityPolicy.isClickable(snapshot),
-              let frame = snapshot.frame,
+    private func makeCandidate(from element: Client.Element) -> ClickableCandidate? {
+        guard let role = client.role(of: element),
+              role != AccessibilityRole.secureTextField else {
+            return nil
+        }
+
+        let actions = client.actions(of: element)
+        let title: String?
+        if clickabilityPolicy.hasClickAction(actions)
+            || (role != AccessibilityRole.image && clickabilityPolicy.isClickableRole(role)) {
+            title = client.title(of: element)
+        } else if role == AccessibilityRole.image {
+            title = client.title(of: element)
+            guard hasSemanticText(in: element, title: title) else {
+                return nil
+            }
+        } else {
+            return nil
+        }
+
+        guard let frame = client.frame(of: element),
               frame.width > 0,
               frame.height > 0 else {
             return nil
@@ -105,11 +120,23 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
 
         return ClickableCandidate(
             role: role,
-            subrole: snapshot.subrole,
-            title: snapshot.title,
+            subrole: client.subrole(of: element),
+            title: title,
             frame: frame,
-            actions: snapshot.actions
+            actions: actions
         )
+    }
+
+    private func hasSemanticText(in element: Client.Element, title: String?) -> Bool {
+        if clickabilityPolicy.hasSemanticText(title: title, value: nil, help: nil) {
+            return true
+        }
+
+        if clickabilityPolicy.hasSemanticText(title: nil, value: client.value(of: element), help: nil) {
+            return true
+        }
+
+        return clickabilityPolicy.hasSemanticText(title: nil, value: nil, help: client.help(of: element))
     }
 
 }

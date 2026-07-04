@@ -96,6 +96,34 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         )
     }
 
+    func role(of element: AXUIElement) -> String? {
+        copyStringAttribute(kAXRoleAttribute, from: element)
+    }
+
+    func subrole(of element: AXUIElement) -> String? {
+        copyStringAttribute(kAXSubroleAttribute, from: element)
+    }
+
+    func title(of element: AXUIElement) -> String? {
+        copyStringAttribute(kAXTitleAttribute, from: element)
+    }
+
+    func value(of element: AXUIElement) -> String? {
+        copyStringAttribute(kAXValueAttribute, from: element)
+    }
+
+    func help(of element: AXUIElement) -> String? {
+        copyStringAttribute(kAXHelpAttribute, from: element)
+    }
+
+    func frame(of element: AXUIElement) -> CGRect? {
+        copyFrame(from: element)
+    }
+
+    func actions(of element: AXUIElement) -> [String] {
+        copyActionNames(from: element)
+    }
+
     func clickTarget(from element: AXUIElement) -> ClickTarget<AXUIElement>? {
         let snapshot = snapshot(of: element)
 

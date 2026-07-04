@@ -360,6 +360,83 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.failedChildReadCount, 1)
     }
 
+    func test_scan_후보가_아닌_node는_비싼속성을_읽지_않음() {
+        // given
+        let button = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.button,
+                title: "Open",
+                frame: CGRect(x: 10, y: 20, width: 80, height: 24),
+                actions: [AccessibilityAction.press]
+            )
+        )
+        let root = FakeElement(children: [button])
+        let client = CountingAccessibilityElementClient(root: .success(root))
+        let sut = AccessibilityScanner(client: client)
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidateCount, 1)
+        XCTAssertEqual(client.snapshotCount, 0)
+        XCTAssertEqual(client.roleCount, 2)
+        XCTAssertEqual(client.actionsCount, 2)
+        XCTAssertEqual(client.titleCount, 1)
+        XCTAssertEqual(client.frameCount, 1)
+        XCTAssertEqual(client.subroleCount, 1)
+        XCTAssertEqual(client.valueCount, 0)
+        XCTAssertEqual(client.helpCount, 0)
+    }
+
+    func test_scan_image의_의미텍스트는_필요할때만_추가조회() {
+        // given
+        let decorativeImage = FakeElement(
+            snapshot: AccessibilityElementSnapshot(
+                role: AccessibilityRole.image,
+                subrole: nil,
+                title: nil,
+                value: nil,
+                help: nil,
+                frame: CGRect(x: 10, y: 20, width: 32, height: 32),
+                actions: []
+            )
+        )
+        let namedImage = FakeElement(
+            snapshot: AccessibilityElementSnapshot(
+                role: AccessibilityRole.image,
+                subrole: nil,
+                title: "Explorer",
+                value: nil,
+                help: nil,
+                frame: CGRect(x: 50, y: 20, width: 32, height: 32),
+                actions: []
+            )
+        )
+        let root = FakeElement(children: [decorativeImage, namedImage])
+        let client = CountingAccessibilityElementClient(root: .success(root))
+        let sut = AccessibilityScanner(client: client)
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidates.map(\.title), ["Explorer"])
+        XCTAssertEqual(client.snapshotCount, 0)
+        XCTAssertEqual(client.titleCount, 2)
+        XCTAssertEqual(client.valueCount, 1)
+        XCTAssertEqual(client.helpCount, 1)
+        XCTAssertEqual(client.frameCount, 1)
+    }
+
     private var targetContext: TargetContext {
         TargetContext(
             application: TargetApplication(
@@ -435,6 +512,75 @@ private struct FakeAccessibilityElementClient: AccessibilityElementClient {
 
     func snapshot(of element: FakeElement) -> AccessibilityElementSnapshot {
         element.snapshot
+    }
+
+    func children(of element: FakeElement) -> Result<[FakeElement], AccessibilityScanFailure> {
+        if let childrenFailure = element.childrenFailure {
+            return .failure(childrenFailure)
+        }
+
+        return .success(element.children)
+    }
+}
+
+@MainActor
+private final class CountingAccessibilityElementClient: AccessibilityElementClient {
+    let root: Result<FakeElement, AccessibilityScanFailure>
+    private(set) var snapshotCount = 0
+    private(set) var roleCount = 0
+    private(set) var subroleCount = 0
+    private(set) var titleCount = 0
+    private(set) var valueCount = 0
+    private(set) var helpCount = 0
+    private(set) var frameCount = 0
+    private(set) var actionsCount = 0
+
+    init(root: Result<FakeElement, AccessibilityScanFailure>) {
+        self.root = root
+    }
+
+    func rootElement(for context: TargetContext) -> Result<FakeElement, AccessibilityScanFailure> {
+        root
+    }
+
+    func snapshot(of element: FakeElement) -> AccessibilityElementSnapshot {
+        snapshotCount += 1
+        return element.snapshot
+    }
+
+    func role(of element: FakeElement) -> String? {
+        roleCount += 1
+        return element.snapshot.role
+    }
+
+    func subrole(of element: FakeElement) -> String? {
+        subroleCount += 1
+        return element.snapshot.subrole
+    }
+
+    func title(of element: FakeElement) -> String? {
+        titleCount += 1
+        return element.snapshot.title
+    }
+
+    func value(of element: FakeElement) -> String? {
+        valueCount += 1
+        return element.snapshot.value
+    }
+
+    func help(of element: FakeElement) -> String? {
+        helpCount += 1
+        return element.snapshot.help
+    }
+
+    func frame(of element: FakeElement) -> CGRect? {
+        frameCount += 1
+        return element.snapshot.frame
+    }
+
+    func actions(of element: FakeElement) -> [String] {
+        actionsCount += 1
+        return element.snapshot.actions
     }
 
     func children(of element: FakeElement) -> Result<[FakeElement], AccessibilityScanFailure> {
