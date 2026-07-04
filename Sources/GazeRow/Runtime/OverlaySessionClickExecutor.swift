@@ -1,3 +1,4 @@
+import AppKit
 import ApplicationServices
 import CoreGraphics
 import Foundation
@@ -33,16 +34,19 @@ enum OverlaySessionClickFailure: Error, Equatable {
 struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
     private let targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient>
     private let clickExecutor: ClickExecutor<AXClickExecutionClient>
+    private let clickPreparer: TargetApplicationClickPreparer
 
     init(
         targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient> = OverlaySessionClickTargetResolver(client: AXAccessibilityElementClient()),
         clickExecutor: ClickExecutor<AXClickExecutionClient> = ClickExecutor(
             client: AXClickExecutionClient(),
             configuration: .overlayConfirmedClick
-        )
+        ),
+        clickPreparer: TargetApplicationClickPreparer = TargetApplicationClickPreparer()
     ) {
         self.targetResolver = targetResolver
         self.clickExecutor = clickExecutor
+        self.clickPreparer = clickPreparer
     }
 
     func execute(
@@ -60,6 +64,7 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
             AppLogger.interaction.info(
                 "click target index=\(focusedIndex, privacy: .public) count=\(targets.count, privacy: .public) role=\(target.role, privacy: .public) frame=\(frameText, privacy: .public) actions=\(target.actions.joined(separator: ","), privacy: .public)"
             )
+            clickPreparer.prepareForClick(application: context.application)
             let request = ClickExecutionRequest(
                 target: target,
                 isSecondConfirmProvided: isSecondConfirmProvided
@@ -68,6 +73,45 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
         case .failure(let failure):
             return .failure(.scanFailed(failure))
         }
+    }
+}
+
+/// overlay가 key app이 된 뒤에도 실제 click이 대상 app에 전달되도록 준비한다.
+///
+/// @author suho.do
+/// @since 2026-07-04
+struct TargetApplicationClickPreparer {
+    private let activationDelay: TimeInterval
+    private let activateApplication: (pid_t) -> Bool
+    private let sleep: (TimeInterval) -> Void
+
+    init(
+        activationDelay: TimeInterval = 0.06,
+        activateApplication: @escaping (pid_t) -> Bool = { processIdentifier in
+            NSRunningApplication(processIdentifier: processIdentifier)?
+                .activate(options: []) ?? false
+        },
+        sleep: @escaping (TimeInterval) -> Void = { interval in
+            Thread.sleep(forTimeInterval: interval)
+        }
+    ) {
+        self.activationDelay = activationDelay
+        self.activateApplication = activateApplication
+        self.sleep = sleep
+    }
+
+    func prepareForClick(application: TargetApplication) {
+        guard activateApplication(application.processIdentifier) else {
+            AppLogger.interaction.info(
+                "target app activation skipped pid=\(application.processIdentifier, privacy: .public)"
+            )
+            return
+        }
+
+        AppLogger.interaction.info(
+            "target app activated pid=\(application.processIdentifier, privacy: .public)"
+        )
+        sleep(activationDelay)
     }
 }
 
