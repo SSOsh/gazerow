@@ -14,6 +14,10 @@ final class OverlayWindowController {
     private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
     private let screenFrameProvider: @MainActor () -> [CGRect]
     private let applicationActivator: @MainActor () -> Void
+    private let keyboardEventTapFactory: @MainActor (
+        @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
+    ) -> any OverlayKeyboardEventTapping
+    private var keyboardEventTap: (any OverlayKeyboardEventTapping)?
 
     init(
         layoutEngine: OverlayLayoutEngine = OverlayLayoutEngine(),
@@ -23,12 +27,18 @@ final class OverlayWindowController {
         },
         applicationActivator: @escaping @MainActor () -> Void = {
             NSApp.activate(ignoringOtherApps: true)
+        },
+        keyboardEventTapFactory: @escaping @MainActor (
+            @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
+        ) -> any OverlayKeyboardEventTapping = { handler in
+            OverlayKeyboardEventTap(onKeyboardCommand: handler)
         }
     ) {
         self.layoutEngine = layoutEngine
         self.displayInfoProvider = displayInfoProvider
         self.screenFrameProvider = screenFrameProvider
         self.applicationActivator = applicationActivator
+        self.keyboardEventTapFactory = keyboardEventTapFactory
     }
 
     var isVisible: Bool {
@@ -89,9 +99,8 @@ final class OverlayWindowController {
         currentLayout = layout
         currentStatus = OverlayInteractionStatus()
         render(layout: layout, status: currentStatus)
-        applicationActivator()
         panel.orderFrontRegardless()
-        panel.makeKey()
+        prepareKeyboardCapture(onKeyboardCommand: onKeyboardCommand, panel: panel)
     }
 
     func updateFocus(focusedLabelID: Int?) {
@@ -115,10 +124,31 @@ final class OverlayWindowController {
     }
 
     func close() {
+        keyboardEventTap?.stop()
+        keyboardEventTap = nil
         panel?.orderOut(nil)
         panel = nil
         currentLayout = nil
         currentStatus = OverlayInteractionStatus()
+    }
+
+    private func prepareKeyboardCapture(
+        onKeyboardCommand: @escaping @MainActor (FocusKeyboardCommand) -> Void,
+        panel: OverlayPanel
+    ) {
+        let eventTap = keyboardEventTapFactory { command in
+            onKeyboardCommand(command)
+        }
+        keyboardEventTap = eventTap
+
+        guard eventTap.start() else {
+            AppLogger.overlay.info("overlay keyboard event tap unavailable; activating app fallback")
+            applicationActivator()
+            panel.makeKey()
+            return
+        }
+
+        AppLogger.overlay.info("overlay keyboard event tap enabled")
     }
 
     private func render(layout: OverlayLayout, status: OverlayInteractionStatus) {
@@ -229,4 +259,127 @@ private final class OverlayPanel: NSPanel {
 
         onKeyboardCommand(command)
     }
+}
+
+/// overlay 표시 중 앱 활성화 없이 keyboard 입력을 가로채는 event tap.
+///
+/// @author suho.do
+/// @since 2026-07-04
+@MainActor
+protocol OverlayKeyboardEventTapping: AnyObject {
+    func start() -> Bool
+    func stop()
+}
+
+/// CGEvent tap 기반 overlay keyboard capture.
+///
+/// @author suho.do
+/// @since 2026-07-04
+final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
+    private let context: OverlayKeyboardEventTapContext
+    private var eventTap: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
+
+    init(onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void) {
+        self.context = OverlayKeyboardEventTapContext(onKeyboardCommand: onKeyboardCommand)
+    }
+
+    func start() -> Bool {
+        stop()
+
+        let userInfo = Unmanaged.passUnretained(context).toOpaque()
+        let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: eventMask,
+            callback: overlayKeyboardEventTapCallback,
+            userInfo: userInfo
+        ) else {
+            return false
+        }
+
+        guard let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0) else {
+            return false
+        }
+
+        context.eventTap = tap
+        eventTap = tap
+        runLoopSource = source
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        return true
+    }
+
+    func stop() {
+        if let eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+        }
+
+        if let runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+        }
+
+        context.eventTap = nil
+        eventTap = nil
+        runLoopSource = nil
+    }
+
+}
+
+private final class OverlayKeyboardEventTapContext: @unchecked Sendable {
+    var eventTap: CFMachPort?
+    private let keyboardCommandMapper = FocusKeyboardCommandMapper()
+    private let onKeyboardCommand: @MainActor @Sendable (FocusKeyboardCommand) -> Void
+
+    init(onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void) {
+        self.onKeyboardCommand = onKeyboardCommand
+    }
+
+    func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let eventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            return Unmanaged.passUnretained(event)
+        }
+
+        guard type == .keyDown else {
+            return Unmanaged.passUnretained(event)
+        }
+
+        if let command = keyboardCommand(from: event) {
+            Task { @MainActor in
+                onKeyboardCommand(command)
+            }
+        }
+
+        return nil
+    }
+
+    private func keyboardCommand(from event: CGEvent) -> FocusKeyboardCommand? {
+        guard let nsEvent = NSEvent(cgEvent: event) else {
+            return nil
+        }
+
+        return keyboardCommandMapper.command(
+            for: FocusKeyboardInput(
+                keyCode: nsEvent.keyCode,
+                charactersIgnoringModifiers: nsEvent.charactersIgnoringModifiers,
+                isShiftPressed: nsEvent.modifierFlags.contains(.shift)
+            )
+        )
+    }
+}
+
+private let overlayKeyboardEventTapCallback: CGEventTapCallBack = { _, type, event, userInfo in
+    guard let userInfo else {
+        return Unmanaged.passUnretained(event)
+    }
+
+    let context = Unmanaged<OverlayKeyboardEventTapContext>
+        .fromOpaque(userInfo)
+        .takeUnretainedValue()
+    return context.handle(type: type, event: event)
 }

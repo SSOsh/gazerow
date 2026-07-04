@@ -100,18 +100,63 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertEqual(sut.appKitFrame(fromAXFrame: axFrame), appKitFrame)
     }
 
-    func test_show는_overlay_keyboard입력을_받도록_application을_activate한다() {
+    func test_show는_keyboardEventTap이_성공하면_application을_activate하지_않음() {
         // given
         var activateCallCount = 0
+        let keyboardEventTap = FakeOverlayKeyboardEventTap(startResult: true)
         let sut = OverlayWindowController(
             displayInfoProvider: { _ in
                 OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
             },
             applicationActivator: {
                 activateCallCount += 1
+            },
+            keyboardEventTapFactory: { _ in
+                keyboardEventTap
             }
         )
-        let layout = OverlayLayout(
+
+        // when
+        sut.show(layout: makeLayout())
+
+        // then
+        XCTAssertEqual(activateCallCount, 0)
+        XCTAssertEqual(keyboardEventTap.startCallCount, 1)
+        XCTAssertTrue(sut.isVisible)
+
+        sut.close()
+        XCTAssertEqual(keyboardEventTap.stopCallCount, 1)
+    }
+
+    func test_show는_keyboardEventTap이_실패하면_application을_activate한다() {
+        // given
+        var activateCallCount = 0
+        let keyboardEventTap = FakeOverlayKeyboardEventTap(startResult: false)
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            applicationActivator: {
+                activateCallCount += 1
+            },
+            keyboardEventTapFactory: { _ in
+                keyboardEventTap
+            }
+        )
+
+        // when
+        sut.show(layout: makeLayout())
+
+        // then
+        XCTAssertEqual(activateCallCount, 1)
+        XCTAssertEqual(keyboardEventTap.startCallCount, 1)
+        XCTAssertTrue(sut.isVisible)
+
+        sut.close()
+    }
+
+    private func makeLayout() -> OverlayLayout {
+        OverlayLayout(
             targetFrame: CGRect(x: 0, y: 0, width: 200, height: 120),
             localBounds: CGRect(x: 0, y: 0, width: 200, height: 120),
             labels: [
@@ -131,14 +176,25 @@ final class OverlayWindowControllerTests: XCTestCase {
             ),
             displayInfo: OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
         )
+    }
+}
 
-        // when
-        sut.show(layout: layout)
+@MainActor
+private final class FakeOverlayKeyboardEventTap: OverlayKeyboardEventTapping {
+    private let startResult: Bool
+    private(set) var startCallCount = 0
+    private(set) var stopCallCount = 0
 
-        // then
-        XCTAssertEqual(activateCallCount, 1)
-        XCTAssertTrue(sut.isVisible)
+    init(startResult: Bool) {
+        self.startResult = startResult
+    }
 
-        sut.close()
+    func start() -> Bool {
+        startCallCount += 1
+        return startResult
+    }
+
+    func stop() {
+        stopCallCount += 1
     }
 }
