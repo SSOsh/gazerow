@@ -480,16 +480,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// overlay/gaze activation용 Carbon hotkey들을 등록한다.
     private func registerGlobalHotKeys() -> [OSStatus] {
-        var controllers = GlobalHotKeyDefinition.overlayActivationDefinitions.map { definition in
+        let controllers = GlobalHotKeyDefinition.overlayActivationDefinitions.map { definition in
             GlobalHotKeyController(definition: definition) { [weak self] in
                 self?.showOverlay()
             }
         }
-        controllers.append(
-            GlobalHotKeyController(definition: .gazeActivation) { [weak self] in
-                self?.showGazeOverlay()
-            }
-        )
         globalHotKeyControllers = controllers
 
         let statuses = globalHotKeyControllers.map { controller in
