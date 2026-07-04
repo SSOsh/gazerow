@@ -163,9 +163,12 @@ final class ClickExecutorTests: XCTestCase {
         XCTAssertEqual(client.clickedPoint, target.centerPoint)
     }
 
-    func test_execute_overlayConfirm설정도_title있는_button은_AXPress를_우선한다() {
+    func test_execute_overlayConfirm설정은_title있는_button도_좌표클릭을_우선한다() {
         // given
-        let client = FakeClickExecutionClient(axPressResult: .success)
+        let client = FakeClickExecutionClient(
+            axPressResult: .success,
+            coordinateClickResult: .success
+        )
         let sut = ClickExecutor(
             client: client,
             configuration: .overlayConfirmedClick
@@ -177,12 +180,12 @@ final class ClickExecutorTests: XCTestCase {
         // then
         assertSuccess(
             result,
-            method: .axPress,
+            method: .coordinateFallback,
             riskClass: .safeNavigation,
-            fallbackUsed: false
+            fallbackUsed: true
         )
-        XCTAssertEqual(client.performedActions, [AccessibilityAction.press])
-        XCTAssertFalse(client.didCoordinateClick)
+        XCTAssertEqual(client.performedActions, [])
+        XCTAssertEqual(client.clickedPoint, safeTarget.centerPoint)
     }
 
     func test_execute_AXPress_action이_없으면_missingPressAction() {

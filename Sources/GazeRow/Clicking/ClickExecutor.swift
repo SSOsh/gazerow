@@ -1,6 +1,7 @@
 /// keyboard-confirmed click을 실행한다.
 ///
-/// AXPress를 우선 사용하고, 지원 AX action 실패 시 좌표 fallback은 configuration에서 명시적으로 켠 경우에만 사용한다.
+/// 기본적으로 AXPress를 우선 사용한다.
+/// 오버레이 확정 클릭은 AXPress 성공 후에도 실제 UI 반응이 없는 앱을 위해 좌표 클릭을 우선할 수 있다.
 ///
 /// @author suho.do
 /// @since 2026-07-02
@@ -99,7 +100,12 @@ struct ClickExecutor<Client: ClickExecutionClient> {
     }
 
     private func shouldPreferCoordinateClick(for target: ClickTarget<Client.Element>) -> Bool {
-        configuration.prefersCoordinateClickForUntitledSmallButtons
+        if configuration.prefersCoordinateClickForAllTargets,
+           configuration.isCoordinateFallbackEnabled {
+            return true
+        }
+
+        return configuration.prefersCoordinateClickForUntitledSmallButtons
             && configuration.isCoordinateFallbackEnabled
             && target.role == AccessibilityRole.button
             && (target.title == nil || target.title?.isEmpty == true)

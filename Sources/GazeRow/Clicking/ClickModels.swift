@@ -11,21 +11,25 @@ import CoreGraphics
 struct ClickExecutionConfiguration: Equatable {
     let isCoordinateFallbackEnabled: Bool
     let requiresSecondConfirmForRiskyAction: Bool
+    let prefersCoordinateClickForAllTargets: Bool
     let prefersCoordinateClickForUntitledSmallButtons: Bool
 
     init(
         isCoordinateFallbackEnabled: Bool = false,
         requiresSecondConfirmForRiskyAction: Bool = false,
+        prefersCoordinateClickForAllTargets: Bool = false,
         prefersCoordinateClickForUntitledSmallButtons: Bool = false
     ) {
         self.isCoordinateFallbackEnabled = isCoordinateFallbackEnabled
         self.requiresSecondConfirmForRiskyAction = requiresSecondConfirmForRiskyAction
+        self.prefersCoordinateClickForAllTargets = prefersCoordinateClickForAllTargets
         self.prefersCoordinateClickForUntitledSmallButtons = prefersCoordinateClickForUntitledSmallButtons
     }
 
     static let overlayConfirmedClick = ClickExecutionConfiguration(
         isCoordinateFallbackEnabled: true,
         requiresSecondConfirmForRiskyAction: false,
+        prefersCoordinateClickForAllTargets: true,
         prefersCoordinateClickForUntitledSmallButtons: true
     )
 }
