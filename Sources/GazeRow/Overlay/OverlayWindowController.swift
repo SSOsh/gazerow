@@ -328,7 +328,7 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
 
 }
 
-private final class OverlayKeyboardEventTapContext: @unchecked Sendable {
+final class OverlayKeyboardEventTapContext: @unchecked Sendable {
     var eventTap: CFMachPort?
     private let keyboardCommandMapper = FocusKeyboardCommandMapper()
     private let onKeyboardCommand: @MainActor @Sendable (FocusKeyboardCommand) -> Void
@@ -349,10 +349,12 @@ private final class OverlayKeyboardEventTapContext: @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         }
 
-        if let command = keyboardCommand(from: event) {
-            Task { @MainActor in
-                onKeyboardCommand(command)
-            }
+        guard let command = keyboardCommand(from: event) else {
+            return Unmanaged.passUnretained(event)
+        }
+
+        Task { @MainActor in
+            onKeyboardCommand(command)
         }
 
         return nil

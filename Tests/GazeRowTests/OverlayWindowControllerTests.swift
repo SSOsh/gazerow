@@ -155,6 +155,38 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_OverlayKeyboardEventTapContext_매핑되지_않는_keyDown은_통과시킨다() {
+        // given
+        let sut = OverlayKeyboardEventTapContext { _ in }
+        let event = CGEvent(
+            keyboardEventSource: nil,
+            virtualKey: 49,
+            keyDown: true
+        )!
+
+        // when
+        let result = sut.handle(type: .keyDown, event: event)
+
+        // then
+        XCTAssertNotNil(result)
+    }
+
+    func test_OverlayKeyboardEventTapContext_매핑되는_keyDown은_소비한다() {
+        // given
+        let sut = OverlayKeyboardEventTapContext { _ in }
+        let event = CGEvent(
+            keyboardEventSource: nil,
+            virtualKey: 36,
+            keyDown: true
+        )!
+
+        // when
+        let result = sut.handle(type: .keyDown, event: event)
+
+        // then
+        XCTAssertNil(result)
+    }
+
     private func makeLayout() -> OverlayLayout {
         OverlayLayout(
             targetFrame: CGRect(x: 0, y: 0, width: 200, height: 120),
