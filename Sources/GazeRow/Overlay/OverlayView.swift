@@ -66,9 +66,18 @@ private struct OverlayLabelView: View {
     let isFocused: Bool
 
     var body: some View {
-        Text(label.text)
-            .font(.system(size: 13, weight: .bold, design: .monospaced))
-            .foregroundStyle(Color.white)
+        HStack(spacing: 1) {
+            if let prefix = shortcutPrefix {
+                Text(prefix)
+                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Color.white.opacity(0.72))
+                    .baselineOffset(1)
+            }
+
+            Text(shortcutKey)
+                .font(.system(size: 15, weight: .heavy, design: .monospaced))
+                .foregroundStyle(Color.white)
+        }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(backgroundColor, in: RoundedRectangle(cornerRadius: 5))
             .overlay {
@@ -80,6 +89,18 @@ private struct OverlayLabelView: View {
 
     private var backgroundColor: Color {
         isFocused ? Color.orange.opacity(0.96) : Color.accentColor.opacity(0.92)
+    }
+
+    private var shortcutPrefix: String? {
+        guard label.text.count > 1 else {
+            return nil
+        }
+
+        return String(label.text.dropLast())
+    }
+
+    private var shortcutKey: String {
+        String(label.text.suffix(1))
     }
 }
 

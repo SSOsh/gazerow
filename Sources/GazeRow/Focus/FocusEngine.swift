@@ -63,6 +63,20 @@ struct FocusEngine: Equatable {
 
         guard let match = exactMatch(for: labelBuffer) else {
             let hasPrefixMatch = items.contains { $0.label.hasPrefix(labelBuffer) }
+            if !hasPrefixMatch,
+               let suffixMatch = suffixShortcutMatch(for: labelBuffer) {
+                focusedItemID = suffixMatch.id
+                let typedLabel = labelBuffer
+                labelBuffer = ""
+
+                return LabelTypingResult(
+                    buffer: labelBuffer,
+                    matchedItemID: suffixMatch.id,
+                    isExactMatch: true,
+                    event: .labelJump(typedLabel: typedLabel, matched: true, to: suffixMatch.id)
+                )
+            }
+
             let event: FocusEngineEvent? = hasPrefixMatch
                 ? nil
                 : .labelJump(typedLabel: labelBuffer, matched: false, to: nil)
@@ -178,6 +192,17 @@ struct FocusEngine: Equatable {
 
     private func exactMatch(for buffer: String) -> FocusItem? {
         items.first { $0.label == buffer }
+    }
+
+    private func suffixShortcutMatch(for buffer: String) -> FocusItem? {
+        guard buffer.count == 1,
+              let shortcut = buffer.first else {
+            return nil
+        }
+
+        return items.first { item in
+            item.label.count > 1 && item.label.last == shortcut
+        }
     }
 
     private func method(for command: FocusMoveCommand) -> FocusChangeMethod {

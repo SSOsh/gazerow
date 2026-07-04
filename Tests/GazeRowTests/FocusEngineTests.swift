@@ -100,6 +100,44 @@ final class FocusEngineTests: XCTestCase {
         XCTAssertEqual(sut.focusedItemID, 0)
     }
 
+    func test_typeLabelCharacter_prefix가_없으면_마지막글자_shortcut으로_이동() {
+        // given
+        var sut = FocusEngine(
+            items: [
+                FocusItem(id: 0, label: "AA", frame: CGRect(x: 0, y: 0, width: 10, height: 10)),
+                FocusItem(id: 1, label: "AB", frame: CGRect(x: 0, y: 20, width: 10, height: 10)),
+                FocusItem(id: 2, label: "AC", frame: CGRect(x: 0, y: 40, width: 10, height: 10))
+            ]
+        )
+
+        // when
+        let result = sut.typeLabelCharacter("C")
+
+        // then
+        XCTAssertEqual(sut.focusedItemID, 2)
+        XCTAssertEqual(result.matchedItemID, 2)
+        XCTAssertTrue(result.isExactMatch)
+        XCTAssertEqual(result.event, .labelJump(typedLabel: "C", matched: true, to: 2))
+    }
+
+    func test_typeLabelCharacter_prefix가_있으면_마지막글자_shortcut보다_prefix를_우선() {
+        // given
+        var sut = FocusEngine(
+            items: [
+                FocusItem(id: 0, label: "AC", frame: CGRect(x: 0, y: 0, width: 10, height: 10)),
+                FocusItem(id: 1, label: "CA", frame: CGRect(x: 0, y: 20, width: 10, height: 10))
+            ]
+        )
+
+        // when
+        let result = sut.typeLabelCharacter("C")
+
+        // then
+        XCTAssertEqual(sut.focusedItemID, 0)
+        XCTAssertEqual(result.buffer, "C")
+        XCTAssertNil(result.event)
+    }
+
     func test_typeLabelCharacter_일치하지_않으면_labelJump_miss_기록하고_buffer초기화() {
         // given
         var sut = FocusEngine(items: items)
