@@ -465,9 +465,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     private func handleOverlayKeyboardCommand(_ command: FocusKeyboardCommand) -> Bool {
         guard overlaySessionController.activeSession != nil else {
+            AppLogger.interaction.info(
+                "overlay key ignored (no active session) command=\(String(describing: command), privacy: .public)"
+            )
             return false
         }
 
+        AppLogger.interaction.info(
+            "overlay key handled command=\(String(describing: command), privacy: .public)"
+        )
         _ = overlaySessionController.handleKeyboardCommand(command)
         return true
     }

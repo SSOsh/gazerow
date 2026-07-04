@@ -24,6 +24,10 @@ struct AXClickExecutionClient: ClickExecutionClient {
     }
 
     func performCoordinateClick(at point: CGPoint) -> ClickClientResult {
+        AppLogger.interaction.info(
+            "coordinate click point=(\(Int(point.x), privacy: .public),\(Int(point.y), privacy: .public))"
+        )
+
         guard let mouseDown = CGEvent(
             mouseEventSource: nil,
             mouseType: .leftMouseDown,

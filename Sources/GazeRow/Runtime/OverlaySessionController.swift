@@ -95,6 +95,12 @@ final class OverlaySessionController {
             snapshot: snapshot,
             focusEngine: FocusEngine(layout: layout)
         )
+        let labelMap = zip(layout.labels, scanResult.candidates).prefix(14).map { label, candidate in
+            "\(label.id):\(label.text)@(\(Int(candidate.frame.minX)),\(Int(candidate.frame.minY)) \(Int(candidate.frame.width))x\(Int(candidate.frame.height)))"
+        }.joined(separator: " ")
+        AppLogger.interaction.info(
+            "overlay candidates count=\(layout.labels.count, privacy: .public) map=\(labelMap, privacy: .public)"
+        )
         if let activeSession {
             updateOverlayStatus(for: activeSession, message: "Ready", tone: .neutral)
         }
@@ -182,6 +188,7 @@ final class OverlaySessionController {
         session: inout OverlaySessionState
     ) {
         guard let focusedItemID = confirmResult.focusedItemID else {
+            AppLogger.interaction.info("confirm click skipped (no focused target)")
             lastClickResult = .failure(.missingFocusedTarget(index: -1))
             activeSession = session
             return
@@ -192,6 +199,9 @@ final class OverlaySessionController {
             focusedIndex: focusedItemID,
             context: session.snapshot.context,
             isSecondConfirmProvided: isSecondConfirmProvided
+        )
+        AppLogger.interaction.info(
+            "confirm click executed index=\(focusedItemID, privacy: .public) result=\(String(describing: result), privacy: .public)"
         )
         let focusedLabel = labelText(for: focusedItemID, in: session)
         lastClickResult = result

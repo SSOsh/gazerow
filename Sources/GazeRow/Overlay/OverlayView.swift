@@ -33,6 +33,14 @@ struct OverlayView: View {
             }
 
             ForEach(layout.labels) { label in
+                OverlayTargetMarkerView(
+                    label: label,
+                    isFocused: label.id == focusedLabelID
+                )
+                .frame(width: layout.localBounds.width, height: layout.localBounds.height)
+            }
+
+            ForEach(layout.labels) { label in
                 OverlayLabelView(
                     label: label,
                     isFocused: label.id == focusedLabelID
@@ -72,6 +80,54 @@ private struct OverlayLabelView: View {
 
     private var backgroundColor: Color {
         isFocused ? Color.orange.opacity(0.96) : Color.accentColor.opacity(0.92)
+    }
+}
+
+private struct OverlayTargetMarkerView: View {
+    let label: OverlayLabel
+    let isFocused: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(fillColor)
+                .overlay {
+                    RoundedRectangle(cornerRadius: cornerRadius)
+                        .stroke(strokeColor, lineWidth: isFocused ? 2 : 1)
+                }
+                .frame(width: targetFrame.width, height: targetFrame.height)
+                .position(x: targetFrame.midX, y: targetFrame.midY)
+
+            Circle()
+                .fill(dotColor)
+                .frame(width: isFocused ? 8 : 5, height: isFocused ? 8 : 5)
+                .overlay {
+                    Circle()
+                        .stroke(Color.white.opacity(isFocused ? 0.95 : 0.65), lineWidth: 1)
+                }
+                .position(x: label.anchorPoint.x, y: label.anchorPoint.y)
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var targetFrame: CGRect {
+        label.candidateFrame.insetBy(dx: -2, dy: -2)
+    }
+
+    private var cornerRadius: CGFloat {
+        min(8, max(4, min(targetFrame.width, targetFrame.height) / 4))
+    }
+
+    private var fillColor: Color {
+        isFocused ? Color.orange.opacity(0.18) : Color.accentColor.opacity(0.06)
+    }
+
+    private var strokeColor: Color {
+        isFocused ? Color.orange.opacity(0.98) : Color.accentColor.opacity(0.42)
+    }
+
+    private var dotColor: Color {
+        isFocused ? Color.orange.opacity(1) : Color.white.opacity(0.7)
     }
 }
 

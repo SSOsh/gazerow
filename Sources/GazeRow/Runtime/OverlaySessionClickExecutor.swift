@@ -55,8 +55,13 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
             guard targets.indices.contains(focusedIndex) else {
                 return .failure(.missingFocusedTarget(index: focusedIndex))
             }
+            let target = targets[focusedIndex]
+            let frameText = "(\(Int(target.frame.minX)),\(Int(target.frame.minY)) \(Int(target.frame.width))x\(Int(target.frame.height)))"
+            AppLogger.interaction.info(
+                "click target index=\(focusedIndex, privacy: .public) count=\(targets.count, privacy: .public) role=\(target.role, privacy: .public) frame=\(frameText, privacy: .public) actions=\(target.actions.joined(separator: ","), privacy: .public)"
+            )
             let request = ClickExecutionRequest(
-                target: targets[focusedIndex],
+                target: target,
                 isSecondConfirmProvided: isSecondConfirmProvided
             )
             return clickExecutor.execute(request).mapError(OverlaySessionClickFailure.executionFailed)
