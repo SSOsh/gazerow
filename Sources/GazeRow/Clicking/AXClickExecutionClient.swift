@@ -10,21 +10,43 @@ protocol CoordinateClickPosting {
     func postSingleLeftClick(at point: CGPoint) -> ClickClientResult
 }
 
-/// CGEvent 기반 좌표 클릭 event poster.
+/// mouse cursor 위치 조회/이동.
 ///
 /// @author suho.do
 /// @since 2026-07-04
-struct CGCoordinateClickPoster: CoordinateClickPosting {
-    private let clickInterval: TimeInterval
+protocol MouseCursorControlling {
+    func currentPosition() -> CGPoint?
+    func move(to point: CGPoint)
+}
 
-    init(clickInterval: TimeInterval = 0.035) {
-        self.clickInterval = clickInterval
+/// CGEvent 기반 mouse cursor controller.
+///
+/// @author suho.do
+/// @since 2026-07-04
+struct CGMouseCursorController: MouseCursorControlling {
+    func currentPosition() -> CGPoint? {
+        CGEvent(source: nil)?.location
     }
 
-    func postSingleLeftClick(at point: CGPoint) -> ClickClientResult {
-        CGAssociateMouseAndMouseCursorPosition(boolean_t(1))
+    func move(to point: CGPoint) {
         CGWarpMouseCursorPosition(point)
+    }
+}
 
+/// 단일 좌클릭 event 발행.
+///
+/// @author suho.do
+/// @since 2026-07-04
+protocol SingleClickEventPosting {
+    func postSingleLeftClickEvent(at point: CGPoint, clickInterval: TimeInterval) -> ClickClientResult
+}
+
+/// CGEvent 기반 단일 좌클릭 event poster.
+///
+/// @author suho.do
+/// @since 2026-07-04
+struct CGSingleClickEventPoster: SingleClickEventPosting {
+    func postSingleLeftClickEvent(at point: CGPoint, clickInterval: TimeInterval) -> ClickClientResult {
         guard let source = CGEventSource(stateID: .hidSystemState),
               let mouseDown = CGEvent(
                   mouseEventSource: source,
@@ -50,6 +72,38 @@ struct CGCoordinateClickPoster: CoordinateClickPosting {
         Thread.sleep(forTimeInterval: clickInterval)
         mouseUp.post(tap: .cghidEventTap)
         return .success
+    }
+}
+
+/// CGEvent 기반 좌표 클릭 event poster.
+///
+/// @author suho.do
+/// @since 2026-07-04
+struct CGCoordinateClickPoster: CoordinateClickPosting {
+    private let clickInterval: TimeInterval
+    private let cursorController: any MouseCursorControlling
+    private let clickEventPoster: any SingleClickEventPosting
+
+    init(
+        clickInterval: TimeInterval = 0.035,
+        cursorController: any MouseCursorControlling = CGMouseCursorController(),
+        clickEventPoster: any SingleClickEventPosting = CGSingleClickEventPoster()
+    ) {
+        self.clickInterval = clickInterval
+        self.cursorController = cursorController
+        self.clickEventPoster = clickEventPoster
+    }
+
+    func postSingleLeftClick(at point: CGPoint) -> ClickClientResult {
+        let originalPosition = cursorController.currentPosition()
+
+        CGAssociateMouseAndMouseCursorPosition(boolean_t(1))
+        cursorController.move(to: point)
+        let result = clickEventPoster.postSingleLeftClickEvent(at: point, clickInterval: clickInterval)
+        if let originalPosition {
+            cursorController.move(to: originalPosition)
+        }
+        return result
     }
 }
 
