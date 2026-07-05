@@ -41,6 +41,13 @@ struct NSWorkspaceFrontmostApplicationProvider: FrontmostApplicationProviding {
 /// @since 2026-07-03
 @MainActor
 final class RecentNonSelfApplicationProvider: FrontmostApplicationProviding {
+    private static let ignoredBundleIdentifiers: Set<String> = [
+        "com.apple.controlcenter",
+        "com.apple.dock",
+        "com.apple.notificationcenterui",
+        "com.apple.systemuiserver"
+    ]
+
     private let ownBundleIdentifier: String
     private let currentApplicationProvider: any FrontmostApplicationProviding
     private let notificationCenter: NotificationCenter
@@ -71,6 +78,9 @@ final class RecentNonSelfApplicationProvider: FrontmostApplicationProviding {
         }
 
         guard current.bundleIdentifier == ownBundleIdentifier else {
+            guard isRecordable(current) else {
+                return lastNonSelfApplication
+            }
             recordIfNonSelf(current)
             return current
         }
@@ -80,11 +90,16 @@ final class RecentNonSelfApplicationProvider: FrontmostApplicationProviding {
 
     func recordIfNonSelf(_ application: TargetApplication?) {
         guard let application,
-              application.bundleIdentifier != ownBundleIdentifier else {
+              isRecordable(application) else {
             return
         }
 
         lastNonSelfApplication = application
+    }
+
+    private func isRecordable(_ application: TargetApplication) -> Bool {
+        application.bundleIdentifier != ownBundleIdentifier
+            && !Self.ignoredBundleIdentifiers.contains(application.bundleIdentifier)
     }
 
     private func installActivationObserver() {

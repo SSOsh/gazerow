@@ -62,6 +62,26 @@ final class RecentNonSelfApplicationProviderTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func test_frontmost가_ControlCenter이면_직전앱을_유지한다() {
+        // given
+        let finder = makeApplication(bundleIdentifier: "com.apple.finder")
+        let controlCenter = makeApplication(bundleIdentifier: "com.apple.controlcenter")
+        let provider = StubFrontmostApplicationProvider(application: controlCenter)
+        let sut = RecentNonSelfApplicationProvider(
+            ownBundleIdentifier: "dev.local.gazerow",
+            currentApplicationProvider: provider,
+            notificationCenter: NotificationCenter()
+        )
+        sut.recordIfNonSelf(finder)
+
+        // when
+        let result = sut.frontmostApplication()
+
+        // then
+        XCTAssertEqual(result, finder)
+        XCTAssertEqual(sut.lastNonSelfApplication, finder)
+    }
+
     private func makeApplication(bundleIdentifier: String) -> TargetApplication {
         TargetApplication(
             localizedName: bundleIdentifier,

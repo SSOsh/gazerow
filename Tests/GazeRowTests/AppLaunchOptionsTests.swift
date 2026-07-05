@@ -106,6 +106,28 @@ final class AppLaunchOptionsTests: XCTestCase {
         XCTAssertTrue(sut.printsHotKeyRegistration)
     }
 
+    func test_isHotKeyRegistrationProbeOnly_printHotKeyRegistration만_있으면_true() {
+        // given
+        let arguments = ["GazeRow", "--print-hotkey-registration"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertTrue(sut.isHotKeyRegistrationProbeOnly)
+    }
+
+    func test_isHotKeyRegistrationProbeOnly_다른평가옵션이_있으면_false() {
+        // given
+        let arguments = ["GazeRow", "--print-hotkey-registration", "--show-overlay-on-launch"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertFalse(sut.isHotKeyRegistrationProbeOnly)
+    }
+
     func test_init_printOverlayLabelMap_인자가없으면_false() {
         // given
         let arguments = ["GazeRow"]

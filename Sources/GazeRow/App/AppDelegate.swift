@@ -245,6 +245,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 OverlayLaunchReporter.failure(logCode: failure.logCode)
             )
             printOverlayFailureDetailsIfNeeded(failure)
+            presentOverlayStartFailureGuidanceIfNeeded(for: failure)
             requestAccessibilityPermissionIfNeeded(for: failure)
         }
     }
@@ -658,6 +659,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let statusText = statuses.map(String.init).joined(separator: ",")
         print("GAZEROW_HOTKEY_REGISTRATION statuses=\(statusText)")
         fflush(stdout)
+
+        if launchOptions.isHotKeyRegistrationProbeOnly {
+            NSApp.terminate(nil)
+        }
+    }
+
+    /// overlay 시작 실패가 조용히 묻히지 않도록 사용자가 해야 할 다음 행동을 설명한다.
+    private func presentOverlayStartFailureGuidanceIfNeeded(for failure: OverlaySessionStartFailure) {
+        guard !launchOptions.showsOverlayOnLaunch,
+              !failure.requiresAccessibilityPermission else {
+            return
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+
+        let guidance = OverlayStartFailureGuidance(failure: failure)
+        let alert = NSAlert()
+        alert.messageText = guidance.title
+        alert.informativeText = guidance.message
+        alert.addButton(withTitle: guidance.actionButtonTitle)
+        alert.runModal()
     }
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.

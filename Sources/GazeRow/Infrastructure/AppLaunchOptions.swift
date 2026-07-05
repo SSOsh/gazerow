@@ -12,6 +12,15 @@ struct AppLaunchOptions: Equatable {
     let clickOverlayLabel: String?
     let printsHotKeyRegistration: Bool
 
+    var isHotKeyRegistrationProbeOnly: Bool {
+        printsHotKeyRegistration
+            && !requestsAccessibilityPermission
+            && !showsOverlayOnLaunch
+            && targetBundleIdentifier == nil
+            && !printsOverlayLabelMap
+            && clickOverlayLabel == nil
+    }
+
     static var current: AppLaunchOptions {
         AppLaunchOptions(arguments: CommandLine.arguments)
     }
