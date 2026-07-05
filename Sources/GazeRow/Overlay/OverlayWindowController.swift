@@ -45,6 +45,14 @@ final class OverlayWindowController {
         panel?.isVisible == true
     }
 
+    /// 표시 중인 overlay panel이 앱 비활성 상태에서도 유지되는지 여부.
+    ///
+    /// LSUIElement 앱은 overlay 표시 시 자기 앱을 활성화하지 않으므로, panel이
+    /// `hidesOnDeactivate`로 자동 숨김되면 화면에 나타나지 않는다.
+    var persistsWhileAppInactive: Bool {
+        panel?.hidesOnDeactivate == false
+    }
+
     func show(
         targetFrame: CGRect,
         candidates: [ClickableCandidate],
@@ -93,6 +101,9 @@ final class OverlayWindowController {
         panel.isOpaque = false
         panel.hasShadow = false
         panel.ignoresMouseEvents = true
+        // NSPanel은 hidesOnDeactivate 기본값이 true라 앱 비활성 시 자동 숨김된다.
+        // overlay는 앱을 활성화하지 않고(사용자 앱 포커스 유지) 표시해야 하므로 끈다.
+        panel.hidesOnDeactivate = false
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
         self.panel = panel

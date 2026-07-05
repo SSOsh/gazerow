@@ -155,6 +155,27 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_show는_panel이_앱_비활성시_숨겨지지_않도록_설정한다() {
+        // given: LSUIElement 앱은 overlay 표시 시 앱을 활성화하지 않으므로,
+        // panel이 hidesOnDeactivate로 자동 숨김되면 화면에 나타나지 않는다.
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+
+        // when
+        sut.show(layout: makeLayout())
+
+        // then: 앱 비활성 상태에서도 overlay가 유지되어야 한다.
+        XCTAssertTrue(sut.persistsWhileAppInactive)
+
+        sut.close()
+    }
+
     func test_OverlayKeyboardEventTapContext_매핑되지_않는_keyDown은_통과시킨다() {
         // given
         let sut = OverlayKeyboardEventTapContext { _ in }
