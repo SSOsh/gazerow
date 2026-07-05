@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import SwiftUI
 
 /// transparent overlay panel lifecycle을 관리한다.
@@ -14,6 +15,7 @@ final class OverlayWindowController {
     private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
     private let screenFrameProvider: @MainActor () -> [CGRect]
     private let applicationActivator: @MainActor () -> Void
+    private let shouldUseKeyboardFocusFallback: @MainActor () -> Bool
     private let keyboardEventTapFactory: @MainActor (
         @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
     ) -> any OverlayKeyboardEventTapping
@@ -28,6 +30,7 @@ final class OverlayWindowController {
         applicationActivator: @escaping @MainActor () -> Void = {
             NSApp.activate(ignoringOtherApps: true)
         },
+        shouldUseKeyboardFocusFallback: @escaping @MainActor () -> Bool = OverlayWindowController.defaultShouldUseKeyboardFocusFallback,
         keyboardEventTapFactory: @escaping @MainActor (
             @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
         ) -> any OverlayKeyboardEventTapping = { handler in
@@ -38,6 +41,7 @@ final class OverlayWindowController {
         self.displayInfoProvider = displayInfoProvider
         self.screenFrameProvider = screenFrameProvider
         self.applicationActivator = applicationActivator
+        self.shouldUseKeyboardFocusFallback = shouldUseKeyboardFocusFallback
         self.keyboardEventTapFactory = keyboardEventTapFactory
     }
 
@@ -147,6 +151,12 @@ final class OverlayWindowController {
         onKeyboardCommand: @escaping @MainActor (FocusKeyboardCommand) -> Void,
         panel: OverlayPanel
     ) {
+        guard !shouldUseKeyboardFocusFallback() else {
+            AppLogger.overlay.info("overlay keyboard using key-window fallback")
+            activateKeyboardFocusFallback(panel: panel)
+            return
+        }
+
         let eventTap = keyboardEventTapFactory { command in
             onKeyboardCommand(command)
         }
@@ -154,12 +164,17 @@ final class OverlayWindowController {
 
         guard eventTap.start() else {
             AppLogger.overlay.info("overlay keyboard event tap unavailable; activating app fallback")
-            applicationActivator()
-            panel.makeKey()
+            activateKeyboardFocusFallback(panel: panel)
             return
         }
 
         AppLogger.overlay.info("overlay keyboard event tap enabled")
+    }
+
+    private func activateKeyboardFocusFallback(panel: OverlayPanel) {
+        applicationActivator()
+        panel.makeKeyAndOrderFront(nil)
+        panel.orderFrontRegardless()
     }
 
     private func render(layout: OverlayLayout, status: OverlayInteractionStatus) {
@@ -200,6 +215,19 @@ final class OverlayWindowController {
             visibleFrame: screen.map { mapper.axFrame(fromAppKitFrame: $0.visibleFrame) }
         )
     }
+
+    static func defaultShouldUseKeyboardFocusFallback() -> Bool {
+        guard let bundleIdentifier = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else {
+            return false
+        }
+
+        return keyboardFocusFallbackBundleIdentifiers.contains(bundleIdentifier)
+    }
+
+    private static let keyboardFocusFallbackBundleIdentifiers: Set<String> = [
+        "com.apple.Terminal",
+        "com.googlecode.iterm2"
+    ]
 }
 
 /// AX top-left screen frame과 AppKit bottom-left window frame을 변환한다.
@@ -288,15 +316,27 @@ protocol OverlayKeyboardEventTapping: AnyObject {
 /// @since 2026-07-04
 final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
     private let context: OverlayKeyboardEventTapContext
+    private let isSecureEventInputEnabled: () -> Bool
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
-    init(onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void) {
+    init(
+        isSecureEventInputEnabled: @escaping () -> Bool = {
+            IsSecureEventInputEnabled()
+        },
+        onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
+    ) {
         self.context = OverlayKeyboardEventTapContext(onKeyboardCommand: onKeyboardCommand)
+        self.isSecureEventInputEnabled = isSecureEventInputEnabled
     }
 
     func start() -> Bool {
         stop()
+
+        guard !isSecureEventInputEnabled() else {
+            AppLogger.overlay.info("overlay keyboard event tap blocked by secure event input")
+            return false
+        }
 
         let userInfo = Unmanaged.passUnretained(context).toOpaque()
         let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
