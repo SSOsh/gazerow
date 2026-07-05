@@ -111,9 +111,6 @@ final class OverlayWindowControllerTests: XCTestCase {
             applicationActivator: {
                 activateCallCount += 1
             },
-            shouldUseKeyboardFocusFallback: {
-                false
-            },
             keyboardEventTapFactory: { _ in
                 keyboardEventTap
             }
@@ -142,9 +139,6 @@ final class OverlayWindowControllerTests: XCTestCase {
             applicationActivator: {
                 activateCallCount += 1
             },
-            shouldUseKeyboardFocusFallback: {
-                false
-            },
             keyboardEventTapFactory: { _ in
                 keyboardEventTap
             }
@@ -168,9 +162,6 @@ final class OverlayWindowControllerTests: XCTestCase {
             displayInfoProvider: { _ in
                 OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
             },
-            shouldUseKeyboardFocusFallback: {
-                false
-            },
             keyboardEventTapFactory: { _ in
                 FakeOverlayKeyboardEventTap(startResult: true)
             }
@@ -181,36 +172,6 @@ final class OverlayWindowControllerTests: XCTestCase {
 
         // then: 앱 비활성 상태에서도 overlay가 유지되어야 한다.
         XCTAssertTrue(sut.persistsWhileAppInactive)
-
-        sut.close()
-    }
-
-    func test_show는_keyboardFocusFallback이면_eventTap없이_application을_activate한다() {
-        // given
-        var activateCallCount = 0
-        let keyboardEventTap = FakeOverlayKeyboardEventTap(startResult: true)
-        let sut = OverlayWindowController(
-            displayInfoProvider: { _ in
-                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
-            },
-            applicationActivator: {
-                activateCallCount += 1
-            },
-            shouldUseKeyboardFocusFallback: {
-                true
-            },
-            keyboardEventTapFactory: { _ in
-                keyboardEventTap
-            }
-        )
-
-        // when
-        sut.show(layout: makeLayout())
-
-        // then
-        XCTAssertEqual(activateCallCount, 1)
-        XCTAssertEqual(keyboardEventTap.startCallCount, 0)
-        XCTAssertTrue(sut.isVisible)
 
         sut.close()
     }
@@ -251,6 +212,22 @@ final class OverlayWindowControllerTests: XCTestCase {
         // given
         let sut = OverlayKeyboardEventTap(
             isSecureEventInputEnabled: { true },
+            onKeyboardCommand: { _ in }
+        )
+
+        // when
+        let result = sut.start()
+
+        // then
+        XCTAssertFalse(result)
+    }
+
+    func test_OverlayKeyboardEventTap_start는_inputMonitoring권한이_없고_요청거절이면_false() {
+        // given
+        let sut = OverlayKeyboardEventTap(
+            isSecureEventInputEnabled: { false },
+            hasListenEventAccess: { false },
+            requestListenEventAccess: { false },
             onKeyboardCommand: { _ in }
         )
 
