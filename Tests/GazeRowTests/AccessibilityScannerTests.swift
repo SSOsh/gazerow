@@ -360,7 +360,7 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.failedChildReadCount, 1)
     }
 
-    func test_scan_후보가_아닌_node는_비싼속성을_읽지_않음() {
+    func test_scan_각_node는_snapshot으로_한번만_속성을_읽음() {
         // given
         let button = FakeElement(
             snapshot: snapshot(
@@ -383,17 +383,17 @@ final class AccessibilityScannerTests: XCTestCase {
             return
         }
         XCTAssertEqual(scanResult.candidateCount, 1)
-        XCTAssertEqual(client.snapshotCount, 0)
-        XCTAssertEqual(client.roleCount, 2)
-        XCTAssertEqual(client.actionsCount, 2)
-        XCTAssertEqual(client.titleCount, 1)
-        XCTAssertEqual(client.frameCount, 1)
-        XCTAssertEqual(client.subroleCount, 1)
+        XCTAssertEqual(client.snapshotCount, 2)
+        XCTAssertEqual(client.roleCount, 0)
+        XCTAssertEqual(client.actionsCount, 0)
+        XCTAssertEqual(client.titleCount, 0)
+        XCTAssertEqual(client.frameCount, 0)
+        XCTAssertEqual(client.subroleCount, 0)
         XCTAssertEqual(client.valueCount, 0)
         XCTAssertEqual(client.helpCount, 0)
     }
 
-    func test_scan_image의_의미텍스트는_필요할때만_추가조회() {
+    func test_scan_image의_의미텍스트는_snapshot값으로_판정() {
         // given
         let decorativeImage = FakeElement(
             snapshot: AccessibilityElementSnapshot(
@@ -430,11 +430,11 @@ final class AccessibilityScannerTests: XCTestCase {
             return
         }
         XCTAssertEqual(scanResult.candidates.map(\.title), ["Explorer"])
-        XCTAssertEqual(client.snapshotCount, 0)
-        XCTAssertEqual(client.titleCount, 2)
-        XCTAssertEqual(client.valueCount, 1)
-        XCTAssertEqual(client.helpCount, 1)
-        XCTAssertEqual(client.frameCount, 1)
+        XCTAssertEqual(client.snapshotCount, 3)
+        XCTAssertEqual(client.titleCount, 0)
+        XCTAssertEqual(client.valueCount, 0)
+        XCTAssertEqual(client.helpCount, 0)
+        XCTAssertEqual(client.frameCount, 0)
     }
 
     private var targetContext: TargetContext {

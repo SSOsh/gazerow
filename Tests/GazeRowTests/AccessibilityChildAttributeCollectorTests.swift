@@ -7,28 +7,31 @@ import XCTest
 /// @since 2026-07-03
 final class AccessibilityChildAttributeCollectorTests: XCTestCase {
 
-    func test_collect_여러_child_attribute를_순서대로_합친다() {
+    func test_collect_첫_nonEmpty_attribute를_반환하고_뒤_attribute는_읽지않는다() {
         // given
         let sut = AccessibilityChildAttributeCollector<Int>(
             attributes: ["AXChildren", "AXVisibleChildren", "AXContents"]
         )
+        var readAttributes: [String] = []
 
         // when
         let result = sut.collect { attribute in
+            readAttributes.append(attribute)
             switch attribute {
             case "AXChildren":
-                .success([1, 2])
+                return .success([1, 2])
             case "AXVisibleChildren":
-                .success([3])
+                return .success([3])
             case "AXContents":
-                .success([4, 5])
+                return .success([4, 5])
             default:
-                .success([])
+                return .success([])
             }
         }
 
         // then
-        XCTAssertEqual(try? result.get(), [1, 2, 3, 4, 5])
+        XCTAssertEqual(try? result.get(), [1, 2])
+        XCTAssertEqual(readAttributes, ["AXChildren"])
     }
 
     func test_collect_앞_attribute가_실패해도_뒤_attribute가_있으면_성공한다() {

@@ -93,26 +93,26 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
     }
 
     private func makeCandidate(from element: Client.Element) -> ClickableCandidate? {
-        guard let role = client.role(of: element),
-              role != AccessibilityRole.secureTextField else {
+        let snapshot = client.snapshot(of: element)
+        guard let role = snapshot.role,
+              !snapshot.isSecureField else {
             return nil
         }
 
-        let actions = client.actions(of: element)
         let title: String?
-        if clickabilityPolicy.hasClickAction(actions)
+        if clickabilityPolicy.hasClickAction(snapshot.actions)
             || (role != AccessibilityRole.image && clickabilityPolicy.isClickableRole(role)) {
-            title = client.title(of: element)
+            title = snapshot.title
         } else if role == AccessibilityRole.image {
-            title = client.title(of: element)
-            guard hasSemanticText(in: element, title: title) else {
+            title = snapshot.title
+            guard hasSemanticText(in: snapshot) else {
                 return nil
             }
         } else {
             return nil
         }
 
-        guard let frame = client.frame(of: element),
+        guard let frame = snapshot.frame,
               frame.width > 0,
               frame.height > 0 else {
             return nil
@@ -120,23 +120,19 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
 
         return ClickableCandidate(
             role: role,
-            subrole: client.subrole(of: element),
+            subrole: snapshot.subrole,
             title: title,
             frame: frame,
-            actions: actions
+            actions: snapshot.actions
         )
     }
 
-    private func hasSemanticText(in element: Client.Element, title: String?) -> Bool {
-        if clickabilityPolicy.hasSemanticText(title: title, value: nil, help: nil) {
-            return true
-        }
-
-        if clickabilityPolicy.hasSemanticText(title: nil, value: client.value(of: element), help: nil) {
-            return true
-        }
-
-        return clickabilityPolicy.hasSemanticText(title: nil, value: nil, help: client.help(of: element))
+    private func hasSemanticText(in snapshot: AccessibilityElementSnapshot) -> Bool {
+        clickabilityPolicy.hasSemanticText(
+            title: snapshot.title,
+            value: snapshot.value,
+            help: snapshot.help
+        )
     }
 
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-/// AX child-like attribute를 순서대로 읽어 하나의 traversal 목록으로 합친다.
+/// AX child-like attribute를 순서대로 읽어 traversal 목록을 찾는다.
 ///
 /// 일부 Electron/WebView 앱은 `AXChildren` 외 attribute에 실제 콘텐츠 트리를 노출한다.
 ///
@@ -16,22 +16,19 @@ struct AccessibilityChildAttributeCollector<Element> {
     func collect(
         readElements: (String) -> Result<[Element], AccessibilityScanFailure>
     ) -> Result<[Element], AccessibilityScanFailure> {
-        var collectedElements: [Element] = []
         var firstFailure: AccessibilityScanFailure?
 
         for attribute in attributes {
             switch readElements(attribute) {
             case .success(let elements):
-                collectedElements.append(contentsOf: elements)
+                if !elements.isEmpty {
+                    return .success(elements)
+                }
             case .failure(let failure):
                 if firstFailure == nil {
                     firstFailure = failure
                 }
             }
-        }
-
-        if !collectedElements.isEmpty {
-            return .success(collectedElements)
         }
 
         if let firstFailure {

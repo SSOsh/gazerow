@@ -85,6 +85,33 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
     }
 
     func snapshot(of element: AXUIElement) -> AccessibilityElementSnapshot {
+        guard let values = copyMultipleAttributes(
+            [
+                kAXRoleAttribute,
+                kAXSubroleAttribute,
+                kAXTitleAttribute,
+                kAXValueAttribute,
+                kAXHelpAttribute,
+                kAXPositionAttribute,
+                kAXSizeAttribute
+            ],
+            from: element
+        ) else {
+            return fallbackSnapshot(of: element)
+        }
+
+        return AccessibilityElementSnapshot(
+            role: copyStringAttribute(kAXRoleAttribute, from: values),
+            subrole: copyStringAttribute(kAXSubroleAttribute, from: values),
+            title: copyStringAttribute(kAXTitleAttribute, from: values),
+            value: copyStringAttribute(kAXValueAttribute, from: values),
+            help: copyStringAttribute(kAXHelpAttribute, from: values),
+            frame: copyFrame(from: values),
+            actions: copyActionNames(from: element)
+        )
+    }
+
+    private func fallbackSnapshot(of element: AXUIElement) -> AccessibilityElementSnapshot {
         AccessibilityElementSnapshot(
             role: copyStringAttribute(kAXRoleAttribute, from: element),
             subrole: copyStringAttribute(kAXSubroleAttribute, from: element),
@@ -184,8 +211,31 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         return CGRect(origin: origin, size: size)
     }
 
+    private func copyFrame(from values: [String: AnyObject]) -> CGRect? {
+        guard let origin = copyPointAttribute(kAXPositionAttribute, from: values),
+              let size = copySizeAttribute(kAXSizeAttribute, from: values) else {
+            return nil
+        }
+
+        return CGRect(origin: origin, size: size)
+    }
+
     private func copyPointAttribute(_ attribute: String, from element: AXUIElement) -> CGPoint? {
         guard let value = copyAXValueAttribute(attribute, from: element),
+              AXValueGetType(value) == .cgPoint else {
+            return nil
+        }
+
+        var point = CGPoint.zero
+        guard AXValueGetValue(value, .cgPoint, &point) else {
+            return nil
+        }
+
+        return point
+    }
+
+    private func copyPointAttribute(_ attribute: String, from values: [String: AnyObject]) -> CGPoint? {
+        guard let value = copyAXValueAttribute(attribute, from: values),
               AXValueGetType(value) == .cgPoint else {
             return nil
         }
@@ -212,6 +262,42 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         return size
     }
 
+    private func copySizeAttribute(_ attribute: String, from values: [String: AnyObject]) -> CGSize? {
+        guard let value = copyAXValueAttribute(attribute, from: values),
+              AXValueGetType(value) == .cgSize else {
+            return nil
+        }
+
+        var size = CGSize.zero
+        guard AXValueGetValue(value, .cgSize, &size) else {
+            return nil
+        }
+
+        return size
+    }
+
+    private func copyMultipleAttributes(
+        _ attributes: [String],
+        from element: AXUIElement
+    ) -> [String: AnyObject]? {
+        var values: CFArray?
+        let error = AXUIElementCopyMultipleAttributeValues(
+            element,
+            attributes as CFArray,
+            AXCopyMultipleAttributeOptions(rawValue: 0),
+            &values
+        )
+
+        guard error == .success,
+              let valueArray = values as? [AnyObject] else {
+            return nil
+        }
+
+        return Dictionary(
+            uniqueKeysWithValues: zip(attributes, valueArray)
+        )
+    }
+
     private func copyAXValueAttribute(_ attribute: String, from element: AXUIElement) -> AXValue? {
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(
@@ -222,6 +308,15 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
 
         guard error == .success,
               let value,
+              CFGetTypeID(value) == AXValueGetTypeID() else {
+            return nil
+        }
+
+        return (value as! AXValue)
+    }
+
+    private func copyAXValueAttribute(_ attribute: String, from values: [String: AnyObject]) -> AXValue? {
+        guard let value = values[attribute],
               CFGetTypeID(value) == AXValueGetTypeID() else {
             return nil
         }
@@ -242,6 +337,10 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         }
 
         return value as? String
+    }
+
+    private func copyStringAttribute(_ attribute: String, from values: [String: AnyObject]) -> String? {
+        values[attribute] as? String
     }
 
     private func copyActionNames(from element: AXUIElement) -> [String] {
