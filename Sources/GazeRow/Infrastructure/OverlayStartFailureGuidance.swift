@@ -27,13 +27,13 @@ struct OverlayStartFailureGuidance: Equatable {
         case (.sessionDisabled, .korean):
             (
                 "GazeRow가 비활성화되어 있습니다",
-                "메뉴바의 Enable GazeRow를 켠 뒤 다시 Control+Option+Space를 누르세요.",
+                "메뉴바의 Enable GazeRow를 켠 뒤 다시 Command+Shift+Space를 누르세요.",
                 "확인"
             )
         case (.sessionDisabled, .english):
             (
                 "GazeRow is disabled",
-                "Enable GazeRow from the menu bar, then press Control+Option+Space again.",
+                "Enable GazeRow from the menu bar, then press Command+Shift+Space again.",
                 "OK"
             )
         case (.targetResolutionFailed(.noFrontmostApplication), .korean),
@@ -43,7 +43,7 @@ struct OverlayStartFailureGuidance: Equatable {
              (.targetResolutionFailed(.invalidWindowFrame), .korean):
             (
                 "오버레이를 띄울 창을 찾지 못했습니다",
-                "클릭하려는 앱 창을 한 번 클릭한 뒤 다시 Control+Option+Space를 누르세요. 메뉴바, Control Center, 알림 센터 위에서는 대상 창을 찾지 못할 수 있습니다.",
+                "클릭하려는 앱 창을 한 번 클릭한 뒤 다시 Command+Shift+Space를 누르세요. 메뉴바, Control Center, 알림 센터 위에서는 대상 창을 찾지 못할 수 있습니다.",
                 "확인"
             )
         case (.targetResolutionFailed(.noFrontmostApplication), .english),
@@ -53,7 +53,7 @@ struct OverlayStartFailureGuidance: Equatable {
              (.targetResolutionFailed(.invalidWindowFrame), .english):
             (
                 "No target window found",
-                "Click the app window you want to control, then press Control+Option+Space again. Menu bar, Control Center, and Notification Center surfaces may not expose a target window.",
+                "Click the app window you want to control, then press Command+Shift+Space again. Menu bar, Control Center, and Notification Center surfaces may not expose a target window.",
                 "OK"
             )
         case (.targetResolutionFailed(.accessibilityPermissionDenied), .korean),
@@ -73,13 +73,13 @@ struct OverlayStartFailureGuidance: Equatable {
         case (.scanFailed, .korean):
             (
                 "클릭 가능한 요소를 읽지 못했습니다",
-                "대상 앱 창이 응답 중인지 확인한 뒤 다시 Control+Option+Space를 누르세요.",
+                "대상 앱 창이 응답 중인지 확인한 뒤 다시 Command+Shift+Space를 누르세요.",
                 "확인"
             )
         case (.scanFailed, .english):
             (
                 "Could not read clickable elements",
-                "Make sure the target app window is responsive, then press Control+Option+Space again.",
+                "Make sure the target app window is responsive, then press Command+Shift+Space again.",
                 "OK"
             )
         case (.noCandidates, .korean):

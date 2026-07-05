@@ -2,7 +2,7 @@ import AppKit
 
 /// gaze focus activation 단축키(Control+Shift+Space) 정의와 매칭 규칙.
 ///
-/// overlay activation(Command+Shift+Space / Control+Option+Space)과 겹치지 않는
+/// overlay activation(Command+Shift+Space / Control+Option+Command+Space)과 겹치지 않는
 /// 전용 조합을 사용한다. 입력 모델은 `OverlayActivationShortcutInput`을 재사용한다.
 ///
 /// @author suho.do

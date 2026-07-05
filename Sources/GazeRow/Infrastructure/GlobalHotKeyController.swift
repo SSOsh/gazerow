@@ -10,7 +10,7 @@ import Carbon
 /// @since 2026-07-03
 @MainActor
 final class GlobalHotKeyController {
-    private let definition: GlobalHotKeyDefinition
+    nonisolated let definition: GlobalHotKeyDefinition
     private let onPress: @MainActor () -> Void
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
@@ -78,8 +78,45 @@ final class GlobalHotKeyController {
         }
     }
 
-    fileprivate func handlePressedHotKey() {
+    /// 발생한 hotkey 이벤트의 `EventHotKeyID`가 이 controller의 정의와 일치할 때만
+    /// `onPress()`를 호출한다.
+    ///
+    /// 하나의 application event target에 여러 controller가 같은 handler를 설치하므로,
+    /// 각 controller는 자신에게 해당하는 이벤트에만 반응하고 나머지는 핸들러 체인으로
+    /// 전파되도록 한다.
+    @discardableResult
+    func handlePressedHotKey(id: EventHotKeyID) -> Bool {
+        guard matchesRegisteredDefinition(id) else {
+            return false
+        }
+
         onPress()
+        return true
+    }
+
+    /// hotkey 이벤트가 이 controller의 등록 정의에 속하는지 판정한다.
+    ///
+    /// Carbon event handler(비-isolated 컨텍스트)에서 필터로 사용한다.
+    nonisolated func matchesRegisteredDefinition(_ id: EventHotKeyID) -> Bool {
+        Self.matchesDefinition(
+            eventSignature: id.signature,
+            eventIdentifier: id.id,
+            definitionSignature: definition.signature,
+            definitionIdentifier: definition.identifier
+        )
+    }
+
+    /// hotkey 이벤트가 특정 정의에 속하는지 판정하는 순수 함수.
+    ///
+    /// Carbon 의존 없이 단위 테스트할 수 있도록 signature/identifier 비교만 수행한다.
+    nonisolated static func matchesDefinition(
+        eventSignature: OSType,
+        eventIdentifier: UInt32,
+        definitionSignature: OSType,
+        definitionIdentifier: UInt32
+    ) -> Bool {
+        eventSignature == definitionSignature
+            && eventIdentifier == definitionIdentifier
     }
 }
 
@@ -96,7 +133,7 @@ struct GlobalHotKeyDefinition: Equatable {
     )
     static let fallbackOverlayActivation = GlobalHotKeyDefinition(
         keyCode: OverlayActivationKeyCode.space,
-        requiredModifiers: [.control, .option],
+        requiredModifiers: [.control, .option, .command],
         signature: Self.fourCharacterCode("GzRw"),
         identifier: 2
     )
@@ -142,17 +179,37 @@ struct GlobalHotKeyDefinition: Equatable {
     }
 }
 
-private let hotKeyEventHandler: EventHandlerUPP = { _, _, userData in
-    guard let userData else {
-        return noErr
+private let hotKeyEventHandler: EventHandlerUPP = { _, event, userData in
+    guard let userData, let event else {
+        return OSStatus(eventNotHandledErr)
+    }
+
+    var hotKeyID = EventHotKeyID()
+    let status = GetEventParameter(
+        event,
+        EventParamName(kEventParamDirectObject),
+        EventParamType(typeEventHotKeyID),
+        nil,
+        MemoryLayout<EventHotKeyID>.size,
+        nil,
+        &hotKeyID
+    )
+
+    guard status == noErr else {
+        return OSStatus(eventNotHandledErr)
     }
 
     let controller = Unmanaged<GlobalHotKeyController>
         .fromOpaque(userData)
         .takeUnretainedValue()
 
+    // 이 controller의 정의와 일치하지 않으면 다른 controller가 처리하도록 전파한다.
+    guard controller.matchesRegisteredDefinition(hotKeyID) else {
+        return OSStatus(eventNotHandledErr)
+    }
+
     Task { @MainActor in
-        controller.handlePressedHotKey()
+        _ = controller.handlePressedHotKey(id: hotKeyID)
     }
 
     return noErr

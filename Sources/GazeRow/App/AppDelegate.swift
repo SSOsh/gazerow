@@ -405,22 +405,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
 
-            if GazeActivationShortcut.matches(input) {
+            switch overlayActivationMonitorRoute(for: input) {
+            case .gaze:
                 Task { @MainActor in
                     self?.showGazeOverlay()
                 }
-                return
-            }
-
-            guard OverlayActivationShortcut.matchesAny(input) else {
+            case .consumeOverlayActivation:
+                // overlay activation은 Carbon hotkey가 담당한다. 중복 실행 방지를 위해
+                // monitor에서는 아무 것도 하지 않는다.
+                break
+            case .windowControl:
                 Task { @MainActor in
                     self?.handleWindowControlShortcut(input)
                 }
-                return
-            }
-
-            Task { @MainActor in
-                self?.showOverlay()
             }
         }
 
@@ -432,24 +429,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             let input = OverlayActivationShortcutInput(event: event)
 
-            if GazeActivationShortcut.matches(input) {
+            switch overlayActivationMonitorRoute(for: input) {
+            case .gaze:
                 Task { @MainActor in
                     self?.showGazeOverlay()
                 }
                 return nil
-            }
-
-            guard OverlayActivationShortcut.matchesAny(input) else {
+            case .consumeOverlayActivation:
+                // Carbon hotkey가 activation을 담당하므로 이벤트만 소비한다.
+                return nil
+            case .windowControl:
                 Task { @MainActor in
                     self?.handleWindowControlShortcut(input)
                 }
                 return event
             }
-
-            Task { @MainActor in
-                self?.showOverlay()
-            }
-            return nil
         }
     }
 
