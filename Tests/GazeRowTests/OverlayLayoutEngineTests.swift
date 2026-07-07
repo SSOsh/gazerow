@@ -62,6 +62,29 @@ final class OverlayLayoutEngineTests: XCTestCase {
         XCTAssertEqual(layout.labels[27].text, "BB")
     }
 
+    func test_makeLayout_prefixFree_전략은_대부분_후보에_1글자_label을_배정() {
+        // given
+        let candidates = (0..<28).map { index in
+            makeCandidate(frame: CGRect(x: 20 + index * 4, y: 120, width: 2, height: 2))
+        }
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(labelStrategy: .prefixFree)
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
+            candidates: candidates
+        )
+
+        // then
+        XCTAssertEqual(layout.labels[0].text, "A")
+        XCTAssertEqual(layout.labels[24].text, "N")
+        XCTAssertEqual(layout.labels[25].text, "MA")
+        let singleCount = layout.labels.filter { $0.text.count == 1 }.count
+        XCTAssertEqual(singleCount, 25)
+    }
+
     func test_makeLayout_labelFrame을_targetBounds안으로_clamp() throws {
         // given
         let candidate = makeCandidate(frame: CGRect(x: 0, y: 0, width: 8, height: 8))
@@ -145,6 +168,128 @@ final class OverlayLayoutEngineTests: XCTestCase {
 
         // then
         XCTAssertEqual(layout.metrics.occlusionCount, 1)
+    }
+
+    func test_makeLayout_adaptive_배치는_인접_candidate의_label_겹침을_해소() {
+        // given
+        let first = makeCandidate(frame: CGRect(x: 100, y: 120, width: 20, height: 20))
+        let second = makeCandidate(frame: CGRect(x: 102, y: 122, width: 20, height: 20))
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(
+                labelSize: CGSize(width: 30, height: 20),
+                labelSpacing: 4,
+                labelPlacement: .adaptive
+            )
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 300, height: 240),
+            candidates: [first, second]
+        )
+
+        // then
+        XCTAssertEqual(layout.metrics.collisionCount, 0)
+        XCTAssertFalse(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
+    }
+
+    func test_makeLayout_adaptive_배치는_작은_candidate의_occlusion을_방지() {
+        // given
+        let candidate = makeCandidate(frame: CGRect(x: 20, y: 20, width: 10, height: 10))
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(
+                labelSize: CGSize(width: 30, height: 20),
+                labelPlacement: .adaptive
+            )
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 200, height: 200),
+            candidates: [candidate]
+        )
+
+        // then
+        XCTAssertEqual(layout.metrics.occlusionCount, 0)
+        XCTAssertFalse(layout.labels[0].labelFrame.intersects(layout.labels[0].candidateFrame))
+    }
+
+    func test_makeLayout_기본_centered_배치는_인접_candidate_겹침을_계측만() {
+        // given
+        let first = makeCandidate(frame: CGRect(x: 100, y: 120, width: 20, height: 20))
+        let second = makeCandidate(frame: CGRect(x: 102, y: 122, width: 20, height: 20))
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(
+                labelSize: CGSize(width: 30, height: 20),
+                labelSpacing: 4
+            )
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 300, height: 240),
+            candidates: [first, second]
+        )
+
+        // then
+        XCTAssertEqual(layout.metrics.collisionCount, 1)
+        XCTAssertTrue(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
+    }
+
+    func test_makeLayout_자동_label을_공간순으로_배정하되_id는_원본index_보존() {
+        // given
+        let rightCandidate = makeCandidate(frame: CGRect(x: 300, y: 100, width: 20, height: 20))
+        let leftCandidate = makeCandidate(frame: CGRect(x: 100, y: 100, width: 20, height: 20))
+        let sut = OverlayLayoutEngine()
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
+            candidates: [rightCandidate, leftCandidate]
+        )
+
+        // then
+        XCTAssertEqual(layout.labels[0].id, 0)
+        XCTAssertEqual(layout.labels[1].id, 1)
+        XCTAssertEqual(layout.labels[0].text, "B")
+        XCTAssertEqual(layout.labels[1].text, "A")
+    }
+
+    func test_makeLayout_공간정렬_비활성화하면_DFS_스캔순으로_label을_배정() {
+        // given
+        let rightCandidate = makeCandidate(frame: CGRect(x: 300, y: 100, width: 20, height: 20))
+        let leftCandidate = makeCandidate(frame: CGRect(x: 100, y: 100, width: 20, height: 20))
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(ordersLabelsSpatially: false)
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
+            candidates: [rightCandidate, leftCandidate]
+        )
+
+        // then
+        XCTAssertEqual(layout.labels[0].text, "A")
+        XCTAssertEqual(layout.labels[1].text, "B")
+    }
+
+    func test_makeLayout_외부_label_주입시_공간정렬을_무시하고_index대응_유지() {
+        // given
+        let rightCandidate = makeCandidate(frame: CGRect(x: 300, y: 100, width: 20, height: 20))
+        let leftCandidate = makeCandidate(frame: CGRect(x: 100, y: 100, width: 20, height: 20))
+        let sut = OverlayLayoutEngine()
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
+            candidates: [rightCandidate, leftCandidate],
+            labels: ["X", "Y"]
+        )
+
+        // then
+        XCTAssertEqual(layout.labels[0].text, "X")
+        XCTAssertEqual(layout.labels[1].text, "Y")
     }
 
     private func makeCandidate(frame: CGRect) -> ClickableCandidate {

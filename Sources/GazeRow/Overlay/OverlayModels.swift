@@ -4,22 +4,45 @@ import CoreGraphics
 ///
 /// @author suho.do
 /// @since 2026-07-02
+/// overlay label 배치 전략.
+///
+/// @author suho.do
+/// @since 2026-07-07
+enum LabelPlacement: Equatable {
+    /// 후보 중앙에 겹쳐 배치. 겹침·가림은 계측만 한다. (현행 기본)
+    case centered
+    /// 후보 모서리 바깥에 배치해 occlusion을 피하고, 겹치면 밀어내 collision을 해소한다.
+    case adaptive
+}
+
 struct OverlayLayoutConfiguration: Equatable {
     let labelSize: CGSize
     let labelSpacing: CGFloat
     let edgeInset: CGFloat
     let collisionShiftLimit: Int
+    let ordersLabelsSpatially: Bool
+    let rowBandHeight: CGFloat
+    let labelPlacement: LabelPlacement
+    let labelStrategy: LabelStrategy
 
     init(
         labelSize: CGSize = CGSize(width: 32, height: 22),
         labelSpacing: CGFloat = 6,
         edgeInset: CGFloat = 4,
-        collisionShiftLimit: Int = 12
+        collisionShiftLimit: Int = 12,
+        ordersLabelsSpatially: Bool = true,
+        rowBandHeight: CGFloat = 24,
+        labelPlacement: LabelPlacement = .centered,
+        labelStrategy: LabelStrategy = .fixedWidth
     ) {
         self.labelSize = labelSize
         self.labelSpacing = max(0, labelSpacing)
         self.edgeInset = max(0, edgeInset)
         self.collisionShiftLimit = max(0, collisionShiftLimit)
+        self.ordersLabelsSpatially = ordersLabelsSpatially
+        self.rowBandHeight = max(1, rowBandHeight)
+        self.labelPlacement = labelPlacement
+        self.labelStrategy = labelStrategy
     }
 }
 

@@ -9,17 +9,20 @@ struct OverlayView: View {
     let showsBoundary: Bool
     let focusedLabelID: Int?
     let status: OverlayInteractionStatus
+    let appearance: OverlayAppearance
 
     init(
         layout: OverlayLayout,
         showsBoundary: Bool = true,
         focusedLabelID: Int? = nil,
-        status: OverlayInteractionStatus = OverlayInteractionStatus()
+        status: OverlayInteractionStatus = OverlayInteractionStatus(),
+        appearance: OverlayAppearance = OverlayAppearance()
     ) {
         self.layout = layout
         self.showsBoundary = showsBoundary
         self.focusedLabelID = focusedLabelID
         self.status = status
+        self.appearance = appearance
     }
 
     var body: some View {
@@ -28,14 +31,15 @@ struct OverlayView: View {
         ZStack(alignment: .topLeading) {
             if showsBoundary {
                 Rectangle()
-                    .stroke(Color.accentColor.opacity(0.75), lineWidth: 2)
+                    .stroke(Color.accentColor.opacity(appearance.boundaryOpacity), lineWidth: 2)
                     .frame(width: layout.localBounds.width, height: layout.localBounds.height)
             }
 
             ForEach(layout.labels) { label in
                 OverlayTargetMarkerView(
                     label: label,
-                    isFocused: label.id == focusedLabelID
+                    isFocused: label.id == focusedLabelID,
+                    appearance: appearance
                 )
                 .frame(width: layout.localBounds.width, height: layout.localBounds.height)
             }
@@ -43,7 +47,8 @@ struct OverlayView: View {
             ForEach(layout.labels) { label in
                 OverlayLabelView(
                     label: label,
-                    isFocused: label.id == focusedLabelID
+                    isFocused: label.id == focusedLabelID,
+                    appearance: appearance
                 )
                     .frame(width: label.labelFrame.width, height: label.labelFrame.height)
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
@@ -64,19 +69,20 @@ struct OverlayView: View {
 private struct OverlayLabelView: View {
     let label: OverlayLabel
     let isFocused: Bool
+    let appearance: OverlayAppearance
 
     var body: some View {
         HStack(spacing: 1) {
             if let prefix = shortcutPrefix {
                 Text(prefix)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.72))
+                    .foregroundStyle(Color.white.opacity(0.72 * appearance.labelTextOpacity))
                     .baselineOffset(1)
             }
 
             Text(shortcutKey)
                 .font(.system(size: 15, weight: .heavy, design: .monospaced))
-                .foregroundStyle(Color.white)
+                .foregroundStyle(Color.white.opacity(appearance.labelTextOpacity))
         }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(backgroundColor, in: RoundedRectangle(cornerRadius: 5))
@@ -88,7 +94,9 @@ private struct OverlayLabelView: View {
     }
 
     private var backgroundColor: Color {
-        isFocused ? Color.orange.opacity(0.96) : Color.accentColor.opacity(0.92)
+        isFocused
+            ? Color.orange.opacity(0.96)
+            : Color.accentColor.opacity(appearance.labelBackgroundOpacity)
     }
 
     private var shortcutPrefix: String? {
@@ -107,6 +115,7 @@ private struct OverlayLabelView: View {
 private struct OverlayTargetMarkerView: View {
     let label: OverlayLabel
     let isFocused: Bool
+    let appearance: OverlayAppearance
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -140,7 +149,9 @@ private struct OverlayTargetMarkerView: View {
     }
 
     private var fillColor: Color {
-        isFocused ? Color.orange.opacity(0.18) : Color.accentColor.opacity(0.06)
+        isFocused
+            ? Color.orange.opacity(0.18)
+            : Color.accentColor.opacity(appearance.markerFillOpacity)
     }
 
     private var strokeColor: Color {
