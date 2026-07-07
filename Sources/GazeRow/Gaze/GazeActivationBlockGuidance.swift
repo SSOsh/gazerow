@@ -68,8 +68,13 @@ struct GazeActivationBlockGuidance: Equatable {
         case (.calibrationUnavailable, .english):
             title = "Calibration required"
             message = """
-            Calibrate your gaze first so GazeRow can map your eyes to the screen. \
-            Open Settings and choose Calibrate to look at a few dots.
+            Gaze focus needs a one-time calibration to map your eyes to the screen. Follow these steps:
+
+            1. Click "Open Settings" below.
+            2. In Settings, find "Gaze calibration" and click "Calibrate…".
+            3. Look at each dot as it appears; samples are saved automatically.
+
+            When calibration finishes, run gaze focus with Control+Shift+Space.
             """
             actionButtonTitle = "Open Settings"
             cancelButtonTitle = "Cancel"
@@ -77,8 +82,13 @@ struct GazeActivationBlockGuidance: Equatable {
         case (.calibrationUnavailable, .korean):
             title = "캘리브레이션이 필요합니다"
             message = """
-            GazeRow가 눈 위치를 화면 좌표에 매핑하려면 먼저 gaze 캘리브레이션이 필요합니다. \
-            설정을 열고 캘리브레이션을 선택한 뒤 몇 개의 점을 바라보세요.
+            Gaze focus를 쓰려면 눈과 화면을 맞추는 캘리브레이션을 한 번 해야 합니다. 다음 순서로 진행하세요.
+
+            1. 아래 '설정 열기'를 누릅니다.
+            2. Settings의 'Gaze 캘리브레이션' 항목에서 '캘리브레이션…' 버튼을 누릅니다.
+            3. 화면에 나타나는 점을 순서대로 잠시 바라보면 자동으로 저장됩니다.
+
+            캘리브레이션이 끝나면 Control+Shift+Space로 gaze focus를 실행할 수 있습니다.
             """
             actionButtonTitle = "설정 열기"
             cancelButtonTitle = "취소"

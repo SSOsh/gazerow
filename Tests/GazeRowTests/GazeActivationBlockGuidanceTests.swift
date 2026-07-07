@@ -54,6 +54,29 @@ final class GazeActivationBlockGuidanceTests: XCTestCase {
         XCTAssertTrue(sut.message.contains("캘리브레이션"))
     }
 
+    func test_캘리브레이션안내는_구체적_단계와_버튼을_설명한다() {
+        // given
+        let korean = GazeActivationBlockGuidance(
+            reason: .calibrationUnavailable,
+            language: .korean
+        )
+        let english = GazeActivationBlockGuidance(
+            reason: .calibrationUnavailable,
+            language: .english
+        )
+
+        // then: Settings 위치 · 실제 버튼 라벨 · 활성화 단축키를 단계별로 안내한다.
+        XCTAssertTrue(korean.message.contains("Gaze 캘리브레이션"))
+        XCTAssertTrue(korean.message.contains("캘리브레이션…"))
+        XCTAssertTrue(korean.message.contains("Control+Shift+Space"))
+        XCTAssertTrue(korean.message.contains("1."))
+
+        XCTAssertTrue(english.message.contains("Gaze calibration"))
+        XCTAssertTrue(english.message.contains("Calibrate…"))
+        XCTAssertTrue(english.message.contains("Control+Shift+Space"))
+        XCTAssertTrue(english.message.contains("1."))
+    }
+
     func test_사유마다_설명이_구분된다() {
         // given
         let optIn = GazeActivationBlockGuidance(reason: .optInDisabled)
