@@ -1,184 +1,142 @@
 # GazeRow
 
-macOS 키보드 클릭 유틸리티 (Homerow 스타일). 화면 위의 클릭 가능한 UI 요소를
-자동으로 찾아 label을 붙이고, 사용자가 키보드로 focus와 click을 수행하게 한다.
+키보드만으로 화면 위 버튼·링크·메뉴를 클릭하는 macOS 유틸리티입니다.
+단축키로 overlay를 켜면 클릭 가능한 요소마다 문자 라벨이 붙고, 라벨을 입력해
+focus를 맞춘 뒤 키로 확인하면 마우스 없이 클릭됩니다. (Homerow 스타일)
 
-> **현재 상태**: TICKET-001부터 TICKET-009까지 MVP core/UX 구현 완료.
-> 메뉴바 앱 shell + Settings window + Accessibility 권한 UX + target resolver
-> + Accessibility scanner + overlay layout/window 기반 + focus engine
-> + AXPress click executor + local interaction logging/debug export
-> + kill switch + onboarding + known limitations 문서화.
-> TICKET-010 사전 검증과 TICKET-011 freeze 준비 산출물은 완료했으며,
-> TICKET-010 수동 평가 착수 중 확인된 end-to-end overlay activation/click
-> runtime wiring 차단과 Accessibility 권한 차단은 해소했다. 5개 앱
-> overlay activation smoke와 5개 앱 실제 click task를 수행했다. 초기 결과는
-> Safari/Chrome/System Settings pass, Finder/VS Code fail이었지만,
-> candidate coverage, launch-option click result stdout, overlay panel 좌표 변환,
-> `--click-overlay-label`, `AXShowDefaultUI` 실행 지원을 보강한 뒤
-> Finder/VS Code fixed task 재평가도 pass했다. 30분 crash-free session도
-> 통과했다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했다.
+*이 문서의 [영어 버전](README.en.md)도 있습니다.*
 
-## MVP 포지셔닝
+- 마우스에 손을 떼지 않고 앱을 조작하고 싶은 키보드 중심 사용자를 위한 도구입니다.
+- macOS 손쉬운 사용(Accessibility) 트리를 읽어 동작하며, 모든 데이터는 로컬에만 있습니다.
+- 접근성/보조공학 제품이나 의료·안전 필수 용도로 설계된 제품이 아닙니다.
 
-- 로컬 macOS keyboard-click utility
-- Baseline MVP는 gaze(카메라) 없이 동작
-- gaze는 Post-MVP experimental 기능으로 분리
-- 접근성/의료 보조 제품으로 포지셔닝하지 않음
+> **개발 진행 중**입니다. 아직 정식 배포판은 없으며, 현재는 소스에서 직접 빌드해
+> 사용합니다. 앱 지원 범위와 동작은 계속 바뀔 수 있습니다.
 
-## 기본 결정값
+---
 
-| 항목 | 값 |
+## 빠른 시작
+
+1. **앱 실행** — 실행하면 Dock 아이콘 없이 메뉴바에 커서 아이콘이 나타납니다.
+2. **권한 허용** — 첫 실행 안내(또는 Settings)에서 **손쉬운 사용 권한**을 허용하고
+   **다시 확인**을 누릅니다. 이 권한이 있어야 overlay와 클릭이 동작합니다.
+3. **Overlay 열기** — 조작하려는 앱을 맨 앞에 둔 상태에서 `Command+Shift+Space`를 누릅니다.
+4. **라벨 입력** — 클릭할 요소 위의 문자 라벨을 그대로 입력합니다.
+5. **확인 클릭** — `Return`을 누르면 focus된 요소가 클릭됩니다.
+
+> 카메라·시선 추적은 필요 없습니다. gaze 기능은 실험 기능이며 기본적으로 꺼져 있습니다.
+
+---
+
+## 사용 방법
+
+### Overlay 활성화
+
+| 동작 | 단축키 |
 | --- | --- |
-| 앱 이름 | GazeRow |
-| Bundle Identifier | `dev.local.gazerow` |
-| 최소 macOS 버전 | macOS 14 |
-| 앱 형태 | 메뉴바 앱(`.accessory`) + Settings window |
-| overlay 활성화 | Command+Shift+Space(기본) / Control+Option+Command+Space(보조) 또는 메뉴바 "Show Overlay" 메뉴 |
-| 윈도우 컨트롤 고정키 | Control+Option+C(닫기) / Control+Option+M(최소화) / Control+Option+Z(줌) |
-| UI 기술 | SwiftUI(Settings) + AppKit(status item / lifecycle) |
+| Overlay 표시 (기본) | `Command+Shift+Space` |
+| Overlay 표시 (보조) | `Control+Option+Command+Space` |
+| 메뉴바에서 표시 | 메뉴바 아이콘 → **Show Overlay** |
 
-## 프로젝트 구조
+### Overlay 안에서 조작
 
-```text
-gazerow/
-  Package.swift
-  Sources/GazeRow/
-    App/
-      GazeRowApp.swift      # @main 진입점, Settings scene
-      AppDelegate.swift     # AppKit lifecycle, 메뉴바 status item
-    UI/
-      SettingsView.swift      # Settings window 본문
-      OnboardingView.swift    # 첫 실행 안내 시트
-      KnownLimitationsView.swift # 제한사항/앱 지원 열람 시트
-    Infrastructure/
-      AppState.swift          # 앱 메타데이터, MVP 상태, 권한 안내 문구
-      AppLogger.swift         # OSLog wrapper (lifecycle / session)
-      DebugFeatureVisibility.swift # debug 전용 UI 기본 숨김 정책
-      DiagnosticsActionFeedback.swift # diagnostics 수동 액션 결과 표시 상태
-      MVPDefaultPolicy.swift   # MVP freeze 기본값 자동 감사
-      OverlayActivationShortcut.swift # Command+Shift+Space overlay activation shortcut
-      PermissionManager.swift # Accessibility 권한 조회/요청/재확인
-      SessionController.swift # kill switch 세션 상태 (메뉴바/Settings 공유)
-      OnboardingState.swift   # 첫 실행 완료 여부 (UserDefaults)
-      AppContent.swift        # 사용자 노출 정적 콘텐츠 (문구/제한/앱 지원)
-    Targeting/
-      TargetResolver.swift    # frontmost app + focused window resolve
-      TargetModels.swift      # target app/window/context/failure 모델
-      AccessibilityTargetClient.swift
-      FrontmostApplicationProvider.swift
-    Scanning/
-      AccessibilityScanner.swift
-      AccessibilityClickabilityPolicy.swift
-      AccessibilityScanModels.swift
-      AccessibilityElementClient.swift
-      AXAccessibilityElementClient.swift
-    Overlay/
-      OverlayWindowController.swift
-      OverlayView.swift
-      OverlayLayoutEngine.swift
-      OverlayCoordinateMapper.swift
-      OverlayModels.swift
-    WindowControl/                     # 고정키 → 표준 윈도우 버튼(닫기/최소화/줌) AXPress
-      WindowControlAction.swift        # close/minimize/zoom → AX 버튼 attribute 매핑
-      WindowControlShortcut.swift      # 고정키 정의 + keyDown 매칭
-      WindowControlShortcutSet.swift   # 기본 Control+Option 매핑 + 입력 해석
-      WindowControlResult.swift        # 실행 결과 모델
-      WindowControlButtonPressing.swift # AX 버튼 press client (focused window)
-      WindowControlCommandDispatcher.swift # 입력 → 해석 → press 위임
-    Focus/
-      LabelGenerator.swift
-      FocusEngine.swift
-      FocusModels.swift
-      FocusKeyboardCommand.swift
-    Clicking/
-      ClickExecutor.swift
-      ClickModels.swift
-      ClickRiskClassifier.swift
-      ClickExecutionClient.swift
-      AXClickExecutionClient.swift
-    Logging/
-      InteractionEvent.swift
-      InteractionLogStore.swift
-      WindowTitleHasher.swift
-      SessionSalt.swift
-      DebugExportManager.swift
-      LogDirectory.swift
-    Runtime/
-      OverlaySessionController.swift # 메뉴바 activation → target resolve → scan → overlay show
-      OverlaySessionClickExecutor.swift # focused label confirm → AXPress click execution
-      OverlayLaunchReporter.swift # 평가 런치 옵션용 overlay/click stdout reporter
-  Tests/GazeRowTests/
-    PermissionManagerTests.swift
-    SessionControllerTests.swift
-    OnboardingStateTests.swift
-    TargetResolverTests.swift
-    AccessibilityScannerTests.swift
-    OverlayLayoutEngineTests.swift
-    OverlaySessionClickTargetResolverTests.swift
-    OverlaySessionControllerTests.swift
-    LabelGeneratorTests.swift
-    FocusEngineTests.swift
-    FocusKeyboardCommandMapperTests.swift
-    ClickExecutorTests.swift
-    ClickRiskClassifierTests.swift
-    DebugFeatureVisibilityTests.swift
-    DiagnosticsActionFeedbackTests.swift
-    MVPDefaultPolicyTests.swift
-    OverlayActivationShortcutTests.swift
-    InteractionLogStoreTests.swift
-    WindowTitleHasherTests.swift
-    DebugExportManagerTests.swift
-  plans/                      # 계획/티켓/결정 문서
-  scripts/
-    verify_mvp_freeze.sh      # TICKET-011 freeze 사전 검증
-    evaluate_overlay_target.sh # Post-MVP 앱 overlay/click 평가 실행
-```
+Overlay를 열면 실행 가능한 요소마다 문자 라벨(A, B, … AA, AB …)이 붙습니다.
 
-## 평가 준비 문서
+| 하고 싶은 것 | 키 |
+| --- | --- |
+| 요소에 focus 맞추기 | 라벨 문자 입력 (예: `F`, `AB`) |
+| focus한 요소 클릭 | `Return` |
+| 다음 / 이전 후보로 이동 | `Tab` / `Shift+Tab` |
+| 위 / 아래 후보로 이동 | `↑` / `↓` |
+| 입력한 라벨 문자 지우기 | `Delete` |
+| 클릭하지 않고 닫기 | `Esc` |
 
-- `plans/gazerow_evaluation_template_v1.md`: TICKET-010 Baseline Evaluation 기록 양식
-- `plans/gazerow_ticket_010_prep_v1.md`: TICKET-010 착수 전 평가 환경/절차 준비 체크리스트
-- `plans/gazerow_ticket_010_result_v1.md`: TICKET-010 사전 검증 결과와 수동 평가 기록지
-- `plans/gazerow_internal_user_evaluation_v1.md`: TICKET-010 내부 사용자 3명 평가 runbook
-- `plans/gazerow_mvp_freeze_package_v1.md`: TICKET-011 MVP freeze package 초안
-- `plans/gazerow_distribution_checklist_v1.md`: 외부 배포 전 signing/notarization 체크리스트 초안
-- `plans/gazerow_post_mvp_app_evaluation_v1.md`: Post-MVP 앱 확대 검증 절차와 진행 상태
+**한글 키보드도 그대로 됩니다.** 한글 입력 상태여도 물리 키 위치로 매칭하므로,
+예를 들어 `ㄹ`은 `F`를, `ㅁ`은 `A`를 선택합니다. 굳이 영문으로 전환할 필요가 없습니다.
 
-## 진행 상황 요약
+### 창 컨트롤 단축키
 
-| 티켓 | 상태 | 메모 |
-| --- | --- | --- |
-| TICKET-001 ~ TICKET-009 | Done | MVP core/UX, logging, onboarding, known limitations 구현 |
-| TICKET-010 | Done | runtime wiring, 권한 요청 동선, Accessibility 권한 부여, 5개 앱 overlay activation smoke, 실제 click task, 30분 crash-free session, Finder/VS Code fixed task 재평가 완료. 내부 사용자 gate는 Post-MVP defer |
-| TICKET-011 | Ready for final freeze | freeze package, default audit, verification script, distribution checklist 준비 완료. 최종 확정은 freeze 검증 재실행과 go/no-go 판정 필요 |
-| Post-MVP gaze | Deferred | camera/gaze는 이 빌드에서 비활성 |
+맨 앞 창의 표준 title-bar 버튼(닫기·최소화·확대/축소)을 키보드로 누릅니다.
+GazeRow에 손쉬운 사용 권한이 있을 때만 동작합니다.
+
+| 동작 | 단축키 |
+| --- | --- |
+| 창 닫기 | `Control+Option+C` |
+| 창 최소화 | `Control+Option+M` |
+| 창 확대/축소 | `Control+Option+Z` |
+
+### 즉시 중지 (Kill Switch)
+
+메뉴바 아이콘이나 Settings에서 세션을 **비활성화**하면 overlay 활성화가 즉시 멈춥니다.
+다시 **활성화**하면 재개됩니다.
+
+---
+
+## 클릭 안전 정책
+
+- **자동 클릭은 없습니다.** 모든 클릭은 `Return` 키로 명시 확인해야 실행됩니다.
+- 삭제·외부 영향·위험도 불명 같은 위험한 동작은 **한 번 더 확인**을 요구합니다.
+- 클릭은 접근성 action(`AXPress`, `AXConfirm`, `AXOpen`, `AXShowDefaultUI`)을 사용합니다.
+- 오클릭 위험을 줄이기 위해 **좌표 기반 클릭 fallback은 기본적으로 꺼져** 있습니다.
+- 비밀번호 등 secure field는 스캔 단계에서 후보에서 제외됩니다.
+
+---
+
+## 개인정보
+
+- 모든 처리는 **로컬**에서 이뤄지며 네트워크로 전송하지 않습니다.
+- Interaction 로그 저장은 **기본 꺼짐(opt-in)**입니다. 켜더라도 최소한의 focus/click
+  이벤트만 저장하고, 창 제목은 **세션별 hash로만** 저장합니다. 원문 제목·텍스트 값은
+  절대 저장하지 않습니다.
+- baseline에서는 **카메라·입력 모니터링 권한을 요청하지 않습니다.**
+- Debug Export는 문제 해결용 진단 snapshot을 일반 텍스트로 저장하며, 원본 창 제목이나
+  텍스트 값은 포함하지 않습니다.
+
+---
 
 ## 앱 지원 범위
 
-TICKET-010 실제 click task, Finder/VS Code fixed task 재평가, 30분 crash-free session 결과 기준이다.
+| 앱 | 지원 등급 |
+| --- | --- |
+| Finder | 지원됨 |
+| Safari | 지원됨 |
+| Chrome | 지원됨 |
+| VS Code | 지원됨 |
+| System Settings | 지원됨 |
+| Slack | 지원됨 |
+| Notion | 지원됨 |
+| Discord | 제한적 지원 (후보는 보이나 대표 클릭 검증 미완료) |
+| Obsidian | 미확인 (평가 환경에 미설치) |
 
-| 앱 | 등급 | Freeze 전 확인 |
-| --- | --- | --- |
-| Finder | Evaluation pass | sidebar row task pass via `AXShowDefaultUI` |
-| Safari | Evaluation pass | Tab Overview toolbar button task pass |
-| Chrome | Evaluation pass | address bar focus task pass |
-| VS Code | Evaluation pass | Activity Bar item task pass via `AXPress` |
-| System Settings | Evaluation pass | toolbar Back button pane navigation task pass |
-| Slack | Evaluation pass | Messages tab click task pass via `AXPress`, fallback=false |
-| Notion | Evaluation pass | breadcrumb/page click task pass via `AXPress` |
-| Discord | Limited | overlay pass, 6 labels after image candidate filtering; representative click pending |
-| Obsidian | Unverified | app not installed in current evaluation environment |
+**등급 의미**
 
-등급 의미:
+- **지원됨**: 실제 클릭 task 검증을 통과한 앱.
+- **제한적 지원**: 동작하지만 후보 수집이나 클릭에 제약이 있는 앱.
+- **미확인**: 아직 검증하지 않은 앱.
 
-- **Evaluation target**: MVP 기준 앱으로 TICKET-010에서 검증 대상.
-- **Limited**: 동작하지만 후보/클릭에 제약이 확인된 앱.
-- **Unsupported**: 평가했지만 현재 후보 수집 또는 대표 task 수행이 불가능한 앱.
-- **Unverified**: 아직 검증하지 않은 앱.
+---
 
-## 빌드 / 실행
+## 알려진 제한사항
 
-Swift Package Manager 기반. **Xcode toolchain이 필요**하다.
+- 맨 앞 앱의 focused window만 스캔합니다.
+- 일부 앱은 접근성 트리를 불완전하게 노출해 일부 후보가 빠질 수 있습니다.
+- 지원되는 접근성 action이 없는 요소는 클릭되지 않을 수 있습니다.
+- 좌표 기반 클릭 fallback은 기본 꺼짐이며, 명시 확인된 overlay 클릭 경로에서만
+  제한적으로 사용합니다.
+
+---
+
+## 요구 사항 / 설치
+
+| 항목 | 값 |
+| --- | --- |
+| 최소 macOS 버전 | macOS 14 |
+| 앱 형태 | 메뉴바 앱 + Settings window |
+| 필요 권한 | 손쉬운 사용(Accessibility) |
+| 언어 | 한국어 / English |
+
+현재는 소스에서 직접 빌드해 실행합니다. Swift Package Manager 기반이며 **Xcode
+toolchain이 필요**합니다.
 
 ```bash
 # Xcode 라이선스 최초 1회 동의 (필요 시)
@@ -188,205 +146,36 @@ sudo xcodebuild -license accept
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 
-# Accessibility 권한 요청/설정 이동을 바로 열고 실행
+# 손쉬운 사용 권한 요청/설정 화면을 바로 열고 실행
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --request-accessibility
 
-# 특정 앱 overlay activation smoke
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.finder
-
-# 로컬 평가용 label map 출력
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.Safari --print-overlay-label-map
-
-# 재사용 가능한 overlay/click 평가 스크립트
-scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder
-scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --min-labels 50
-scripts/evaluate_overlay_target.sh --bundle-id com.apple.finder --click-label AA --no-label-map
-
-# 로컬 .app 번들 생성(LaunchServices/activation 재평가용)
+# 로컬 .app 번들 생성 후 실행 (키 입력/activation이 더 안정적)
 scripts/build_local_app.sh
 open -n .build/local-app/GazeRow.app
 ```
 
-> **주의**: `xcode-select`가 Command Line Tools를 가리키면 SwiftPM manifest
-> 링크 오류가 발생한다. 위처럼 `DEVELOPER_DIR`로 Xcode toolchain을 지정하거나,
-> `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`로 전환한다.
+> **주의**: `xcode-select`가 Command Line Tools를 가리키면 SwiftPM 링크 오류가
+> 발생합니다. 위처럼 `DEVELOPER_DIR`로 Xcode toolchain을 지정하거나,
+> `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`로 전환하세요.
 
-실행하면 Dock 아이콘 없이 메뉴바에 커서 아이콘이 표시된다.
-아이콘 클릭 → **Open Settings** / **Quit** 으로 동작을 확인할 수 있다.
-Accessibility 권한이 없으면 Settings의 **Request Permission** 또는 위 런치 옵션으로
-권한 요청 동선을 열 수 있다.
-SwiftPM 바이너리 실행에서 macOS 앱 activation/키 입력 재현이 불안정하면
-`scripts/build_local_app.sh`로 `.build/local-app/GazeRow.app`을 만든 뒤 실행한다.
+실행 후 메뉴바 커서 아이콘을 클릭하면 **Open Settings** / **Quit** 등으로 동작을
+확인할 수 있습니다. 권한이 없으면 Settings의 **권한 요청** 버튼이나 위 런치 옵션으로
+권한 동선을 열 수 있습니다.
+
+---
+
+## 후원
+
+GazeRow가 작업 흐름에 도움이 됐다면 메뉴바의 **Support GazeRow**에서 개발을 응원해
+주세요. (계좌번호 추후 추가 예정)
+
+---
+
+## 개발자 문서
+
+빌드/테스트, 프로젝트 구조, 티켓 진행 내역 등 구현 세부 내용은 `plans/` 폴더를 참고하세요.
 
 ```bash
 # 테스트 실행
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
-
-# MVP freeze 사전 검증
-scripts/verify_mvp_freeze.sh
 ```
-
-## TICKET-001 완료 기준
-
-- [x] macOS Swift app shell 생성
-- [x] AppKit lifecycle 연결 (`.accessory` 모드)
-- [x] 메뉴바 status item (Open Settings / Quit)
-- [x] Settings window (앱 이름 / 버전 / MVP 상태 / 개인정보 안내)
-- [x] lifecycle 로깅 (app launched / settings opened / app terminated)
-- [x] 로컬 빌드/실행 검증 (`swift build` 성공, crash 없이 실행 확인)
-
-## TICKET-002 완료 기준
-
-- [x] `PermissionManager` 생성 (조회 / 요청 / 재확인 / System Settings 이동)
-- [x] Settings에 Accessibility 권한 상태 표시 (Granted / Not granted 배지)
-- [x] 권한 없을 때 activation gate + 안내 문구 (`canActivateOverlay` / `overlayUnavailableReason`)
-- [x] Camera / Input Monitoring은 baseline에서 요청하지 않음을 UI에 명시
-- [x] 창 표시 / 앱 활성화 시 자동 refresh + Recheck 버튼
-- [x] 단위 테스트 6건 통과, crash 없이 실행 확인
-
-## TICKET-003 완료 기준
-
-- [x] `TargetResolver` 생성 (frontmost app + focused window 기반)
-- [x] `NSWorkspace.frontmostApplication` provider 분리
-- [x] `AXUIElementCreateApplication` 기반 focused window 조회 client 추가
-- [x] window frame/title 런타임 조회
-- [x] 권한 없음 / window 없음 / frame 없음 / invalid frame 실패 reason 분리
-- [x] `TargetContextDebugView` 추가
-- [x] `TargetResolverTests`로 성공/실패 경로 검증
-
-## TICKET-004 완료 기준
-
-- [x] `AccessibilityScanner` 생성
-- [x] AX children traversal abstraction과 production AX client 추가
-- [x] role/subrole/title/value/help/frame/actions runtime snapshot 모델 추가
-- [x] max depth / max nodes / timeout 설정 추가
-- [x] clickable role/action 필터
-- [x] duplicate 제거
-- [x] secure field 및 frame 없는 요소 제외
-- [x] candidate count / scan duration / node count / child read failure 계측
-- [x] `AccessibilityScannerTests`로 필터, 제한, 실패 경로 검증
-
-## TICKET-005 완료 기준
-
-- [x] `OverlayWindowController` 추가 (transparent borderless `NSPanel`)
-- [x] `OverlayView` 추가 (target boundary + label rendering)
-- [x] screen coordinate → target-local coordinate mapping
-- [x] label layout engine 추가
-- [x] collision mitigation v1
-- [x] label count / collision count / occlusion count / display scale 기록
-- [x] Retina 여부 판단용 display info 모델 추가
-- [x] `OverlayLayoutEngineTests`로 좌표 변환, label 생성, bounds clamp, collision, occlusion 검증
-
-## TICKET-006 완료 기준
-
-- [x] `LabelGenerator` 추가
-- [x] 26개 초과 후보에서 prefix 충돌 없는 고정 길이 label 생성
-- [x] `FocusEngine` 추가
-- [x] Tab / Shift-Tab 순환 focus 이동
-- [x] Arrow Up / Arrow Down 기반 수직 focus 이동
-- [x] overlay keyboard input → focus command mapper 추가
-- [x] label typing buffer 유지 / 초기화
-- [x] label jump match / miss 이벤트 반환
-- [x] Return click 연결 전 dry-run confirm 이벤트 반환
-- [x] `OverlayView` focused label indicator 추가
-- [x] `LabelGeneratorTests`, `FocusEngineTests`, `FocusKeyboardCommandMapperTests`로 label/focus/keyboard/dry-run 검증
-
-## TICKET-007 완료 기준
-
-- [x] `ClickExecutor` 추가
-- [x] `AXPress` 우선 실행
-- [x] `AXPress` 실패 reason 반환
-- [x] 좌표 클릭 fallback hook 추가
-- [x] 좌표 클릭 fallback 기본 off 유지
-- [x] `ClickRiskClassifier` 추가
-- [x] destructive / externalEffect / unknownRisk second confirm 요구
-- [x] secure field는 scanner 단계에서 제외 유지
-- [x] 위험 class만 결과에 남기고 원문 title은 저장하지 않음
-- [x] `AXClickExecutionClient` 추가
-- [x] `ClickExecutorTests`, `ClickRiskClassifierTests`로 안전 정책 검증
-
-## TICKET-008 완료 기준
-
-- [x] local interaction event 모델 추가
-- [x] interaction 파일 저장 opt-in 기본 off 유지
-- [x] focus/click 이벤트 JSON Lines 기록 구조 추가
-- [x] session salt 기반 `windowTitleHash` 생성
-- [x] raw window title / text value 미저장 정책 반영
-- [x] debug export 수동 생성/삭제 관리자 추가
-- [x] interaction 로그 삭제 동작 추가
-- [x] `InteractionLogStoreTests`, `WindowTitleHasherTests`, `DebugExportManagerTests`로 opt-in/삭제/민감정보 제외 검증
-
-## TICKET-009 완료 기준
-
-- [x] kill switch(`SessionController`): 메뉴바 · Settings에서 세션 즉시 중단/재개
-- [x] 첫 실행 Onboarding 시트(`OnboardingState` + `OnboardingView`): 접근 범위 설명 → setup 안내 → non-medical disclaimer
-- [x] Known Limitations 열람 시트(`KnownLimitationsView`): 제한사항 / Click Safety / 앱 지원 등급
-- [x] 사용자 노출 문구 단일 출처(`AppContent`)로 통합
-- [x] Known Limitations 문서화(`plans/gazerow_known_limitations_v1.md`)
-- [x] 단위 테스트 9건 통과(Session 5 + Onboarding 4)
-
-## TICKET-010 진행 상태
-
-- [x] 평가 템플릿 작성
-- [x] 평가 준비 체크리스트 작성
-- [x] build/test/run smoke 사전 검증 기록
-- [x] freeze verification script 통과 기록
-- [x] 수동 평가 착수: 현재 빌드에서 runtime activation/click wiring 부재 확인
-- [x] 메뉴바 activation에서 target resolve / scan / overlay show 연결
-- [x] activation 실패 사유 sanitized log code 기록
-- [x] overlay keyboard focus / label jump wiring
-- [x] overlay 표시 시 keyboard input 수신을 위한 app activation 보강
-- [x] focus / label jump interaction log wiring
-- [x] focused label AXPress click wiring
-- [x] risky action second confirm runtime flow
-- [x] click attempt/completed interaction log wiring
-- [x] Settings Accessibility 권한 요청 버튼 연결
-- [x] Show Overlay 권한 실패 시 Accessibility 요청/설정 이동 연결
-- [x] Command+Shift+Space overlay activation shortcut 연결
-- [x] Finder / VS Code candidate coverage 보강 및 label map smoke 확인
-- [x] Finder sidebar candidate용 `AXOpen` click execution 지원
-- [x] `AXConfirm` candidate click execution 지원
-- [x] `AXShowDefaultUI` candidate click execution 지원
-- [x] launch-option 평가용 click result stdout 출력
-- [x] `--click-overlay-label` 평가 옵션 연결
-- [x] `--request-accessibility` 런치 옵션 연결
-- [x] overlay panel AX/AppKit 좌표 변환 및 Finder/VS Code 표시 smoke
-- [x] Accessibility 권한 부여와 Settings/onboarding 확인
-- [x] 5개 앱 overlay activation smoke
-- [x] Finder / Safari / Chrome / VS Code / System Settings 실제 click task 수동 평가
-  - result: Safari / Chrome / System Settings pass, Finder / VS Code fail
-- [x] Finder / VS Code fixed task 재평가
-  - result: Finder pass via `AXShowDefaultUI`, VS Code pass via `AXPress`
-- [x] 30분 crash-free manual session 기록
-  - result: 2026-07-02 20:46:31~21:16:31 KST, 1800초 crash 없이 유지
-- [x] 내부 사용자 3명 평가 runbook 작성
-- [x] 내부 사용자 gate Post-MVP defer 결정 반영(ED-008)
-- [x] go/no-go 판정
-
-## TICKET-011 준비 상태
-
-- [x] MVP freeze package 초안 작성
-- [x] local build/run guide 정리
-- [x] 기능 플래그/기본값 자동 감사(`MVPDefaultPolicy`)
-- [x] MVP freeze 사전 검증 스크립트(`scripts/verify_mvp_freeze.sh`)
-- [x] debug export UI 기본 숨김
-- [x] diagnostics 삭제/생성 액션 피드백
-- [x] app support tier provisional 정리
-- [x] distribution signing/notarization checklist 초안
-- [x] TICKET-010 결과 기반 known limitations/app support 갱신
-- [x] MVP freeze 최종 go/no-go 확정
-- [x] 2026-07-03 freeze 재검증(`scripts/verify_mvp_freeze.sh`): build pass, 207 tests / 0 failures, MVP-excluded 참조 검사 pass
-- [x] 2026-07-03 v2 재검증(Claude): build pass, 335 tests / 0 failures(5회 반복 안정), excluded screen/input 참조 검사 pass, 핵심 5개 앱 overlay smoke success(Finder 46 / Safari 35 / Chrome 69 / VS Code 3 / System Settings 64)
-
-## 하지 않는 것 (현재 범위 외)
-
-- Post-MVP 내부 사용자 3명 평가
-- Post-MVP 앱 확대 검증 추가(Obsidian 설치 환경, Discord representative click 검증 등)
-- Camera / Screen Recording 권한 요청, gaze 기능 (Post-MVP)
-
-## 다음 티켓
-
-- **Post-MVP**: Discord representative click 검증, Obsidian 설치 환경 검증, 내부 사용자 3명 평가 재개
-- 이후 **TICKET-011**: MVP Freeze Package 최종 확정
-
-자세한 계획은 `plans/` 폴더 참조.
