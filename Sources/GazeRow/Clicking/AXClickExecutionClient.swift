@@ -134,6 +134,20 @@ struct AXClickExecutionClient: ClickExecutionClient {
         return .success
     }
 
+    func performSetFocus(on element: AXUIElement) -> ClickClientResult {
+        let error = AXUIElementSetAttributeValue(
+            element,
+            kAXFocusedAttribute as CFString,
+            kCFBooleanTrue
+        )
+
+        guard error == .success else {
+            return .failure(error.localizedDebugDescription)
+        }
+
+        return .success
+    }
+
     func performCoordinateClick(at point: CGPoint) -> ClickClientResult {
         AppLogger.interaction.info(
             "coordinate click point=(\(Int(point.x), privacy: .public),\(Int(point.y), privacy: .public))"

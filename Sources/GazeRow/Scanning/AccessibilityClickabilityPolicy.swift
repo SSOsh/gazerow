@@ -63,8 +63,10 @@ struct AccessibilityClickabilityPolicy {
             AccessibilityRole.popUpButton,
             AccessibilityRole.radioButton,
             AccessibilityRole.row,
+            AccessibilityRole.searchField,
             AccessibilityRole.slider,
             AccessibilityRole.tabGroup,
+            AccessibilityRole.textArea,
             AccessibilityRole.textField
         ]
     }

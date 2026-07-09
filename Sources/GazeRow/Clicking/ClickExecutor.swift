@@ -27,6 +27,10 @@ struct ClickExecutor<Client: ClickExecutionClient> {
 
         let riskClass = riskClassifier.classify(target)
 
+        if isTextInputRole(target.role) {
+            return executeFocus(target: target, riskClass: riskClass)
+        }
+
         guard let action = preferredAccessibilityAction(for: target) else {
             guard configuration.isCoordinateFallbackEnabled else {
                 return .failure(.missingPressAction)
@@ -112,6 +116,34 @@ struct ClickExecutor<Client: ClickExecutionClient> {
             && target.frame.width <= 44
             && target.frame.height <= 44
             && target.actions.contains(AccessibilityAction.press)
+    }
+
+    private func isTextInputRole(_ role: String) -> Bool {
+        role == AccessibilityRole.textField
+            || role == AccessibilityRole.textArea
+            || role == AccessibilityRole.searchField
+    }
+
+    private func executeFocus(
+        target: ClickTarget<Client.Element>,
+        riskClass: ClickRiskClass
+    ) -> Result<ClickExecutionSuccess, ClickExecutionFailure> {
+        switch client.performSetFocus(on: target.element) {
+        case .success:
+            return .success(
+                ClickExecutionSuccess(
+                    method: .axFocus,
+                    riskClass: riskClass,
+                    fallbackUsed: false
+                )
+            )
+        case .failure(let reason):
+            guard configuration.isCoordinateFallbackEnabled else {
+                return .failure(.coordinateFallbackDisabled(axFailureReason: reason))
+            }
+
+            return executeCoordinateClick(target: target, riskClass: riskClass)
+        }
     }
 
     private func executeCoordinateClick(

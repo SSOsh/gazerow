@@ -98,9 +98,11 @@ enum AccessibilityRole {
     static let popUpButton = "AXPopUpButton"
     static let radioButton = "AXRadioButton"
     static let row = "AXRow"
+    static let searchField = "AXSearchField"
     static let secureTextField = "AXSecureTextField"
     static let slider = "AXSlider"
     static let tabGroup = "AXTabGroup"
+    static let textArea = "AXTextArea"
     static let textField = "AXTextField"
 }
 

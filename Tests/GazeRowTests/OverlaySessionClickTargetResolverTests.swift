@@ -117,6 +117,42 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
         XCTAssertEqual(targets.first?.subrole, "AXTabButton")
     }
 
+    func test_resolveTargets_textArea는_target으로_resolve되고_secureField처럼_필터되지않음() throws {
+        // given
+        let textArea = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(
+                role: AccessibilityRole.textArea,
+                frame: CGRect(x: 10, y: 10, width: 200, height: 80),
+                actions: []
+            )
+        )
+        let secure = FakeClickElement(
+            id: 2,
+            snapshot: makeSnapshot(
+                role: AccessibilityRole.secureTextField,
+                frame: CGRect(x: 10, y: 100, width: 200, height: 24),
+                actions: []
+            )
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(role: "AXGroup", frame: CGRect(x: 0, y: 0, width: 220, height: 200), actions: []),
+            children: [textArea, secure]
+        )
+        let sut = OverlaySessionClickTargetResolver(
+            client: FakeClickTargetClient(root: .success(root))
+        )
+
+        // when
+        let result = sut.resolveTargets(context: makeContext())
+
+        // then
+        let targets = try unwrapSuccess(result)
+        XCTAssertEqual(targets.map(\.element.id), [1])
+        XCTAssertEqual(targets.first?.role, AccessibilityRole.textArea)
+    }
+
     func test_resolveTargets_secureField와_frame없는_element는_제외() throws {
         // given
         let secure = FakeClickElement(

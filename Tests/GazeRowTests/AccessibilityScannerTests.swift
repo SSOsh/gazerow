@@ -60,6 +60,54 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.textField)
     }
 
+    func test_scan_AXTextArea는_action이_없어도_candidate로_수집() {
+        // given
+        let textArea = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.textArea,
+                title: "Message",
+                frame: CGRect(x: 10, y: 20, width: 200, height: 80)
+            )
+        )
+        let root = FakeElement(children: [textArea])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidateCount, 1)
+        XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.textArea)
+    }
+
+    func test_scan_AXSearchField는_action이_없어도_candidate로_수집() {
+        // given
+        let searchField = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.searchField,
+                title: "Search",
+                frame: CGRect(x: 10, y: 20, width: 160, height: 24)
+            )
+        )
+        let root = FakeElement(children: [searchField])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidateCount, 1)
+        XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.searchField)
+    }
+
     func test_scan_selectableContainerRole은_action이_없어도_candidate로_수집() {
         // given
         let row = FakeElement(

@@ -9,6 +9,7 @@ protocol ClickExecutionClient {
 
     func performAXPress(on element: Element) -> ClickClientResult
     func performAXAction(_ action: String, on element: Element) -> ClickClientResult
+    func performSetFocus(on element: Element) -> ClickClientResult
     func performCoordinateClick(at point: CGPoint) -> ClickClientResult
 }
 

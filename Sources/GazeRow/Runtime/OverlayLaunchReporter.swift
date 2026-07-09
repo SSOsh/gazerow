@@ -99,6 +99,8 @@ enum OverlayLaunchReporter {
             "axPress"
         case .accessibilityAction(let action):
             "accessibilityAction.\(action)"
+        case .axFocus:
+            "axFocus"
         case .coordinateFallback:
             "coordinateFallback"
         }

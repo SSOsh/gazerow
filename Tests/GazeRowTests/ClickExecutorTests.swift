@@ -372,6 +372,73 @@ final class ClickExecutorTests: XCTestCase {
         )
     }
 
+    func test_execute_텍스트입력role은_AX_focus를_우선한다() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.textArea,
+            title: "Message",
+            frame: CGRect(x: 10, y: 20, width: 200, height: 80),
+            actions: []
+        )
+        let client = FakeClickExecutionClient(
+            axPressResult: .failure("should not be used"),
+            setFocusResult: .success
+        )
+        let sut = ClickExecutor(
+            client: client,
+            configuration: .overlayConfirmedClick
+        )
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .axFocus,
+            riskClass: .unknownRisk,
+            fallbackUsed: false
+        )
+        XCTAssertEqual(client.setFocusCount, 1)
+        XCTAssertEqual(client.performedActions, [])
+        XCTAssertFalse(client.didCoordinateClick)
+    }
+
+    func test_execute_focus실패시_좌표클릭_fallback() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.textField,
+            title: "Search",
+            frame: CGRect(x: 10, y: 20, width: 160, height: 24),
+            actions: []
+        )
+        let client = FakeClickExecutionClient(
+            axPressResult: .failure("should not be used"),
+            coordinateClickResult: .success,
+            setFocusResult: .failure("focus failed")
+        )
+        let sut = ClickExecutor(
+            client: client,
+            configuration: ClickExecutionConfiguration(isCoordinateFallbackEnabled: true)
+        )
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .coordinateFallback,
+            riskClass: .unknownRisk,
+            fallbackUsed: true
+        )
+        XCTAssertEqual(client.setFocusCount, 1)
+        XCTAssertTrue(client.didCoordinateClick)
+        XCTAssertEqual(client.clickedPoint, target.centerPoint)
+    }
+
     private var safeTarget: ClickTarget<Int> {
         ClickTarget(
             element: 1,
@@ -404,24 +471,30 @@ final class ClickExecutorTests: XCTestCase {
 private final class FakeClickExecutionClient: ClickExecutionClient {
     private let actionResults: [String: ClickClientResult]
     private let coordinateClickResult: ClickClientResult
+    private let setFocusResult: ClickClientResult
     private(set) var performedActions: [String] = []
+    private(set) var setFocusCount = 0
     private(set) var didCoordinateClick = false
     private(set) var clickedPoint: CGPoint?
 
     init(
         axPressResult: ClickClientResult,
-        coordinateClickResult: ClickClientResult = .success
+        coordinateClickResult: ClickClientResult = .success,
+        setFocusResult: ClickClientResult = .success
     ) {
         self.actionResults = [AccessibilityAction.press: axPressResult]
         self.coordinateClickResult = coordinateClickResult
+        self.setFocusResult = setFocusResult
     }
 
     init(
         actionResults: [String: ClickClientResult],
-        coordinateClickResult: ClickClientResult = .success
+        coordinateClickResult: ClickClientResult = .success,
+        setFocusResult: ClickClientResult = .success
     ) {
         self.actionResults = actionResults
         self.coordinateClickResult = coordinateClickResult
+        self.setFocusResult = setFocusResult
     }
 
     func performAXPress(on element: Int) -> ClickClientResult {
@@ -431,6 +504,11 @@ private final class FakeClickExecutionClient: ClickExecutionClient {
     func performAXAction(_ action: String, on element: Int) -> ClickClientResult {
         performedActions.append(action)
         return actionResults[action] ?? .failure("Unsupported AX action.")
+    }
+
+    func performSetFocus(on element: Int) -> ClickClientResult {
+        setFocusCount += 1
+        return setFocusResult
     }
 
     func performCoordinateClick(at point: CGPoint) -> ClickClientResult {
