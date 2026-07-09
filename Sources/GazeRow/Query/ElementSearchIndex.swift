@@ -30,6 +30,8 @@ struct SearchableNode: Equatable, Identifiable {
     let help: String?
     let frame: CGRect
     let axPath: [Int]
+    let parentID: Int?
+    let childrenIDs: [Int]
 
     init(
         id: Int,
@@ -40,7 +42,9 @@ struct SearchableNode: Equatable, Identifiable {
         description: String? = nil,
         help: String? = nil,
         frame: CGRect,
-        axPath: [Int] = []
+        axPath: [Int] = [],
+        parentID: Int? = nil,
+        childrenIDs: [Int] = []
     ) {
         self.id = id
         self.role = role
@@ -51,6 +55,8 @@ struct SearchableNode: Equatable, Identifiable {
         self.help = help
         self.frame = frame
         self.axPath = axPath
+        self.parentID = parentID
+        self.childrenIDs = childrenIDs
     }
 }
 

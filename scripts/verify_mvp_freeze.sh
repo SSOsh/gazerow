@@ -25,6 +25,9 @@ swift build
 echo "==> Running tests"
 swift test
 
+echo "==> Query Overlay unit tests"
+swift test --filter 'ElementSearchIndexTests|IntentRouterTests|ActionablePromoterTests|WindowSearchIndexTests'
+
 echo "==> Checking excluded screen/input permission/framework references"
 if grep -REn \
   "ScreenCaptureKit|CGDisplayStream|NSScreenCaptureUsageDescription|NSMicrophoneUsageDescription|NSInputMonitoringUsageDescription" \

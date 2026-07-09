@@ -238,6 +238,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 OverlayLaunchReporter.success(labelCount: snapshot.layout.metrics.labelCount)
             )
             printOverlayLabelMapIfNeeded(snapshot)
+            performQueryIfRequested()
             clickOverlayLabelIfRequested()
         case .failure(let failure):
             AppLogger.overlay.info("overlay start failed reason=\(failure.logCode, privacy: .public)")
@@ -630,6 +631,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         _ = overlaySessionController.clickLabel(label)
+    }
+
+    /// 런치 옵션 기반 평가에서 query overlay 입력과 선택 확인을 재현한다.
+    private func performQueryIfRequested() {
+        guard let queryText = launchOptions.queryText else {
+            return
+        }
+
+        if let queryScopePin = launchOptions.queryScopePin {
+            _ = overlaySessionController.handleKeyboardCommand(.pinScope(queryScopePin))
+        }
+
+        _ = overlaySessionController.handleKeyboardCommand(.appendQuery(queryText))
+        printQueryResultIfNeeded()
+
+        if launchOptions.performQueryConfirm {
+            _ = overlaySessionController.handleKeyboardCommand(.dryRunConfirm)
+        }
+    }
+
+    /// 런치 옵션 기반 query 평가 결과를 stdout에 출력한다.
+    private func printQueryResultIfNeeded() {
+        guard let session = overlaySessionController.activeSession else {
+            print(OverlayLaunchReporter.queryResult(
+                scope: launchOptions.queryScopePin ?? .elements,
+                matchCount: 0,
+                matchIndex: 0,
+                focusedDisplayName: nil,
+                success: false
+            ))
+            fflush(stdout)
+            return
+        }
+
+        let scope = session.queryInput.pinnedScope ?? session.queryInput.lastScope
+        let summary = querySummary(for: scope, session: session)
+        print(OverlayLaunchReporter.queryResult(
+            scope: scope,
+            matchCount: summary.matchCount,
+            matchIndex: summary.matchIndex,
+            focusedDisplayName: summary.focusedDisplayName,
+            success: summary.matchCount > 0
+        ))
+        fflush(stdout)
+    }
+
+    /// 현재 query scope별 match summary를 만든다.
+    private func querySummary(
+        for scope: QueryScope,
+        session: OverlaySessionState
+    ) -> (matchCount: Int, matchIndex: Int, focusedDisplayName: String?) {
+        switch scope {
+        case .elements:
+            let match = session.elementMatches.indices.contains(session.elementMatchIndex)
+                ? session.elementMatches[session.elementMatchIndex]
+                : nil
+            return (session.elementMatches.count, match == nil ? 0 : session.elementMatchIndex + 1, match?.displayName)
+        case .windows:
+            let match = session.windowMatches.indices.contains(session.windowMatchIndex)
+                ? session.windowMatches[session.windowMatchIndex]
+                : nil
+            return (session.windowMatches.count, match == nil ? 0 : session.windowMatchIndex + 1, match?.displayLine)
+        case .labels:
+            let label = session.snapshot.layout.labels.first { $0.id == session.focusEngine.focusedItemID }
+            return (label == nil ? 0 : 1, label == nil ? 0 : 1, label?.text)
+        }
     }
 
     /// 런치 옵션 기반 평가에서 keyboard confirm click 결과를 stdout에 출력한다.

@@ -3,6 +3,7 @@
 ## 변경 이력
 - v1: `gazerow_mvp_v5.md`, `gazerow_tickets_v1.md`, `gazerow_evaluation_template_v1.md` 기준으로 구현 착수 전 결정값과 미결정 항목을 분리해 기록.
 - v2: 외부 내부 사용자 3명 확보 불가로 내부 사용자 평가 gate를 local MVP freeze에서 Post-MVP로 defer하는 결정을 기록(ED-001 Deferred, ED-008 추가).
+- v3: Query Overlay v1(TICKET-012~019) 구현 결정을 D-001~D-010으로 추가.
 
 ## 1. 상태 정의
 
@@ -45,6 +46,21 @@
 | TD-011 | 로그 저장 방식 | Accepted | Info 로그 가능, Interaction 파일 저장은 opt-in | 개인정보 최소화 |
 | TD-012 | window title 처리 | Accepted | 원문 저장 금지, session salt hash만 허용 | 장기 식별자화 방지 |
 | TD-013 | 텍스트 필드 처리 | Accepted | title/value/help/description은 런타임 조회만, 기본 로그/저장 제외 | 위험 판정과 개인정보 보호 균형 |
+
+## 3.1 Query Overlay Decisions
+
+| ID | 항목 | 상태 | 결정값 | 근거/비고 |
+| --- | --- | --- | --- | --- |
+| D-001 | Query scope | Accepted | labels, elements, windows 3개 scope | 기존 label 입력과 element/window 검색을 명시적으로 분리 |
+| D-002 | 첫 글자 충돌 | Accepted | bare letter는 label 우선, `/` primer로 elements 고정 | label-only 사용자 회귀 방지 |
+| D-003 | windows primer | Accepted | `;` primer로 windows 고정 | 창 전환은 label/element보다 명시적 scope가 안전 |
+| D-004 | Query status | Accepted | 2줄 status에 scope, match count, focused target, enter action 표시 | 입력 모드와 실행 결과를 즉시 확인 |
+| D-005 | Element index | Accepted | AX searchable node 기반 in-memory index | 런타임 저장 없이 현재 window에서만 검색 |
+| D-006 | Search fields | Accepted | title/value/help/description/role 검색, secure/zero-frame 제외 | 검색 가능성과 민감정보 보호 균형 |
+| D-007 | Action promotion | Accepted | parentID/childrenIDs 우선, spatial fallback | axPath 단독보다 실제 scanner/candidate 관계에 강함 |
+| D-008 | Intent routing | Accepted | pinned scope 최우선, label prefix 보존, element match 우선 | 기존 label click/second confirm/axFocus 회귀 방지 |
+| D-009 | Window activation | Accepted | running regular apps/windows index + frontmost polling | 고정 sleep 의존을 줄이고 activation 성공을 확인 |
+| D-010 | v1 제외 검색 품질 | Deferred | fuzzy, 초성, 동의어, 결과 리스트 제외 | 기본 query 경로 안정화 후 Post-v1에서 개선 |
 
 ## 4. Permission Decisions
 

@@ -109,6 +109,19 @@ struct FocusEngine: Equatable {
         labelBuffer = ""
     }
 
+    mutating func focusItem(id: Int, method: FocusChangeMethod = .labelJump) -> FocusEngineEvent? {
+        guard items.contains(where: { $0.id == id }) else {
+            focusedItemID = nil
+            labelBuffer = ""
+            return nil
+        }
+
+        let previousID = focusedItemID
+        focusedItemID = id
+        labelBuffer = ""
+        return .focusChanged(from: previousID, to: id, method: method)
+    }
+
     mutating func focusNearest(to point: CGPoint) -> FocusEngineEvent? {
         guard let nearestItem = GazeFocusController().nearestItem(to: point, in: items) else {
             focusedItemID = nil

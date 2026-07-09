@@ -200,6 +200,246 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.focusEngine.labelBuffer, "")
     }
 
+    func test_handleKeyboardCommand_appendQuery는_queryInput과_status를_갱신한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let candidate = makeCandidate(
+            title: "Delete",
+            frame: CGRect(x: 120, y: 140, width: 40, height: 20)
+        )
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [candidate],
+            searchableNodeCollector: StubSearchableNodeCollector(
+                index: ElementSearchIndex(nodes: [
+                    SearchableNode(
+                        id: 0,
+                        role: AccessibilityRole.button,
+                        title: "Delete",
+                        frame: candidate.frame
+                    )
+                ])
+            )
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("delete"))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.buffer, "delete")
+        XCTAssertEqual(
+            presenter.statusUpdates.last,
+            OverlayInteractionStatus(
+                focusedLabel: "A",
+                queryBuffer: "delete",
+                activeScope: .elements,
+                matchCount: 1,
+                matchIndex: 1,
+                focusedDisplayName: "Delete",
+                enterActionHint: AppContent.localized(for: .english).enterActionClick,
+                tone: .neutral
+            )
+        )
+    }
+
+    func test_handleKeyboardCommand_deleteQueryCharacter는_queryBuffer_마지막글자를_삭제한다() {
+        // given
+        let sut = makeStartedSessionController()
+        _ = sut.handleKeyboardCommand(.appendQuery("d"))
+        _ = sut.handleKeyboardCommand(.appendQuery("e"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.deleteQueryCharacter)
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.buffer, "d")
+    }
+
+    func test_handleKeyboardCommand_clearQueryBuffer는_pin까지_초기화한다() {
+        // given
+        let sut = makeStartedSessionController()
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("s"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.clearQueryBuffer)
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.buffer, "")
+        XCTAssertNil(sut.activeSession?.queryInput.pinnedScope)
+    }
+
+    func test_handleKeyboardCommand_pinScope는_buffer없이_scope만_고정한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
+
+        // when
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.pinnedScope, .windows)
+    }
+
+    func test_handleKeyboardCommand_appendQuery는_promotion된_candidate로_focus를_동기화한다() {
+        // given
+        let deleteCandidate = makeCandidate(
+            title: "Delete",
+            frame: CGRect(x: 120, y: 140, width: 40, height: 20)
+        )
+        let openCandidate = makeCandidate(
+            title: "Open",
+            frame: CGRect(x: 220, y: 180, width: 44, height: 24)
+        )
+        let sut = makeStartedSessionController(
+            candidates: [openCandidate, deleteCandidate],
+            searchableNodeCollector: StubSearchableNodeCollector(
+                index: ElementSearchIndex(nodes: [
+                    SearchableNode(
+                        id: 10,
+                        role: AccessibilityRole.button,
+                        title: "Delete",
+                        frame: deleteCandidate.frame
+                    )
+                ])
+            )
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("delete"))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+    }
+
+    func test_handleKeyboardCommand_cycleMatch는_elementMatch를_순환한다() {
+        // given
+        let first = makeCandidate(title: "Delete", frame: CGRect(x: 120, y: 140, width: 40, height: 20))
+        let second = makeCandidate(title: "Delete Row", frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [first, second],
+            searchableNodeCollector: StubSearchableNodeCollector(
+                index: ElementSearchIndex(nodes: [
+                    SearchableNode(id: 0, role: AccessibilityRole.button, title: "Delete", frame: first.frame),
+                    SearchableNode(id: 1, role: AccessibilityRole.button, title: "Delete Row", frame: second.frame)
+                ])
+            )
+        )
+        _ = sut.handleKeyboardCommand(.appendQuery("delete"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.elementMatchIndex, 1)
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+        XCTAssertEqual(presenter.statusUpdates.last?.matchIndex, 2)
+    }
+
+    func test_handleKeyboardCommand_queryMatch가_없으면_return은_noFocusedTarget_failure를_표시한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(method: .axPress, riskClass: .safeNavigation, fallbackUsed: false)
+            )
+        )
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor,
+            searchableNodeCollector: StubSearchableNodeCollector(index: ElementSearchIndex(nodes: []))
+        )
+        _ = sut.handleKeyboardCommand(.appendQuery("missing"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(sut.lastClickResult, .failure(.missingFocusedTarget(index: -1)))
+        XCTAssertTrue(clickExecutor.requests.isEmpty)
+        XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_return은_windowActivator를_호출하고_rescan한다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
+        let windowActivator = StubWindowActivator(result: .success(()))
+        let scanner = StubOverlayScanner(
+            results: [
+                .success(makeScanResult(candidates: [makeCandidate(title: "Open")])),
+                .success(makeScanResult(candidates: [makeCandidate(title: "Reload")]))
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) },
+            windowActivator: windowActivator
+        )
+        _ = sut.start()
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(windowActivator.activatedEntries, [entry])
+        XCTAssertEqual(scanner.scanCallCount, 2)
+        XCTAssertEqual(scanner.invalidateCallCount, 1)
+        XCTAssertEqual(presenter.showRequests.count, 2)
+        XCTAssertEqual(sut.activeSession?.queryInput.lastScope, .elements)
+        XCTAssertEqual(presenter.statusUpdates.last?.tone, .success)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_activate실패는_failure_status를_표시한다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
+        let windowActivator = StubWindowActivator(result: .failure(.frontmostTimeout))
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) },
+            windowActivator: windowActivator
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(windowActivator.activatedEntries, [entry])
+        XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_cycleMatch는_windowMatchIndex를_순환한다() {
+        // given
+        let first = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Alpha")
+        let second = makeWindowEntry(id: 1, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Beta")
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [first, second]) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.windowMatchIndex, 1)
+        XCTAssertEqual(presenter.statusUpdates.last?.matchIndex, 2)
+        XCTAssertEqual(presenter.statusUpdates.last?.focusedDisplayName, "Slack — Beta")
+    }
+
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
         // given
         let clickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 1)))
@@ -741,6 +981,10 @@ final class OverlaySessionControllerTests: XCTestCase {
         presenter: StubOverlayPresenter = StubOverlayPresenter(),
         recorder: StubInteractionRecorder = StubInteractionRecorder(),
         clickExecutor: StubOverlayClickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+        candidates: [ClickableCandidate]? = nil,
+        searchableNodeCollector: (any SearchableNodeCollecting)? = nil,
+        windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
+        windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning)),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt(value: "default-test-salt")),
         dateProvider: @escaping () -> Date = Date.init,
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
@@ -750,7 +994,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         let scanner = StubOverlayScanner(
             result: .success(
                 makeScanResult(
-                    candidates: [
+                    candidates: candidates ?? [
                         makeCandidate(frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
                         makeCandidate(frame: CGRect(x: 220, y: 180, width: 44, height: 24))
                     ]
@@ -763,6 +1007,9 @@ final class OverlaySessionControllerTests: XCTestCase {
             overlayPresenter: presenter,
             interactionRecorder: recorder,
             clickExecutor: clickExecutor,
+            searchableNodeCollector: searchableNodeCollector,
+            windowSearchIndexProvider: windowSearchIndexProvider,
+            windowActivator: windowActivator,
             windowTitleHasher: windowTitleHasher,
             dateProvider: dateProvider,
             clickResultObserver: clickResultObserver
@@ -786,14 +1033,20 @@ final class OverlaySessionControllerTests: XCTestCase {
 
     private func makeSessionController(
         scanner: StubOverlayScanner,
-        clickExecutor: StubOverlayClickExecutor
+        clickExecutor: StubOverlayClickExecutor,
+        presenter: StubOverlayPresenter = StubOverlayPresenter(),
+        windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
+        windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning))
     ) -> OverlaySessionController {
         OverlaySessionController(
             targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
             scanner: scanner,
-            overlayPresenter: StubOverlayPresenter(),
+            overlayPresenter: presenter,
             interactionRecorder: StubInteractionRecorder(),
             clickExecutor: clickExecutor,
+            searchableNodeCollector: nil,
+            windowSearchIndexProvider: windowSearchIndexProvider,
+            windowActivator: windowActivator,
             windowTitleHasher: WindowTitleHasher(salt: SessionSalt(value: "default-test-salt"))
         )
     }
@@ -826,15 +1079,43 @@ final class OverlaySessionControllerTests: XCTestCase {
     }
 
     private func makeCandidate(
+        title: String = "Open",
         frame: CGRect = CGRect(x: 120, y: 140, width: 40, height: 20)
     ) -> ClickableCandidate {
         ClickableCandidate(
             role: AccessibilityRole.button,
             subrole: nil,
-            title: "Open",
+            title: title,
             frame: frame,
             actions: [AccessibilityAction.press]
         )
+    }
+
+    private func makeWindowEntry(
+        id: Int,
+        appName: String,
+        bundleID: String,
+        title: String? = nil
+    ) -> WindowEntry {
+        WindowEntry(
+            id: id,
+            appName: appName,
+            bundleID: bundleID,
+            windowTitle: title,
+            windowTitleHash: title.map { "hash-\($0)" },
+            pid: pid_t(id + 100),
+            axWindow: nil,
+            appIcon: nil
+        )
+    }
+}
+
+@MainActor
+private struct StubSearchableNodeCollector: SearchableNodeCollecting {
+    let index: ElementSearchIndex
+
+    func buildIndex(context: TargetContext) -> ElementSearchIndex {
+        index
     }
 }
 
@@ -855,19 +1136,23 @@ private final class StubOverlayTargetResolver: OverlaySessionTargetResolving {
 
 @MainActor
 private final class StubOverlayScanner: OverlaySessionScanning {
-    private let result: Result<AccessibilityScanResult, AccessibilityScanFailure>
+    private let results: [Result<AccessibilityScanResult, AccessibilityScanFailure>]
     private(set) var scanCallCount = 0
     private(set) var invalidateCallCount = 0
     private(set) var receivedContext: TargetContext?
 
     init(result: Result<AccessibilityScanResult, AccessibilityScanFailure>) {
-        self.result = result
+        self.results = [result]
+    }
+
+    init(results: [Result<AccessibilityScanResult, AccessibilityScanFailure>]) {
+        self.results = results
     }
 
     func scan(context: TargetContext) -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
         scanCallCount += 1
         receivedContext = context
-        return result
+        return results[min(scanCallCount - 1, results.count - 1)]
     }
 
     func invalidate() {
@@ -997,4 +1282,19 @@ private struct ClickRequest: Equatable {
     let focusedIndex: Int
     let context: TargetContext
     let isSecondConfirmProvided: Bool
+}
+
+@MainActor
+private final class StubWindowActivator: WindowActivating {
+    private let result: Result<Void, WindowActivateFailure>
+    private(set) var activatedEntries: [WindowEntry] = []
+
+    init(result: Result<Void, WindowActivateFailure>) {
+        self.result = result
+    }
+
+    func activate(_ entry: WindowEntry) -> Result<Void, WindowActivateFailure> {
+        activatedEntries.append(entry)
+        return result
+    }
 }

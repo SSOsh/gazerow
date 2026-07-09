@@ -15,7 +15,7 @@ final class FocusKeyboardCommandMapperTests: XCTestCase {
         let command = sut.command(for: FocusKeyboardInput(keyCode: 48))
 
         // then
-        XCTAssertEqual(command, .move(.next))
+        XCTAssertEqual(command, .cycleMatch(forward: true))
     }
 
     func test_shiftTab은_previous_명령으로_변환() {
@@ -28,7 +28,7 @@ final class FocusKeyboardCommandMapperTests: XCTestCase {
         )
 
         // then
-        XCTAssertEqual(command, .move(.previous))
+        XCTAssertEqual(command, .cycleMatch(forward: false))
     }
 
     func test_arrowUpDown은_수직이동_명령으로_변환() {
@@ -183,8 +183,8 @@ final class FocusKeyboardCommandMapperTests: XCTestCase {
         XCTAssertEqual(command, .typeLabel("j"))
     }
 
-    func test_비ASCII_문자에_매핑없는_keyCode면_문자유지() {
-        // given: letter이지만 ASCII 아니고 keyCode 매핑도 없는 경우 문자를 그대로 둔다.
+    func test_비ASCII_문자에_매핑없는_keyCode면_query로_입력한다() {
+        // given: 물리 라벨 매핑이 없으면 query 입력으로 취급한다.
         let sut = FocusKeyboardCommandMapper()
 
         // when: keyCode 999는 매핑 테이블에 없음.
@@ -193,6 +193,99 @@ final class FocusKeyboardCommandMapperTests: XCTestCase {
         )
 
         // then
-        XCTAssertEqual(command, .typeLabel("ㅎ"))
+        XCTAssertEqual(command, .appendQuery("ㅎ"))
+    }
+
+    func test_queryBuffer가_있으면_ASCII_letter도_appendQuery로_변환한다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+        let state = QueryInputState(buffer: "de")
+
+        // when
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 37, charactersIgnoringModifiers: "l"),
+            queryInput: state
+        )
+
+        // then
+        XCTAssertEqual(command, .appendQuery("l"))
+    }
+
+    func test_semicolon은_windows_scope_pin으로_변환하고_buffer에_넣지_않는다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+
+        // when
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 41, charactersIgnoringModifiers: ";")
+        )
+
+        // then
+        XCTAssertEqual(command, .pinScope(.windows))
+    }
+
+    func test_slash는_elements_scope_pin으로_변환하고_buffer에_넣지_않는다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+
+        // when
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 44, charactersIgnoringModifiers: "/")
+        )
+
+        // then
+        XCTAssertEqual(command, .pinScope(.elements))
+    }
+
+    func test_pinnedScope가_있으면_ASCII_letter도_appendQuery로_변환한다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+        let state = QueryInputState(pinnedScope: .elements)
+
+        // when
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 2, charactersIgnoringModifiers: "d"),
+            queryInput: state
+        )
+
+        // then
+        XCTAssertEqual(command, .appendQuery("d"))
+    }
+
+    func test_backspace는_queryBuffer가_있으면_한글자삭제_명령으로_변환한다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+        let state = QueryInputState(buffer: "delete")
+
+        // when
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 51),
+            queryInput: state
+        )
+
+        // then
+        XCTAssertEqual(command, .deleteQueryCharacter)
+    }
+
+    func test_backspace는_queryBuffer가_없으면_기존_clearLabelBuffer로_변환한다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+
+        // when
+        let command = sut.command(for: FocusKeyboardInput(keyCode: 51))
+
+        // then
+        XCTAssertEqual(command, .clearLabelBuffer)
+    }
+
+    func test_forwardDelete는_clearQueryBuffer로_변환한다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+
+        // when
+        let command = sut.command(for: FocusKeyboardInput(keyCode: 117))
+
+        // then
+        XCTAssertEqual(command, .clearQueryBuffer)
     }
 }

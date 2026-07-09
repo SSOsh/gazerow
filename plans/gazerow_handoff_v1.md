@@ -4,6 +4,7 @@
 - v1: 다른 컴퓨터나 새 세션에서 GazeRow 작업을 이어받기 위한 읽기 순서, 현재 상태, 다음 액션, 미결정 항목을 정리.
 - v2: TICKET-010/011 local MVP freeze GO, Finder/VS Code fixed task pass, Post-MVP 앱 평가 스크립트 준비 상태를 반영.
 - v3: Post-MVP Slack pass, Discord Limited 개선 상태와 2026-07-03 freeze 재검증 결과를 반영.
+- v4: Query Overlay v1 TICKET-012~019 구현, 평가 스크립트, verify 통합 상태를 반영.
 
 ## 1. 목적
 
@@ -23,6 +24,14 @@ TICKET-010 수동 평가 착수 결과 당시 빌드에 end-to-end overlay activ
 2026-07-02 12:58:32 KST precheck에서 현재 실행 환경의 Accessibility 권한이 `not granted`로 확인됐다. 2026-07-02 19:36:10 KST에는 Settings Accessibility 섹션의 `Request Permission` 버튼을 연결했고, 2026-07-02 19:42:19 KST에는 Show Overlay 권한 실패 시 권한 요청 프롬프트와 System Settings 이동을 연결했다. 2026-07-02 19:45:35 KST에는 `--request-accessibility` 런치 옵션을 추가했다. 2026-07-02 19:57:41 KST에는 Accessibility 권한이 승인되어 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 target bundle launch option과 target window fallback을 추가해 Finder, Safari, Chrome, VS Code, System Settings overlay activation smoke를 통과했다. 2026-07-02 20:20 KST에는 실제 click task를 수행해 Safari, Chrome, System Settings는 pass, Finder와 VS Code는 fixed task target candidate 미수집으로 fail을 기록했다. 2026-07-02 20:46:31~21:16:31 KST에는 30분 crash-free session도 통과했다. 이후 candidate coverage와 scanner 기본 depth, Finder sidebar candidate용 `AXOpen`, `AXConfirm`, `AXShowDefaultUI`, overlay keyboard input 수신을 위한 app activation, launch-option click result stdout, `--click-overlay-label` 평가 옵션, overlay panel AX/AppKit 좌표 변환을 보강했다. Finder/VS Code fixed task 재평가는 Finder `AXShowDefaultUI`, VS Code `AXPress`로 pass했다. 2026-07-03 11:05 KST 기준 `scripts/verify_mvp_freeze.sh`는 207 tests, 0 failures와 MVP-excluded 참조 검사로 통과했고 local MVP freeze decision은 `GO_FOR_LOCAL_MVP_FREEZE`다. 내부 사용자 3명 gate는 ED-008에 따라 Post-MVP로 defer했다.
 
 Post-MVP 앱 확대 검증에서는 AX child attribute 스캔 확장과 decorative image candidate filtering을 반영했다. Slack은 43 labels와 Messages tab `BI` click pass(`axPress`, fallback=false)로 Evaluation pass가 됐다. Discord는 로그인/계정 추가 화면 기준 6 labels까지 수집되지만 대표 click task 미확정이라 Limited로 유지한다. Obsidian은 현재 평가 환경에 미설치다.
+
+Query Overlay v1(TICKET-012~019)은 labels/elements/windows scope를 기존 overlay session에
+통합한 상태다. `/`는 elements, `;`는 windows scope를 고정하며, bare letter는 기존
+label 입력을 우선한다. Element 검색은 AX searchable node index와 ActionablePromoter를
+거쳐 clickable candidate로 승격하고, window 검색은 실행 중인 regular app/window index와
+frontmost polling 기반 activation을 사용한다. `scripts/evaluate_query_overlay.sh`와
+`--query-text`, `--query-scope-pin`, `--perform-query-confirm` 런치 옵션으로 로컬 평가를
+반복할 수 있다.
 
 완료된 구현/문서:
 
@@ -52,6 +61,10 @@ Post-MVP 앱 확대 검증에서는 AX child attribute 스캔 확장과 decorati
 - local `.app` bundle 생성 스크립트(`scripts/build_local_app.sh`)
 - Post-MVP 앱 평가 스크립트(`scripts/evaluate_overlay_target.sh`)
 - Post-MVP Slack Evaluation pass, Discord Limited, Obsidian Unverified 반영
+- Query Overlay status UI, keyboard input, element search, actionable promotion, intent routing, window search/activation
+- Query Overlay evaluation script(`scripts/evaluate_query_overlay.sh`)
+- Query Overlay launch options(`--query-type-text --query-text --query-scope-pin --perform-query-confirm`)
+- Query Overlay verify test group in `scripts/verify_mvp_freeze.sh`
 - `--request-accessibility` 런치 옵션
 - `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션
 - `--print-overlay-label-map` 로컬 평가용 label map 출력 옵션
@@ -145,10 +158,11 @@ Deferred:
 
 추천 순서:
 
-1. Discord representative click label 확정 및 `--click-label` 평가
-2. Obsidian 설치 환경에서 `scripts/evaluate_overlay_target.sh`로 overlay label map smoke 실행
-3. 대표 click task label을 정해 `--click-label` 평가 실행
-4. 내부 사용자 3명 평가자가 확보되면 `gazerow_internal_user_evaluation_v1.md`로 평가 재개
+1. Query Overlay E1~E5/W1~W5 로컬 앱별 반복 평가를 `plans/gazerow_query_overlay_eval_v1.md`에 누적
+2. Discord representative click label 확정 및 `--click-label` 평가
+3. Obsidian 설치 환경에서 `scripts/evaluate_overlay_target.sh`로 overlay label map smoke 실행
+4. 대표 click task label을 정해 `--click-label` 평가 실행
+5. 내부 사용자 3명 평가자가 확보되면 `gazerow_internal_user_evaluation_v1.md`로 평가 재개
 
 ## 7. 작업 중 지켜야 할 제한
 

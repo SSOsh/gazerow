@@ -56,6 +56,14 @@ Once the overlay is open, every actionable element gets a letter label (A, B, �
 match the physical key position — for example `ㄹ` selects `F` and `ㅁ` selects `A`.
 You don't need to switch to an English layout.
 
+### Query Overlay
+
+After opening the overlay, press `/` to pin element search or `;` to pin window search.
+Type a query to show the match count and focused target in the status area.
+Use `Tab` / `Shift+Tab` to cycle query matches, and `Delete` to edit the query.
+In element scope, `Return` clicks the focused element; in window scope, `Return` switches to the selected app/window.
+Bare letter input still prioritizes label selection, so the existing label flow remains intact.
+
 ### Window control shortcuts
 
 Press the frontmost window's standard title-bar buttons (close / minimize / zoom)

@@ -88,4 +88,21 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("한글 키보드"))
         XCTAssertTrue(appText.privacyNotice.contains("화면 녹화"))
     }
+
+    func test_queryOverlayContent는_한영_scope와_hint를_제공한다() {
+        // given
+        let english = AppContent.localized(for: .english)
+        let korean = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(english.queryScopeTitle(.windows), "Windows")
+        XCTAssertEqual(english.queryScopeTitle(.elements), "Elements")
+        XCTAssertEqual(english.queryScopeTitle(.labels), "Labels")
+        XCTAssertEqual(korean.queryScopeTitle(.windows), "창")
+        XCTAssertEqual(korean.queryScopeTitle(.elements), "요소")
+        XCTAssertEqual(korean.queryScopeTitle(.labels), "라벨")
+        XCTAssertEqual(korean.queryNoMatch, "매칭 없음")
+        XCTAssertTrue(korean.queryKeyHint(for: .windows, enterActionHint: korean.enterActionSwitchWindow).contains("창 전환"))
+        XCTAssertTrue(english.queryMatchSummary(count: 2, index: 1, displayName: "Delete").contains("Delete"))
+    }
 }

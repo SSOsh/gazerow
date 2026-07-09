@@ -27,6 +27,8 @@ struct OverlayView: View {
 
     var body: some View {
         let statusWidth = max(0, min(layout.localBounds.width - 16, 420))
+        let focusStyle = QueryFocusStyle(scope: status.activeScope)
+        let labelOpacity = status.activeScope == .windows ? 0.25 : 1.0
 
         ZStack(alignment: .topLeading) {
             if showsBoundary {
@@ -39,7 +41,8 @@ struct OverlayView: View {
                 OverlayTargetMarkerView(
                     label: label,
                     isFocused: label.id == focusedLabelID,
-                    appearance: appearance
+                    appearance: appearance,
+                    focusStyle: focusStyle
                 )
                 .frame(width: layout.localBounds.width, height: layout.localBounds.height)
             }
@@ -48,7 +51,9 @@ struct OverlayView: View {
                 OverlayLabelView(
                     label: label,
                     isFocused: label.id == focusedLabelID,
-                    appearance: appearance
+                    appearance: appearance,
+                    focusStyle: focusStyle,
+                    labelOpacity: labelOpacity
                 )
                     .frame(width: label.labelFrame.width, height: label.labelFrame.height)
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
@@ -58,7 +63,7 @@ struct OverlayView: View {
                 .frame(width: statusWidth, alignment: .leading)
                 .position(
                     x: statusWidth / 2 + 8,
-                    y: layout.localBounds.height - 22
+                    y: layout.localBounds.height - 34
                 )
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
@@ -70,6 +75,8 @@ private struct OverlayLabelView: View {
     let label: OverlayLabel
     let isFocused: Bool
     let appearance: OverlayAppearance
+    let focusStyle: QueryFocusStyle
+    let labelOpacity: Double
 
     var body: some View {
         HStack(spacing: 1) {
@@ -91,11 +98,12 @@ private struct OverlayLabelView: View {
                     .stroke(Color.white.opacity(isFocused ? 1 : 0.9), lineWidth: isFocused ? 2 : 1)
             }
             .scaleEffect(isFocused ? 1.08 : 1)
+            .opacity(labelOpacity)
     }
 
     private var backgroundColor: Color {
         isFocused
-            ? Color.orange.opacity(0.96)
+            ? focusStyle.markerColor.opacity(0.96)
             : Color.accentColor.opacity(appearance.labelBackgroundOpacity)
     }
 
@@ -116,6 +124,7 @@ private struct OverlayTargetMarkerView: View {
     let label: OverlayLabel
     let isFocused: Bool
     let appearance: OverlayAppearance
+    let focusStyle: QueryFocusStyle
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -150,47 +159,74 @@ private struct OverlayTargetMarkerView: View {
 
     private var fillColor: Color {
         isFocused
-            ? Color.orange.opacity(0.18)
+            ? focusStyle.markerColor.opacity(0.18)
             : Color.accentColor.opacity(appearance.markerFillOpacity)
     }
 
     private var strokeColor: Color {
-        isFocused ? Color.orange.opacity(0.98) : Color.accentColor.opacity(0.42)
+        isFocused ? focusStyle.markerColor.opacity(0.98) : Color.accentColor.opacity(0.42)
     }
 
     private var dotColor: Color {
-        isFocused ? Color.orange.opacity(1) : Color.white.opacity(0.7)
+        isFocused ? focusStyle.markerColor.opacity(1) : Color.white.opacity(0.7)
+    }
+}
+
+private struct QueryFocusStyle: Equatable {
+    let scope: QueryScope
+
+    var markerColor: Color {
+        switch scope {
+        case .labels:
+            Color.orange
+        case .elements:
+            Color(red: 0, green: 0.71, blue: 0.85)
+        case .windows:
+            Color(red: 0.30, green: 0.43, blue: 0.96)
+        }
     }
 }
 
 private struct OverlayStatusView: View {
     let status: OverlayInteractionStatus
+    private let content = AppContent.localized(for: .english)
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text(primaryText)
-                .lineLimit(1)
-                .truncationMode(.tail)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                ForEach(QueryScope.allCases, id: \.self) { scope in
+                    ScopeChip(
+                        title: content.queryScopeTitle(scope),
+                        isActive: status.activeScope == scope,
+                        isPinned: status.pinnedScope == scope
+                    )
+                }
 
-            Spacer(minLength: 12)
+                Spacer(minLength: 8)
 
-            if let focusedLabel = status.focusedLabel {
-                Text(focusedLabel)
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 5))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(Color.white.opacity(0.55), lineWidth: 1)
-                    }
+                Text(bufferText)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.head)
             }
+
+            HStack(spacing: 10) {
+                Text(summaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer(minLength: 12)
+
+                Text(keyHintText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .font(.system(size: 11, weight: .regular, design: .rounded))
+            .foregroundStyle(Color.white.opacity(0.88))
         }
-        .font(.system(size: 12, weight: .regular, design: .rounded))
         .foregroundStyle(Color.white)
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
         .background(backgroundColor, in: RoundedRectangle(cornerRadius: 6))
         .overlay {
             RoundedRectangle(cornerRadius: 6)
@@ -211,20 +247,60 @@ private struct OverlayStatusView: View {
         }
     }
 
-    private var primaryText: String {
-        if let message = status.message {
-            if !status.typedLabelBuffer.isEmpty {
-                return "\(message) · Typed \(status.typedLabelBuffer)"
-            }
+    private var bufferText: String {
+        let buffer = status.displayBuffer
+        guard !buffer.isEmpty else {
+            return content.readyBadge
+        }
 
+        return "\(buffer)█"
+    }
+
+    private var summaryText: String {
+        if status.matchCount > 0 {
+            let displayIndex = max(1, status.matchIndex)
+            return content.queryMatchSummary(
+                count: status.matchCount,
+                index: min(displayIndex, status.matchCount),
+                displayName: status.focusedDisplayName ?? status.focusedLabel ?? ""
+            )
+        }
+
+        if !status.displayBuffer.isEmpty {
+            return content.queryNoMatch
+        }
+
+        if let message = status.message {
             return message
         }
 
-        if !status.typedLabelBuffer.isEmpty {
-            return "Typed \(status.typedLabelBuffer)"
-        }
+        return content.readyBadge
+    }
 
-        return "Ready"
+    private var keyHintText: String {
+        content.queryKeyHint(for: status.activeScope, enterActionHint: status.enterActionHint)
+    }
+}
+
+private struct ScopeChip: View {
+    let title: String
+    let isActive: Bool
+    let isPinned: Bool
+
+    var body: some View {
+        Text(isPinned ? "\(title)*" : title)
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color.white.opacity(isActive ? 1 : 0.74))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                isActive ? Color.white.opacity(0.28) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 5)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Color.white.opacity(isActive ? 0.84 : 0.45), lineWidth: 1)
+            }
     }
 }
 
