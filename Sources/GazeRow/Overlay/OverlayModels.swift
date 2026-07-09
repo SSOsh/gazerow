@@ -124,7 +124,7 @@ struct OverlayInteractionStatus: Equatable {
         matchCount: Int = 0,
         matchIndex: Int = 0,
         focusedDisplayName: String? = nil,
-        enterActionHint: String = "Click",
+        enterActionHint: String = "click",
         message: String? = nil,
         tone: Tone = .neutral
     ) {

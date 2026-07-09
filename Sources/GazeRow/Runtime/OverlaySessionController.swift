@@ -137,11 +137,44 @@ final class OverlaySessionController {
             let feedback = feedback(for: typingResult, typedCharacter: character, session: session)
             statusMessage = feedback.message
             statusTone = feedback.tone
-        case .clearLabelBuffer:
+        case .appendQuery(let grapheme):
             session.pendingSecondConfirm = nil
+            session.queryInput.buffer.append(grapheme)
+            session.queryInput.lastScope = session.queryInput.pinnedScope ?? .elements
+            event = nil
+            statusMessage = "Typing \(session.queryInput.buffer)"
+        case .deleteQueryCharacter:
+            session.pendingSecondConfirm = nil
+            if !session.queryInput.buffer.isEmpty {
+                session.queryInput.buffer.removeLast()
+            } else {
+                session.focusEngine.clearLabelBuffer()
+            }
+            event = nil
+            statusMessage = session.queryInput.buffer.isEmpty ? "Input cleared" : "Typing \(session.queryInput.buffer)"
+        case .clearQueryBuffer:
+            session.pendingSecondConfirm = nil
+            session.queryInput = QueryInputState(lastScope: session.queryInput.lastScope)
             session.focusEngine.clearLabelBuffer()
             event = nil
             statusMessage = "Input cleared"
+        case .clearLabelBuffer:
+            session.pendingSecondConfirm = nil
+            session.focusEngine.clearLabelBuffer()
+            session.queryInput.buffer = ""
+            session.queryInput.pinnedScope = nil
+            event = nil
+            statusMessage = "Input cleared"
+        case .pinScope(let scope):
+            session.pendingSecondConfirm = nil
+            session.queryInput.pinnedScope = scope
+            session.queryInput.lastScope = scope
+            event = nil
+            statusMessage = "Pinned \(scope.rawValue)"
+        case .cycleMatch(let forward):
+            session.pendingSecondConfirm = nil
+            event = session.focusEngine.move(forward ? .next : .previous)
+            statusMessage = focusedMessage(for: session)
         case .dryRunConfirm:
             let confirmResult = session.focusEngine.dryRunConfirm()
             executeClickIfPossible(confirmResult: confirmResult, session: &session)
@@ -336,6 +369,10 @@ final class OverlaySessionController {
             OverlayInteractionStatus(
                 focusedLabel: labelText(for: session.focusEngine.focusedItemID, in: session),
                 typedLabelBuffer: session.focusEngine.labelBuffer,
+                queryBuffer: session.queryInput.buffer,
+                activeScope: session.queryInput.pinnedScope ?? session.queryInput.lastScope,
+                pinnedScope: session.queryInput.pinnedScope,
+                enterActionHint: AppContent.localized(for: .english).enterActionClick,
                 message: message,
                 tone: tone
             )
@@ -489,6 +526,7 @@ struct OverlaySessionSnapshot: Equatable {
 struct OverlaySessionState: Equatable {
     let snapshot: OverlaySessionSnapshot
     var focusEngine: FocusEngine
+    var queryInput: QueryInputState = QueryInputState()
     var pendingSecondConfirm: PendingSecondConfirm?
 }
 

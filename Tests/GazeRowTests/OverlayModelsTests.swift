@@ -87,7 +87,7 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.queryBuffer, "A")
         XCTAssertEqual(sut.displayBuffer, "A")
         XCTAssertEqual(sut.activeScope, .labels)
-        XCTAssertEqual(sut.enterActionHint, "Click")
+        XCTAssertEqual(sut.enterActionHint, "click")
     }
 
     func test_OverlayInteractionStatus_queryBuffer가_있으면_표시값을_우선한다() {

@@ -5,7 +5,12 @@
 enum FocusKeyboardCommand: Equatable {
     case move(FocusMoveCommand)
     case typeLabel(Character)
+    case appendQuery(String)
+    case deleteQueryCharacter
+    case clearQueryBuffer
     case clearLabelBuffer
+    case pinScope(QueryScope)
+    case cycleMatch(forward: Bool)
     case dryRunConfirm
     case closeOverlay
 }
@@ -38,9 +43,16 @@ struct FocusKeyboardInput: Equatable {
 /// @since 2026-07-02
 struct FocusKeyboardCommandMapper {
     func command(for input: FocusKeyboardInput) -> FocusKeyboardCommand? {
+        command(for: input, queryInput: QueryInputState())
+    }
+
+    func command(
+        for input: FocusKeyboardInput,
+        queryInput: QueryInputState
+    ) -> FocusKeyboardCommand? {
         switch input.keyCode {
         case KeyCode.tab:
-            return .move(input.isShiftPressed ? .previous : .next)
+            return .cycleMatch(forward: !input.isShiftPressed)
         case KeyCode.arrowUp:
             return .move(.up)
         case KeyCode.arrowDown:
@@ -49,19 +61,37 @@ struct FocusKeyboardCommandMapper {
             return .dryRunConfirm
         case KeyCode.escape:
             return .closeOverlay
-        case KeyCode.delete:
-            return .clearLabelBuffer
+        case KeyCode.backspace:
+            return queryInput.buffer.isEmpty ? .clearLabelBuffer : .deleteQueryCharacter
+        case KeyCode.forwardDelete:
+            return .clearQueryBuffer
         default:
-            return labelCommand(from: input)
+            return printableCommand(from: input, queryInput: queryInput)
         }
     }
 
-    /// label 입력을 typeLabel command로 변환한다.
+    /// printable 입력을 label 또는 query command로 변환한다.
     ///
     /// 영문 레이아웃은 문자를 그대로 쓰고, 한글 등 비 ASCII 입력기에서는 물리
     /// keyCode를 QWERTY 알파벳으로 되돌려 같은 물리 위치가 같은 라벨로 매칭되게 한다.
     /// (예: 한글 "ㄹ"(keyCode 3) → "F", "ㅁ"(keyCode 0) → "A")
-    private func labelCommand(from input: FocusKeyboardInput) -> FocusKeyboardCommand? {
+    private func printableCommand(
+        from input: FocusKeyboardInput,
+        queryInput: QueryInputState
+    ) -> FocusKeyboardCommand? {
+        if input.charactersIgnoringModifiers == ";" {
+            return .pinScope(.windows)
+        }
+
+        if input.charactersIgnoringModifiers == "/" {
+            return .pinScope(.elements)
+        }
+
+        if shouldRouteAsQuery(input: input, queryInput: queryInput),
+           let grapheme = input.singleGrapheme {
+            return .appendQuery(grapheme.precomposedStringWithCanonicalMapping)
+        }
+
         if let character = input.singleLetterCharacter {
             if character.isASCII {
                 return .typeLabel(character)
@@ -81,9 +111,42 @@ struct FocusKeyboardCommandMapper {
 
         return nil
     }
+
+    private func shouldRouteAsQuery(
+        input: FocusKeyboardInput,
+        queryInput: QueryInputState
+    ) -> Bool {
+        if queryInput.pinnedScope == .elements || queryInput.pinnedScope == .windows {
+            return true
+        }
+
+        if !queryInput.buffer.isEmpty {
+            return true
+        }
+
+        guard let grapheme = input.singleGrapheme else {
+            return false
+        }
+
+        guard grapheme.count == 1,
+              let character = grapheme.first else {
+            return true
+        }
+
+        return !character.isASCII && !KeyCode.hasLetterMapping(for: input.keyCode)
+    }
 }
 
 private extension FocusKeyboardInput {
+    var singleGrapheme: String? {
+        guard let charactersIgnoringModifiers,
+              !charactersIgnoringModifiers.isEmpty else {
+            return nil
+        }
+
+        return charactersIgnoringModifiers
+    }
+
     var singleLetterCharacter: Character? {
         guard let charactersIgnoringModifiers,
               charactersIgnoringModifiers.count == 1,
@@ -101,13 +164,18 @@ private enum KeyCode {
     static let returnKey: UInt16 = 36
     static let keypadEnter: UInt16 = 76
     static let escape: UInt16 = 53
-    static let delete: UInt16 = 51
+    static let backspace: UInt16 = 51
+    static let forwardDelete: UInt16 = 117
     static let arrowUp: UInt16 = 126
     static let arrowDown: UInt16 = 125
 
     /// 물리 keyCode에 대응하는 ANSI(QWERTY) 알파벳을 돌려준다. 매핑이 없으면 nil.
     static func letter(for keyCode: UInt16) -> Character? {
         letterByKeyCode[keyCode]
+    }
+
+    static func hasLetterMapping(for keyCode: UInt16) -> Bool {
+        letterByKeyCode[keyCode] != nil
     }
 
     /// macOS ANSI 키보드의 알파벳 키 물리 위치 → 문자 매핑.

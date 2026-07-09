@@ -200,6 +200,70 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.focusEngine.labelBuffer, "")
     }
 
+    func test_handleKeyboardCommand_appendQuery는_queryInput과_status를_갱신한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("d"))
+        _ = sut.handleKeyboardCommand(.appendQuery("e"))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.buffer, "de")
+        XCTAssertEqual(
+            presenter.statusUpdates.last,
+            OverlayInteractionStatus(
+                focusedLabel: "A",
+                queryBuffer: "de",
+                activeScope: .elements,
+                enterActionHint: AppContent.localized(for: .english).enterActionClick,
+                message: "Typing de",
+                tone: .neutral
+            )
+        )
+    }
+
+    func test_handleKeyboardCommand_deleteQueryCharacter는_queryBuffer_마지막글자를_삭제한다() {
+        // given
+        let sut = makeStartedSessionController()
+        _ = sut.handleKeyboardCommand(.appendQuery("d"))
+        _ = sut.handleKeyboardCommand(.appendQuery("e"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.deleteQueryCharacter)
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.buffer, "d")
+    }
+
+    func test_handleKeyboardCommand_clearQueryBuffer는_pin까지_초기화한다() {
+        // given
+        let sut = makeStartedSessionController()
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("s"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.clearQueryBuffer)
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.buffer, "")
+        XCTAssertNil(sut.activeSession?.queryInput.pinnedScope)
+    }
+
+    func test_handleKeyboardCommand_pinScope는_buffer없이_scope만_고정한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
+
+        // when
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.pinnedScope, .windows)
+    }
+
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
         // given
         let clickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 1)))
