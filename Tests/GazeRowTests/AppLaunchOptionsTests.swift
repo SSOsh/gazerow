@@ -171,4 +171,70 @@ final class AppLaunchOptionsTests: XCTestCase {
         // then
         XCTAssertNil(sut.clickOverlayLabel)
     }
+
+    func test_init_queryText_값이있으면_반환() {
+        // given
+        let arguments = ["GazeRow", "--query-type-text", "--query-text", "explorer"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertEqual(sut.queryText, "explorer")
+    }
+
+    func test_init_queryText_값이없으면_nil() {
+        // given
+        let arguments = ["GazeRow", "--query-text"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertNil(sut.queryText)
+    }
+
+    func test_init_queryScopePin_올바른값이면_scope를_반환() {
+        // given
+        let arguments = ["GazeRow", "--query-scope-pin", "windows"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertEqual(sut.queryScopePin, .windows)
+    }
+
+    func test_init_queryScopePin_알수없는값이면_nil() {
+        // given
+        let arguments = ["GazeRow", "--query-scope-pin", "unknown"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertNil(sut.queryScopePin)
+    }
+
+    func test_init_performQueryConfirm_인자가있으면_true() {
+        // given
+        let arguments = ["GazeRow", "--perform-query-confirm"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertTrue(sut.performQueryConfirm)
+    }
+
+    func test_isHotKeyRegistrationProbeOnly_query옵션이_있으면_false() {
+        // given
+        let arguments = ["GazeRow", "--print-hotkey-registration", "--query-text", "finder"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertFalse(sut.isHotKeyRegistrationProbeOnly)
+    }
 }

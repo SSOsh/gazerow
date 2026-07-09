@@ -11,6 +11,9 @@ struct AppLaunchOptions: Equatable {
     let printsOverlayLabelMap: Bool
     let clickOverlayLabel: String?
     let printsHotKeyRegistration: Bool
+    let queryText: String?
+    let queryScopePin: QueryScope?
+    let performQueryConfirm: Bool
 
     var isHotKeyRegistrationProbeOnly: Bool {
         printsHotKeyRegistration
@@ -19,6 +22,9 @@ struct AppLaunchOptions: Equatable {
             && targetBundleIdentifier == nil
             && !printsOverlayLabelMap
             && clickOverlayLabel == nil
+            && queryText == nil
+            && queryScopePin == nil
+            && !performQueryConfirm
     }
 
     static var current: AppLaunchOptions {
@@ -32,6 +38,9 @@ struct AppLaunchOptions: Equatable {
         printsOverlayLabelMap = arguments.contains("--print-overlay-label-map")
         clickOverlayLabel = Self.value(after: "--click-overlay-label", in: arguments)
         printsHotKeyRegistration = arguments.contains("--print-hotkey-registration")
+        queryText = Self.value(after: "--query-text", in: arguments)
+        queryScopePin = Self.queryScope(after: "--query-scope-pin", in: arguments)
+        performQueryConfirm = arguments.contains("--perform-query-confirm")
     }
 
     private static func value(after option: String, in arguments: [String]) -> String? {
@@ -46,5 +55,13 @@ struct AppLaunchOptions: Equatable {
 
         let value = arguments[valueIndex]
         return value.hasPrefix("--") ? nil : value
+    }
+
+    private static func queryScope(after option: String, in arguments: [String]) -> QueryScope? {
+        guard let value = value(after: option, in: arguments) else {
+            return nil
+        }
+
+        return QueryScope(rawValue: value)
     }
 }

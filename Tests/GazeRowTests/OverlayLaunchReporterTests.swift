@@ -130,6 +130,40 @@ final class OverlayLaunchReporterTests: XCTestCase {
         )
     }
 
+    func test_queryResult_scope_match_focus_success를_출력한다() {
+        // when
+        let message = OverlayLaunchReporter.queryResult(
+            scope: .elements,
+            matchCount: 2,
+            matchIndex: 1,
+            focusedDisplayName: "Explorer Toggle",
+            success: true
+        )
+
+        // then
+        XCTAssertEqual(
+            message,
+            "GAZEROW_QUERY_RESULT scope=elements matches=2 match_index=1 focus=Explorer_Toggle success=true"
+        )
+    }
+
+    func test_queryResult_focus가_없으면_nil을_출력한다() {
+        // when
+        let message = OverlayLaunchReporter.queryResult(
+            scope: .windows,
+            matchCount: 0,
+            matchIndex: 0,
+            focusedDisplayName: nil,
+            success: false
+        )
+
+        // then
+        XCTAssertEqual(
+            message,
+            "GAZEROW_QUERY_RESULT scope=windows matches=0 match_index=0 focus=<nil> success=false"
+        )
+    }
+
     func test_labelMap_label과_candidate정보를_출력한다() {
         // given
         let layout = OverlayLayout(

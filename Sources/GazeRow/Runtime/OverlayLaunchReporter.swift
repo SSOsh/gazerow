@@ -62,6 +62,23 @@ enum OverlayLaunchReporter {
         }
     }
 
+    static func queryResult(
+        scope: QueryScope,
+        matchCount: Int,
+        matchIndex: Int,
+        focusedDisplayName: String?,
+        success: Bool
+    ) -> String {
+        [
+            "GAZEROW_QUERY_RESULT",
+            "scope=\(scope.rawValue)",
+            "matches=\(matchCount)",
+            "match_index=\(matchIndex)",
+            "focus=\(sanitized(focusedDisplayName))",
+            "success=\(success)"
+        ].joined(separator: " ")
+    }
+
     static func labelMap(layout: OverlayLayout, candidates: [ClickableCandidate]) -> [String] {
         layout.labels.map { label in
             let candidate = candidates[label.id]
