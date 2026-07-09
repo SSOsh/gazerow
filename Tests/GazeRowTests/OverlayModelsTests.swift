@@ -78,4 +78,35 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertTrue(retina.isRetina)
         XCTAssertFalse(nonRetina.isRetina)
     }
+
+    func test_OverlayInteractionStatus_queryBuffer가_nil이면_legacyBuffer를_표시값으로_사용한다() {
+        // given
+        let sut = OverlayInteractionStatus(typedLabelBuffer: "A")
+
+        // then
+        XCTAssertEqual(sut.queryBuffer, "A")
+        XCTAssertEqual(sut.displayBuffer, "A")
+        XCTAssertEqual(sut.activeScope, .labels)
+        XCTAssertEqual(sut.enterActionHint, "Click")
+    }
+
+    func test_OverlayInteractionStatus_queryBuffer가_있으면_표시값을_우선한다() {
+        // given
+        let sut = OverlayInteractionStatus(
+            typedLabelBuffer: "A",
+            queryBuffer: "delete",
+            activeScope: .elements,
+            matchCount: 2,
+            matchIndex: 1,
+            focusedDisplayName: "Delete Item",
+            enterActionHint: "click"
+        )
+
+        // then
+        XCTAssertEqual(sut.displayBuffer, "delete")
+        XCTAssertEqual(sut.activeScope, .elements)
+        XCTAssertEqual(sut.matchCount, 2)
+        XCTAssertEqual(sut.matchIndex, 1)
+        XCTAssertEqual(sut.focusedDisplayName, "Delete Item")
+    }
 }

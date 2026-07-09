@@ -105,19 +105,44 @@ struct OverlayLayoutMetrics: Equatable {
 struct OverlayInteractionStatus: Equatable {
     let focusedLabel: String?
     let typedLabelBuffer: String
+    let queryBuffer: String
+    let activeScope: QueryScope
+    let pinnedScope: QueryScope?
+    let matchCount: Int
+    let matchIndex: Int
+    let focusedDisplayName: String?
+    let enterActionHint: String
     let message: String?
     let tone: Tone
 
     init(
         focusedLabel: String? = nil,
         typedLabelBuffer: String = "",
+        queryBuffer: String? = nil,
+        activeScope: QueryScope = .labels,
+        pinnedScope: QueryScope? = nil,
+        matchCount: Int = 0,
+        matchIndex: Int = 0,
+        focusedDisplayName: String? = nil,
+        enterActionHint: String = "Click",
         message: String? = nil,
         tone: Tone = .neutral
     ) {
         self.focusedLabel = focusedLabel
         self.typedLabelBuffer = typedLabelBuffer
+        self.queryBuffer = queryBuffer ?? typedLabelBuffer
+        self.activeScope = activeScope
+        self.pinnedScope = pinnedScope
+        self.matchCount = max(0, matchCount)
+        self.matchIndex = max(0, matchIndex)
+        self.focusedDisplayName = focusedDisplayName
+        self.enterActionHint = enterActionHint
         self.message = message
         self.tone = tone
+    }
+
+    var displayBuffer: String {
+        queryBuffer.isEmpty ? typedLabelBuffer : queryBuffer
     }
 
     enum Tone: Equatable {

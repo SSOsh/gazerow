@@ -58,7 +58,7 @@ struct OverlayView: View {
                 .frame(width: statusWidth, alignment: .leading)
                 .position(
                     x: statusWidth / 2 + 8,
-                    y: layout.localBounds.height - 22
+                    y: layout.localBounds.height - 34
                 )
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
@@ -165,32 +165,44 @@ private struct OverlayTargetMarkerView: View {
 
 private struct OverlayStatusView: View {
     let status: OverlayInteractionStatus
+    private let content = AppContent.localized(for: .english)
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text(primaryText)
-                .lineLimit(1)
-                .truncationMode(.tail)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                ForEach(QueryScope.allCases, id: \.self) { scope in
+                    ScopeChip(
+                        title: content.queryScopeTitle(scope),
+                        isActive: status.activeScope == scope,
+                        isPinned: status.pinnedScope == scope
+                    )
+                }
 
-            Spacer(minLength: 12)
+                Spacer(minLength: 8)
 
-            if let focusedLabel = status.focusedLabel {
-                Text(focusedLabel)
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 5))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 5)
-                            .stroke(Color.white.opacity(0.55), lineWidth: 1)
-                    }
+                Text(bufferText)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .lineLimit(1)
+                    .truncationMode(.head)
             }
+
+            HStack(spacing: 10) {
+                Text(summaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer(minLength: 12)
+
+                Text(keyHintText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .font(.system(size: 11, weight: .regular, design: .rounded))
+            .foregroundStyle(Color.white.opacity(0.88))
         }
-        .font(.system(size: 12, weight: .regular, design: .rounded))
         .foregroundStyle(Color.white)
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
         .background(backgroundColor, in: RoundedRectangle(cornerRadius: 6))
         .overlay {
             RoundedRectangle(cornerRadius: 6)
@@ -211,20 +223,60 @@ private struct OverlayStatusView: View {
         }
     }
 
-    private var primaryText: String {
-        if let message = status.message {
-            if !status.typedLabelBuffer.isEmpty {
-                return "\(message) · Typed \(status.typedLabelBuffer)"
-            }
+    private var bufferText: String {
+        let buffer = status.displayBuffer
+        guard !buffer.isEmpty else {
+            return content.readyBadge
+        }
 
+        return "\(buffer)█"
+    }
+
+    private var summaryText: String {
+        if status.matchCount > 0 {
+            let displayIndex = max(1, status.matchIndex)
+            return content.queryMatchSummary(
+                count: status.matchCount,
+                index: min(displayIndex, status.matchCount),
+                displayName: status.focusedDisplayName ?? status.focusedLabel ?? ""
+            )
+        }
+
+        if !status.displayBuffer.isEmpty {
+            return content.queryNoMatch
+        }
+
+        if let message = status.message {
             return message
         }
 
-        if !status.typedLabelBuffer.isEmpty {
-            return "Typed \(status.typedLabelBuffer)"
-        }
+        return content.readyBadge
+    }
 
-        return "Ready"
+    private var keyHintText: String {
+        content.queryKeyHint(for: status.activeScope, enterActionHint: status.enterActionHint)
+    }
+}
+
+private struct ScopeChip: View {
+    let title: String
+    let isActive: Bool
+    let isPinned: Bool
+
+    var body: some View {
+        Text(isPinned ? "\(title)*" : title)
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color.white.opacity(isActive ? 1 : 0.74))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(
+                isActive ? Color.white.opacity(0.28) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 5)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(Color.white.opacity(isActive ? 0.84 : 0.45), lineWidth: 1)
+            }
     }
 }
 

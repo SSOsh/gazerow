@@ -99,6 +99,12 @@ enum AppContent {
         let supportDonationMenuTitle: String
         let supportDonationTitle: String
         let supportDonationMessage: String
+        let queryScopeWindows: String
+        let queryScopeElements: String
+        let queryScopeLabels: String
+        let queryNoMatch: String
+        let enterActionClick: String
+        let enterActionSwitchWindow: String
 
         func windowControlLabel(for action: WindowControlAction) -> String {
             switch action {
@@ -108,6 +114,44 @@ enum AppContent {
                 language == .korean ? "창 최소화" : action.displayName
             case .zoom:
                 language == .korean ? "창 확대/축소" : action.displayName
+            }
+        }
+
+        func queryScopeTitle(_ scope: QueryScope) -> String {
+            switch scope {
+            case .windows:
+                queryScopeWindows
+            case .elements:
+                queryScopeElements
+            case .labels:
+                queryScopeLabels
+            }
+        }
+
+        func queryMatchSummary(count: Int, index: Int, displayName: String) -> String {
+            let safeCount = max(0, count)
+            let safeIndex = min(max(1, index), max(1, safeCount))
+            guard !displayName.isEmpty else {
+                return language == .korean
+                    ? "매칭 \(safeCount) · \(safeIndex)/\(safeCount)"
+                    : "Matches \(safeCount) · \(safeIndex)/\(safeCount)"
+            }
+
+            return language == .korean
+                ? "매칭 \(safeCount) · \(safeIndex)/\(safeCount) · \(displayName)"
+                : "Matches \(safeCount) · \(safeIndex)/\(safeCount) · \(displayName)"
+        }
+
+        func queryKeyHint(for scope: QueryScope, enterActionHint: String) -> String {
+            switch scope {
+            case .labels:
+                return language == .korean
+                    ? "Enter \(enterActionHint) · Esc 닫기"
+                    : "Enter \(enterActionHint) · Esc close"
+            case .elements, .windows:
+                return language == .korean
+                    ? "Tab 다음 · Enter \(enterActionHint) · Esc 닫기"
+                    : "Tab next · Enter \(enterActionHint) · Esc close"
             }
         }
 
@@ -322,7 +366,13 @@ enum AppContent {
         debugExportNotice: debugExportNotice,
         supportDonationMenuTitle: supportDonationMenuTitle,
         supportDonationTitle: supportDonationTitle,
-        supportDonationMessage: supportDonationMessage
+        supportDonationMessage: supportDonationMessage,
+        queryScopeWindows: "Windows",
+        queryScopeElements: "Elements",
+        queryScopeLabels: "Labels",
+        queryNoMatch: "No matches",
+        enterActionClick: "click",
+        enterActionSwitchWindow: "switch window"
     )
 
     private static let korean = Localized(
@@ -420,6 +470,12 @@ enum AppContent {
         """,
         supportDonationMenuTitle: "GazeRow 후원",
         supportDonationTitle: "GazeRow 후원",
-        supportDonationMessage: supportDonationMessage
+        supportDonationMessage: supportDonationMessage,
+        queryScopeWindows: "창",
+        queryScopeElements: "요소",
+        queryScopeLabels: "라벨",
+        queryNoMatch: "매칭 없음",
+        enterActionClick: "클릭",
+        enterActionSwitchWindow: "창 전환"
     )
 }
