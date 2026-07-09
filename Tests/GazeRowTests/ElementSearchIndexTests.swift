@@ -178,7 +178,9 @@ final class ElementSearchIndexTests: XCTestCase {
         description: String? = nil,
         help: String? = nil,
         frame: CGRect,
-        axPath: [Int] = []
+        axPath: [Int] = [],
+        parentID: Int? = nil,
+        childrenIDs: [Int] = []
     ) -> SearchableNode {
         SearchableNode(
             id: id,
@@ -188,7 +190,9 @@ final class ElementSearchIndexTests: XCTestCase {
             description: description,
             help: help,
             frame: frame,
-            axPath: axPath
+            axPath: axPath,
+            parentID: parentID,
+            childrenIDs: childrenIDs
         )
     }
 }
