@@ -214,6 +214,57 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
     }
 
+    func test_handleKeyboardCommand_dryRunConfirm_focus가없으면_failure_status를_표시한다() {
+        // given
+        let emptyLayout = OverlayLayout(
+            targetFrame: CGRect(x: 100, y: 100, width: 400, height: 300),
+            localBounds: CGRect(x: 0, y: 0, width: 400, height: 300),
+            labels: [],
+            metrics: OverlayLayoutMetrics(
+                labelCount: 0,
+                collisionCount: 0,
+                occlusionCount: 0,
+                displayScaleFactor: 1
+            ),
+            displayInfo: OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+        )
+        let presenter = StubOverlayPresenter(forcedLayout: emptyLayout)
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(
+                    method: .axPress,
+                    riskClass: .safeNavigation,
+                    fallbackUsed: false
+                )
+            )
+        )
+        var observedResults: [Result<ClickExecutionSuccess, OverlaySessionClickFailure>] = []
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor,
+            clickResultObserver: { result in
+                observedResults.append(result)
+            }
+        )
+
+        // when
+        let event = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(event, .dryRunConfirm(index: nil))
+        XCTAssertEqual(sut.lastClickResult, .failure(.missingFocusedTarget(index: -1)))
+        XCTAssertTrue(clickExecutor.requests.isEmpty)
+        XCTAssertEqual(observedResults, [.failure(.missingFocusedTarget(index: -1))])
+        XCTAssertEqual(
+            presenter.statusUpdates.last,
+            OverlayInteractionStatus(
+                message: "Click failed: no focused target",
+                tone: .failure
+            )
+        )
+        XCTAssertNotNil(sut.activeSession)
+    }
+
     func test_handleKeyboardCommand_dryRunConfirm은_focusedIndex를_clickExecutor에_전달() {
         // given
         let clickExecutor = StubOverlayClickExecutor(
@@ -826,12 +877,17 @@ private final class StubOverlayScanner: OverlaySessionScanning {
 
 @MainActor
 private final class StubOverlayPresenter: OverlaySessionPresenting {
+    private let forcedLayout: OverlayLayout?
     private(set) var showRequests: [ShowRequest] = []
     private(set) var closeCallCount = 0
     private(set) var keyboardCommandHandler: ((FocusKeyboardCommand) -> Void)?
     private(set) var focusUpdates: [Int?] = []
     private(set) var statusUpdates: [OverlayInteractionStatus] = []
     private var lastLayout: OverlayLayout?
+
+    init(forcedLayout: OverlayLayout? = nil) {
+        self.forcedLayout = forcedLayout
+    }
 
     func show(
         targetFrame: CGRect,
@@ -848,6 +904,12 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
             )
         )
         keyboardCommandHandler = onKeyboardCommand
+
+        if let forcedLayout {
+            lastLayout = forcedLayout
+            return forcedLayout
+        }
+
         let layout = OverlayLayoutEngine().makeLayout(
             targetFrame: targetFrame,
             candidates: candidates,

@@ -198,8 +198,19 @@ final class OverlaySessionController {
     ) {
         guard let focusedItemID = confirmResult.focusedItemID else {
             AppLogger.interaction.info("confirm click skipped (no focused target)")
-            lastClickResult = .failure(.missingFocusedTarget(index: -1))
+            let result: Result<ClickExecutionSuccess, OverlaySessionClickFailure> = .failure(
+                .missingFocusedTarget(index: -1)
+            )
+            lastClickResult = result
+            clickResultObserver(result)
             activeSession = session
+            overlayPresenter.updateStatus(
+                OverlayInteractionStatus(
+                    typedLabelBuffer: session.focusEngine.labelBuffer,
+                    message: result.statusText,
+                    tone: .failure
+                )
+            )
             return
         }
 
