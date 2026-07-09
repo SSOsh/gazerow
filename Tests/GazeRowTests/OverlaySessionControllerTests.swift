@@ -363,6 +363,83 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
     }
 
+    func test_handleKeyboardCommand_windowsScope_return은_windowActivator를_호출하고_rescan한다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
+        let windowActivator = StubWindowActivator(result: .success(()))
+        let scanner = StubOverlayScanner(
+            results: [
+                .success(makeScanResult(candidates: [makeCandidate(title: "Open")])),
+                .success(makeScanResult(candidates: [makeCandidate(title: "Reload")]))
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) },
+            windowActivator: windowActivator
+        )
+        _ = sut.start()
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(windowActivator.activatedEntries, [entry])
+        XCTAssertEqual(scanner.scanCallCount, 2)
+        XCTAssertEqual(scanner.invalidateCallCount, 1)
+        XCTAssertEqual(presenter.showRequests.count, 2)
+        XCTAssertEqual(sut.activeSession?.queryInput.lastScope, .elements)
+        XCTAssertEqual(presenter.statusUpdates.last?.tone, .success)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_activate실패는_failure_status를_표시한다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
+        let windowActivator = StubWindowActivator(result: .failure(.frontmostTimeout))
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) },
+            windowActivator: windowActivator
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(windowActivator.activatedEntries, [entry])
+        XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_cycleMatch는_windowMatchIndex를_순환한다() {
+        // given
+        let first = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Alpha")
+        let second = makeWindowEntry(id: 1, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Beta")
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [first, second]) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.windowMatchIndex, 1)
+        XCTAssertEqual(presenter.statusUpdates.last?.matchIndex, 2)
+        XCTAssertEqual(presenter.statusUpdates.last?.focusedDisplayName, "Slack — Beta")
+    }
+
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
         // given
         let clickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 1)))
@@ -906,6 +983,8 @@ final class OverlaySessionControllerTests: XCTestCase {
         clickExecutor: StubOverlayClickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
         candidates: [ClickableCandidate]? = nil,
         searchableNodeCollector: (any SearchableNodeCollecting)? = nil,
+        windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
+        windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning)),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt(value: "default-test-salt")),
         dateProvider: @escaping () -> Date = Date.init,
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
@@ -929,6 +1008,8 @@ final class OverlaySessionControllerTests: XCTestCase {
             interactionRecorder: recorder,
             clickExecutor: clickExecutor,
             searchableNodeCollector: searchableNodeCollector,
+            windowSearchIndexProvider: windowSearchIndexProvider,
+            windowActivator: windowActivator,
             windowTitleHasher: windowTitleHasher,
             dateProvider: dateProvider,
             clickResultObserver: clickResultObserver
@@ -952,14 +1033,20 @@ final class OverlaySessionControllerTests: XCTestCase {
 
     private func makeSessionController(
         scanner: StubOverlayScanner,
-        clickExecutor: StubOverlayClickExecutor
+        clickExecutor: StubOverlayClickExecutor,
+        presenter: StubOverlayPresenter = StubOverlayPresenter(),
+        windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
+        windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning))
     ) -> OverlaySessionController {
         OverlaySessionController(
             targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
             scanner: scanner,
-            overlayPresenter: StubOverlayPresenter(),
+            overlayPresenter: presenter,
             interactionRecorder: StubInteractionRecorder(),
             clickExecutor: clickExecutor,
+            searchableNodeCollector: nil,
+            windowSearchIndexProvider: windowSearchIndexProvider,
+            windowActivator: windowActivator,
             windowTitleHasher: WindowTitleHasher(salt: SessionSalt(value: "default-test-salt"))
         )
     }
@@ -1003,6 +1090,24 @@ final class OverlaySessionControllerTests: XCTestCase {
             actions: [AccessibilityAction.press]
         )
     }
+
+    private func makeWindowEntry(
+        id: Int,
+        appName: String,
+        bundleID: String,
+        title: String? = nil
+    ) -> WindowEntry {
+        WindowEntry(
+            id: id,
+            appName: appName,
+            bundleID: bundleID,
+            windowTitle: title,
+            windowTitleHash: title.map { "hash-\($0)" },
+            pid: pid_t(id + 100),
+            axWindow: nil,
+            appIcon: nil
+        )
+    }
 }
 
 @MainActor
@@ -1031,19 +1136,23 @@ private final class StubOverlayTargetResolver: OverlaySessionTargetResolving {
 
 @MainActor
 private final class StubOverlayScanner: OverlaySessionScanning {
-    private let result: Result<AccessibilityScanResult, AccessibilityScanFailure>
+    private let results: [Result<AccessibilityScanResult, AccessibilityScanFailure>]
     private(set) var scanCallCount = 0
     private(set) var invalidateCallCount = 0
     private(set) var receivedContext: TargetContext?
 
     init(result: Result<AccessibilityScanResult, AccessibilityScanFailure>) {
-        self.result = result
+        self.results = [result]
+    }
+
+    init(results: [Result<AccessibilityScanResult, AccessibilityScanFailure>]) {
+        self.results = results
     }
 
     func scan(context: TargetContext) -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
         scanCallCount += 1
         receivedContext = context
-        return result
+        return results[min(scanCallCount - 1, results.count - 1)]
     }
 
     func invalidate() {
@@ -1173,4 +1282,19 @@ private struct ClickRequest: Equatable {
     let focusedIndex: Int
     let context: TargetContext
     let isSecondConfirmProvided: Bool
+}
+
+@MainActor
+private final class StubWindowActivator: WindowActivating {
+    private let result: Result<Void, WindowActivateFailure>
+    private(set) var activatedEntries: [WindowEntry] = []
+
+    init(result: Result<Void, WindowActivateFailure>) {
+        self.result = result
+    }
+
+    func activate(_ entry: WindowEntry) -> Result<Void, WindowActivateFailure> {
+        activatedEntries.append(entry)
+        return result
+    }
 }

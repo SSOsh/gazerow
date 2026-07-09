@@ -18,6 +18,7 @@ final class IntentRouterTests: XCTestCase {
             pinnedScope: .windows,
             focusEngine: focusEngine,
             elementMatches: [match(nodeID: 0)],
+            windowMatches: [windowMatch(entryID: 0)],
             lastScope: .elements
         )
 
@@ -132,6 +133,43 @@ final class IntentRouterTests: XCTestCase {
         XCTAssertNil(resolution.focusTargetCandidateIndex)
     }
 
+    func test_resolve_windows는_windowMatch를_반환한다() {
+        // given
+        let windowIndex = WindowSearchIndex(entries: [
+            WindowEntry(
+                id: 7,
+                appName: "Slack",
+                bundleID: "com.tinyspeck.slackmacgap",
+                windowTitle: "#general",
+                windowTitleHash: "hash",
+                pid: 100,
+                axWindow: nil,
+                appIcon: nil
+            )
+        ])
+        let sut = IntentRouter()
+
+        // when
+        let resolution = sut.resolve(
+            queryInput: QueryInputState(buffer: "slack", pinnedScope: .windows, lastScope: .windows),
+            focusEngine: focusEngine,
+            elementIndex: ElementSearchIndex(nodes: [
+                SearchableNode(id: 0, role: AccessibilityRole.button, title: "slack", frame: CGRect(x: 0, y: 0, width: 10, height: 10))
+            ]),
+            elementMatchIndex: 0,
+            actionableCandidates: [],
+            windowIndex: windowIndex,
+            windowMatchIndex: 0
+        )
+
+        // then
+        XCTAssertEqual(resolution.scope, .windows)
+        XCTAssertEqual(resolution.matchCount, 1)
+        XCTAssertEqual(resolution.focusedDisplayName, "Slack — #general")
+        XCTAssertEqual(resolution.windowEntryID, 7)
+        XCTAssertNil(resolution.focusTargetCandidateIndex)
+    }
+
     private var focusEngine: FocusEngine {
         FocusEngine(
             items: [
@@ -148,5 +186,9 @@ final class IntentRouterTests: XCTestCase {
             matchedFields: [.title],
             displayName: "Match"
         )
+    }
+
+    private func windowMatch(entryID: Int) -> WindowMatch {
+        WindowMatch(entryID: entryID, score: 100, displayLine: "Window")
     }
 }

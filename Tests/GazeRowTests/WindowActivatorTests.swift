@@ -6,6 +6,7 @@ import XCTest
 ///
 /// @author suho.do
 /// @since 2026-07-09
+@MainActor
 final class WindowActivatorTests: XCTestCase {
 
     func test_activate는_app이_없으면_appNotRunning을_반환한다() {

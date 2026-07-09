@@ -17,6 +17,7 @@ enum WindowActivateFailure: Error, Equatable {
 ///
 /// @author suho.do
 /// @since 2026-07-09
+@MainActor
 protocol WindowActivating {
     func activate(_ entry: WindowEntry) -> Result<Void, WindowActivateFailure>
 }

@@ -13,6 +13,27 @@ struct QueryResolution: Equatable {
     let focusTargetCandidateIndex: Int?
     let highlightFrame: CGRect?
     let promotionMethod: PromotionMethod?
+    let windowEntryID: Int?
+
+    init(
+        scope: QueryScope,
+        matchCount: Int,
+        matchIndex: Int,
+        focusedDisplayName: String?,
+        focusTargetCandidateIndex: Int?,
+        highlightFrame: CGRect?,
+        promotionMethod: PromotionMethod?,
+        windowEntryID: Int? = nil
+    ) {
+        self.scope = scope
+        self.matchCount = matchCount
+        self.matchIndex = matchIndex
+        self.focusedDisplayName = focusedDisplayName
+        self.focusTargetCandidateIndex = focusTargetCandidateIndex
+        self.highlightFrame = highlightFrame
+        self.promotionMethod = promotionMethod
+        self.windowEntryID = windowEntryID
+    }
 }
 
 /// Query buffer를 label/element intent로 해석한다.
@@ -31,14 +52,18 @@ struct IntentRouter {
         focusEngine: FocusEngine,
         elementIndex: ElementSearchIndex,
         elementMatchIndex: Int,
-        actionableCandidates: [ClickableCandidate]
+        actionableCandidates: [ClickableCandidate],
+        windowIndex: WindowSearchIndex = WindowSearchIndex(entries: []),
+        windowMatchIndex: Int = 0
     ) -> QueryResolution {
         let matches = elementIndex.search(queryInput.buffer)
+        let windowMatches = windowIndex.search(queryInput.buffer)
         let scope = chooseScope(
             buffer: queryInput.buffer,
             pinnedScope: queryInput.pinnedScope,
             focusEngine: focusEngine,
             elementMatches: matches,
+            windowMatches: windowMatches,
             lastScope: queryInput.lastScope
         )
 
@@ -61,14 +86,9 @@ struct IntentRouter {
                 actionableCandidates: actionableCandidates
             )
         case .windows:
-            return QueryResolution(
-                scope: .windows,
-                matchCount: 0,
-                matchIndex: 0,
-                focusedDisplayName: nil,
-                focusTargetCandidateIndex: nil,
-                highlightFrame: nil,
-                promotionMethod: nil
+            return windowResolution(
+                matches: windowMatches,
+                matchIndex: windowMatchIndex
             )
         }
     }
@@ -78,6 +98,7 @@ struct IntentRouter {
         pinnedScope: QueryScope?,
         focusEngine: FocusEngine,
         elementMatches: [SearchMatch],
+        windowMatches: [WindowMatch] = [],
         lastScope: QueryScope
     ) -> QueryScope {
         if let pinnedScope {
@@ -96,6 +117,10 @@ struct IntentRouter {
 
         if !elementMatches.isEmpty {
             return .elements
+        }
+
+        if !windowMatches.isEmpty {
+            return .windows
         }
 
         return lastScope == .windows ? .elements : lastScope
@@ -136,6 +161,36 @@ struct IntentRouter {
             focusTargetCandidateIndex: promotion.actionableCandidateIndex,
             highlightFrame: node?.frame,
             promotionMethod: promotion.method
+        )
+    }
+
+    private func windowResolution(
+        matches: [WindowMatch],
+        matchIndex: Int
+    ) -> QueryResolution {
+        guard !matches.isEmpty else {
+            return QueryResolution(
+                scope: .windows,
+                matchCount: 0,
+                matchIndex: 0,
+                focusedDisplayName: nil,
+                focusTargetCandidateIndex: nil,
+                highlightFrame: nil,
+                promotionMethod: nil
+            )
+        }
+
+        let safeIndex = (matchIndex + matches.count) % matches.count
+        let match = matches[safeIndex]
+        return QueryResolution(
+            scope: .windows,
+            matchCount: matches.count,
+            matchIndex: safeIndex,
+            focusedDisplayName: match.displayLine,
+            focusTargetCandidateIndex: nil,
+            highlightFrame: nil,
+            promotionMethod: nil,
+            windowEntryID: match.entryID
         )
     }
 

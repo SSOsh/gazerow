@@ -27,6 +27,8 @@ struct OverlayView: View {
 
     var body: some View {
         let statusWidth = max(0, min(layout.localBounds.width - 16, 420))
+        let focusStyle = QueryFocusStyle(scope: status.activeScope)
+        let labelOpacity = status.activeScope == .windows ? 0.25 : 1.0
 
         ZStack(alignment: .topLeading) {
             if showsBoundary {
@@ -39,7 +41,8 @@ struct OverlayView: View {
                 OverlayTargetMarkerView(
                     label: label,
                     isFocused: label.id == focusedLabelID,
-                    appearance: appearance
+                    appearance: appearance,
+                    focusStyle: focusStyle
                 )
                 .frame(width: layout.localBounds.width, height: layout.localBounds.height)
             }
@@ -48,7 +51,9 @@ struct OverlayView: View {
                 OverlayLabelView(
                     label: label,
                     isFocused: label.id == focusedLabelID,
-                    appearance: appearance
+                    appearance: appearance,
+                    focusStyle: focusStyle,
+                    labelOpacity: labelOpacity
                 )
                     .frame(width: label.labelFrame.width, height: label.labelFrame.height)
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
@@ -70,6 +75,8 @@ private struct OverlayLabelView: View {
     let label: OverlayLabel
     let isFocused: Bool
     let appearance: OverlayAppearance
+    let focusStyle: QueryFocusStyle
+    let labelOpacity: Double
 
     var body: some View {
         HStack(spacing: 1) {
@@ -91,11 +98,12 @@ private struct OverlayLabelView: View {
                     .stroke(Color.white.opacity(isFocused ? 1 : 0.9), lineWidth: isFocused ? 2 : 1)
             }
             .scaleEffect(isFocused ? 1.08 : 1)
+            .opacity(labelOpacity)
     }
 
     private var backgroundColor: Color {
         isFocused
-            ? Color.orange.opacity(0.96)
+            ? focusStyle.markerColor.opacity(0.96)
             : Color.accentColor.opacity(appearance.labelBackgroundOpacity)
     }
 
@@ -116,6 +124,7 @@ private struct OverlayTargetMarkerView: View {
     let label: OverlayLabel
     let isFocused: Bool
     let appearance: OverlayAppearance
+    let focusStyle: QueryFocusStyle
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -150,16 +159,31 @@ private struct OverlayTargetMarkerView: View {
 
     private var fillColor: Color {
         isFocused
-            ? Color.orange.opacity(0.18)
+            ? focusStyle.markerColor.opacity(0.18)
             : Color.accentColor.opacity(appearance.markerFillOpacity)
     }
 
     private var strokeColor: Color {
-        isFocused ? Color.orange.opacity(0.98) : Color.accentColor.opacity(0.42)
+        isFocused ? focusStyle.markerColor.opacity(0.98) : Color.accentColor.opacity(0.42)
     }
 
     private var dotColor: Color {
-        isFocused ? Color.orange.opacity(1) : Color.white.opacity(0.7)
+        isFocused ? focusStyle.markerColor.opacity(1) : Color.white.opacity(0.7)
+    }
+}
+
+private struct QueryFocusStyle: Equatable {
+    let scope: QueryScope
+
+    var markerColor: Color {
+        switch scope {
+        case .labels:
+            Color.orange
+        case .elements:
+            Color(red: 0, green: 0.71, blue: 0.85)
+        case .windows:
+            Color(red: 0.30, green: 0.43, blue: 0.96)
+        }
     }
 }
 
