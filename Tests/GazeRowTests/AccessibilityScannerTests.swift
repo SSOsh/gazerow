@@ -218,6 +218,30 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.candidates.first?.subrole, "AXTabButton")
     }
 
+    func test_scan_defaultDepth는_webArea_깊은_textArea도_candidate로_수집() {
+        // given
+        let chatInput = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.textArea,
+                title: nil,
+                frame: CGRect(x: 750, y: 1143, width: 713, height: 44)
+            )
+        )
+        let root = nestedElement(depth: 28, leaf: chatInput)
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidates.map(\.role), [AccessibilityRole.textArea])
+        XCTAssertFalse(scanResult.didHitDepthLimit)
+    }
+
     func test_scan_secureField는_AXPress가_있어도_제외() {
         // given
         let secureField = FakeElement(

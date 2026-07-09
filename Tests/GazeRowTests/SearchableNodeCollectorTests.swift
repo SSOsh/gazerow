@@ -93,6 +93,28 @@ final class SearchableNodeCollectorTests: XCTestCase {
         XCTAssertEqual(index.buildMetrics.nodesVisited, 2)
     }
 
+    func test_buildIndex는_defaultDepth에서_webArea_깊은_textArea도_인덱싱한다() {
+        // given
+        let chatInput = FakeSearchElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.textArea,
+                value: "후속 변경 사항을 부탁하세요",
+                frame: CGRect(x: 750, y: 1143, width: 713, height: 44)
+            )
+        )
+        let root = nestedElement(depth: 28, leaf: chatInput)
+        let sut = AccessibilitySearchableNodeCollector(
+            client: FakeSearchAccessibilityElementClient(root: .success(root))
+        )
+
+        // when
+        let index = sut.buildIndex(context: targetContext)
+
+        // then
+        XCTAssertEqual(index.search("후속").map(\.displayName), ["후속 변경 사항을 부탁하세요"])
+        XCTAssertFalse(index.buildMetrics.truncated)
+    }
+
     private var targetContext: TargetContext {
         TargetContext(
             application: TargetApplication(
@@ -124,6 +146,14 @@ final class SearchableNodeCollectorTests: XCTestCase {
             frame: frame,
             actions: []
         )
+    }
+
+    private func nestedElement(depth: Int, leaf: FakeSearchElement) -> FakeSearchElement {
+        guard depth > 0 else {
+            return leaf
+        }
+
+        return FakeSearchElement(children: [nestedElement(depth: depth - 1, leaf: leaf)])
     }
 }
 

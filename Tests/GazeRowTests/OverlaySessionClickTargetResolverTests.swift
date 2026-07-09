@@ -153,6 +153,30 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
         XCTAssertEqual(targets.first?.role, AccessibilityRole.textArea)
     }
 
+    func test_resolveTargets_defaultDepth는_webArea_깊은_textArea도_target으로_resolve한다() throws {
+        // given
+        let textArea = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(
+                role: AccessibilityRole.textArea,
+                frame: CGRect(x: 750, y: 1143, width: 713, height: 44),
+                actions: []
+            )
+        )
+        let root = nestedElement(depth: 28, leaf: textArea)
+        let sut = OverlaySessionClickTargetResolver(
+            client: FakeClickTargetClient(root: .success(root))
+        )
+
+        // when
+        let result = sut.resolveTargets(context: makeContext())
+
+        // then
+        let targets = try unwrapSuccess(result)
+        XCTAssertEqual(targets.map(\.element.id), [1])
+        XCTAssertEqual(targets.first?.role, AccessibilityRole.textArea)
+    }
+
     func test_resolveTargets_secureField와_frame없는_element는_제외() throws {
         // given
         let secure = FakeClickElement(
