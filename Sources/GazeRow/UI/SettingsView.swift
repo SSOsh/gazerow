@@ -58,6 +58,12 @@ struct SettingsView: View {
     /// 현재 Settings 표시 언어.
     @State private var selectedLanguage = AppLanguageSettings().selectedLanguage
 
+    /// overlay 라벨 투명도 저장소.
+    private let appearanceSettings = OverlayAppearanceSettings()
+
+    /// 라벨 배경 투명도 슬라이더 바인딩 상태.
+    @State private var labelBackgroundOpacity = OverlayAppearanceSettings().labelBackgroundOpacity
+
     var body: some View {
         ScrollView {
             settingsContent
@@ -71,6 +77,7 @@ struct SettingsView: View {
             isInteractionLoggingEnabled = logStore.isOptInEnabled
             isCameraGazeEnabled = cameraGazeSettings.isOptInEnabled
             selectedLanguage = languageSettings.selectedLanguage
+            labelBackgroundOpacity = appearanceSettings.labelBackgroundOpacity
             refreshGazeSampleCount()
         }
         .onReceive(
@@ -118,6 +125,10 @@ struct SettingsView: View {
             Divider()
 
             shortcutsSection
+
+            Divider()
+
+            overlayAppearanceSection
 
             Divider()
 
@@ -409,6 +420,42 @@ struct SettingsView: View {
             }
 
             Text(content.windowControlShortcutsNotice)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// overlay 라벨 투명도를 조절하는 섹션.
+    ///
+    /// 라벨 배경 투명도를 낮추면 overlay가 뒤 콘텐츠를 덜 가린다. 값은
+    /// `OverlayAppearance.labelBackgroundOpacityRange`를 SSOT로 삼아 clamp된다.
+    private var overlayAppearanceSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(content.overlayAppearanceTitle)
+                .font(.headline)
+
+            HStack {
+                Text(content.labelOpacityLabel)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(String(format: "%.0f%%", labelBackgroundOpacity * 100))
+                    .font(.callout)
+                    .fontWeight(.medium)
+                    .monospacedDigit()
+            }
+            .font(.callout)
+
+            Slider(
+                value: $labelBackgroundOpacity,
+                in: OverlayAppearance.labelBackgroundOpacityRange
+            )
+            .controlSize(.small)
+            .onChange(of: labelBackgroundOpacity) { _, newValue in
+                appearanceSettings.labelBackgroundOpacity = newValue
+            }
+
+            Text(content.labelOpacityNotice)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

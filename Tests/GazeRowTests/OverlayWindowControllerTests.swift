@@ -176,6 +176,31 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_show는_render시_appearanceProvider를_조회한다() {
+        // given: appearanceProvider는 렌더 시점마다 최신 설정을 읽어야 한다.
+        var appearanceCallCount = 0
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            },
+            appearanceProvider: {
+                appearanceCallCount += 1
+                return OverlayAppearance(labelBackgroundOpacity: 0.5)
+            }
+        )
+
+        // when
+        sut.show(layout: makeLayout())
+
+        // then
+        XCTAssertGreaterThanOrEqual(appearanceCallCount, 1)
+
+        sut.close()
+    }
+
     func test_OverlayKeyboardEventTapContext_매핑되지_않는_keyDown은_통과시킨다() {
         // given
         let sut = OverlayKeyboardEventTapContext { _ in }

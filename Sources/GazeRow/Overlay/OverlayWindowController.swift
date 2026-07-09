@@ -18,6 +18,8 @@ final class OverlayWindowController {
     private let keyboardEventTapFactory: @MainActor (
         @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
     ) -> any OverlayKeyboardEventTapping
+    /// 렌더 시점마다 최신 appearance 설정을 읽어 오도록 provider로 주입한다.
+    private let appearanceProvider: @MainActor () -> OverlayAppearance
     private var keyboardEventTap: (any OverlayKeyboardEventTapping)?
 
     init(
@@ -33,6 +35,9 @@ final class OverlayWindowController {
             @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
         ) -> any OverlayKeyboardEventTapping = { handler in
             OverlayKeyboardEventTap(onKeyboardCommand: handler)
+        },
+        appearanceProvider: @escaping @MainActor () -> OverlayAppearance = {
+            OverlayAppearanceSettings().appearance
         }
     ) {
         self.layoutEngine = layoutEngine
@@ -40,6 +45,7 @@ final class OverlayWindowController {
         self.screenFrameProvider = screenFrameProvider
         self.applicationActivator = applicationActivator
         self.keyboardEventTapFactory = keyboardEventTapFactory
+        self.appearanceProvider = appearanceProvider
     }
 
     var isVisible: Bool {
@@ -176,7 +182,8 @@ final class OverlayWindowController {
             rootView: OverlayView(
                 layout: layout,
                 focusedLabelID: focusedLabelID(for: status.focusedLabel),
-                status: status
+                status: status,
+                appearance: appearanceProvider()
             )
         )
     }

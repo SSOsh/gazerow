@@ -9,6 +9,10 @@ import Foundation
 /// @author suho.do
 /// @since 2026-07-07
 struct OverlayAppearance: Equatable {
+    /// label 배경 투명도의 기본값 겸 허용 범위. 설정 UI와 저장소가 SSOT로 참조한다.
+    static let defaultLabelBackgroundOpacity = 0.92
+    static let labelBackgroundOpacityRange: ClosedRange<Double> = 0.4...1.0
+
     /// unfocused label 배경 투명도. 범위 0.4...1.0.
     let labelBackgroundOpacity: Double
     /// label 텍스트 투명도. 범위 0.6...1.0.
@@ -19,12 +23,16 @@ struct OverlayAppearance: Equatable {
     let boundaryOpacity: Double
 
     init(
-        labelBackgroundOpacity: Double = 0.92,
+        labelBackgroundOpacity: Double = OverlayAppearance.defaultLabelBackgroundOpacity,
         labelTextOpacity: Double = 1.0,
         markerFillOpacity: Double = 0.06,
         boundaryOpacity: Double = 0.75
     ) {
-        self.labelBackgroundOpacity = Self.clamp(labelBackgroundOpacity, lower: 0.4, upper: 1.0)
+        self.labelBackgroundOpacity = Self.clamp(
+            labelBackgroundOpacity,
+            lower: Self.labelBackgroundOpacityRange.lowerBound,
+            upper: Self.labelBackgroundOpacityRange.upperBound
+        )
         self.labelTextOpacity = Self.clamp(labelTextOpacity, lower: 0.6, upper: 1.0)
         self.markerFillOpacity = Self.clamp(markerFillOpacity, lower: 0.0, upper: 0.4)
         self.boundaryOpacity = Self.clamp(boundaryOpacity, lower: 0.0, upper: 1.0)
