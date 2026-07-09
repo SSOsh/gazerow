@@ -187,6 +187,30 @@ final class FocusEngineTests: XCTestCase {
         XCTAssertNil(sut.focusedItemID)
     }
 
+    func test_focusItem은_지정한_id로_focus를_동기화한다() {
+        // given
+        var sut = FocusEngine(items: items)
+
+        // when
+        let event = sut.focusItem(id: 2)
+
+        // then
+        XCTAssertEqual(sut.focusedItemID, 2)
+        XCTAssertEqual(event, .focusChanged(from: 0, to: 2, method: .labelJump))
+    }
+
+    func test_focusItem은_없는_id면_focus를_비운다() {
+        // given
+        var sut = FocusEngine(items: items)
+
+        // when
+        let event = sut.focusItem(id: 999)
+
+        // then
+        XCTAssertNil(event)
+        XCTAssertNil(sut.focusedItemID)
+    }
+
     func test_init_layout에서_focus_item을_생성() {
         // given
         let layout = OverlayLayout(

@@ -129,6 +129,13 @@ final class OverlayWindowController {
             OverlayInteractionStatus(
                 focusedLabel: labelText(for: focusedLabelID),
                 typedLabelBuffer: currentStatus.typedLabelBuffer,
+                queryBuffer: currentStatus.queryBuffer,
+                activeScope: currentStatus.activeScope,
+                pinnedScope: currentStatus.pinnedScope,
+                matchCount: currentStatus.matchCount,
+                matchIndex: currentStatus.matchIndex,
+                focusedDisplayName: currentStatus.focusedDisplayName,
+                enterActionHint: currentStatus.enterActionHint,
                 message: currentStatus.message,
                 tone: currentStatus.tone
             )
@@ -262,7 +269,7 @@ struct OverlayScreenFrameMapper {
 private final class OverlayPanel: NSPanel {
     var onEscape: () -> Void = {}
     var onKeyboardCommand: @MainActor (FocusKeyboardCommand) -> Void = { _ in }
-    private let keyboardCommandMapper = FocusKeyboardCommandMapper()
+    private var keyboardRouter = OverlayKeyboardCommandRouter()
 
     override var canBecomeKey: Bool {
         true
@@ -275,7 +282,7 @@ private final class OverlayPanel: NSPanel {
             isShiftPressed: event.modifierFlags.contains(.shift)
         )
 
-        guard let command = keyboardCommandMapper.command(for: input) else {
+        guard let command = keyboardRouter.command(for: input) else {
             super.keyDown(with: event)
             return
         }
@@ -385,7 +392,7 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
 
 final class OverlayKeyboardEventTapContext: @unchecked Sendable {
     var eventTap: CFMachPort?
-    private let keyboardCommandMapper = FocusKeyboardCommandMapper()
+    private var keyboardRouter = OverlayKeyboardCommandRouter()
     private let onKeyboardCommand: @MainActor @Sendable (FocusKeyboardCommand) -> Void
 
     init(onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void) {
@@ -420,13 +427,70 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
             return nil
         }
 
-        return keyboardCommandMapper.command(
+        return keyboardRouter.command(
             for: FocusKeyboardInput(
                 keyCode: nsEvent.keyCode,
                 charactersIgnoringModifiers: nsEvent.charactersIgnoringModifiers,
                 isShiftPressed: nsEvent.modifierFlags.contains(.shift)
             )
         )
+    }
+}
+
+private struct OverlayKeyboardCommandRouter {
+    private let mapper = FocusKeyboardCommandMapper()
+    private var queryInput = QueryInputState()
+    private var pendingLabelPrimer: Character?
+
+    mutating func command(for input: FocusKeyboardInput) -> FocusKeyboardCommand? {
+        guard let command = mapper.command(for: input, queryInput: queryInput) else {
+            return nil
+        }
+
+        return route(command)
+    }
+
+    private mutating func route(_ command: FocusKeyboardCommand) -> FocusKeyboardCommand {
+        switch command {
+        case .typeLabel(let character):
+            if let pendingLabelPrimer {
+                let query = "\(pendingLabelPrimer)\(character)".precomposedStringWithCanonicalMapping
+                queryInput.buffer = query
+                self.pendingLabelPrimer = nil
+                return .appendQuery(query)
+            }
+
+            pendingLabelPrimer = Character(String(character).lowercased())
+            return command
+        case .appendQuery(let grapheme):
+            if let pendingLabelPrimer {
+                let query = "\(pendingLabelPrimer)\(grapheme)".precomposedStringWithCanonicalMapping
+                queryInput.buffer = query
+                self.pendingLabelPrimer = nil
+                return .appendQuery(query)
+            }
+
+            queryInput.buffer.append(grapheme)
+            return command
+        case .pinScope(let scope):
+            queryInput.pinnedScope = scope
+            queryInput.lastScope = scope
+            pendingLabelPrimer = nil
+            return command
+        case .deleteQueryCharacter:
+            if !queryInput.buffer.isEmpty {
+                queryInput.buffer.removeLast()
+            }
+            pendingLabelPrimer = nil
+            return command
+        case .clearQueryBuffer, .clearLabelBuffer, .closeOverlay:
+            queryInput = QueryInputState()
+            pendingLabelPrimer = nil
+            return command
+        case .move, .cycleMatch, .dryRunConfirm:
+            pendingLabelPrimer = nil
+            return command
+        }
     }
 }
 

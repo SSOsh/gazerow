@@ -14,6 +14,8 @@ final class OverlaySessionController {
     private let overlayPresenter: any OverlaySessionPresenting
     private let interactionRecorder: any OverlaySessionInteractionRecording
     private let clickExecutor: any OverlaySessionClickExecuting
+    private let searchableNodeCollector: (any SearchableNodeCollecting)?
+    private let intentRouter: IntentRouter
     private let windowTitleHasher: WindowTitleHasher
     private let dateProvider: () -> Date
     private let isSessionEnabled: () -> Bool
@@ -29,6 +31,8 @@ final class OverlaySessionController {
         overlayPresenter: any OverlaySessionPresenting = OverlayWindowController(),
         interactionRecorder: any OverlaySessionInteractionRecording = InteractionLogStore(),
         clickExecutor: any OverlaySessionClickExecuting = AXOverlaySessionClickExecutor(),
+        searchableNodeCollector: (any SearchableNodeCollecting)? = AccessibilitySearchableNodeCollector(client: AXAccessibilityElementClient()),
+        intentRouter: IntentRouter = IntentRouter(),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         dateProvider: @escaping () -> Date = Date.init,
         isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled },
@@ -39,6 +43,8 @@ final class OverlaySessionController {
         self.overlayPresenter = overlayPresenter
         self.interactionRecorder = interactionRecorder
         self.clickExecutor = clickExecutor
+        self.searchableNodeCollector = searchableNodeCollector
+        self.intentRouter = intentRouter
         self.windowTitleHasher = windowTitleHasher
         self.dateProvider = dateProvider
         self.isSessionEnabled = isSessionEnabled
@@ -97,9 +103,11 @@ final class OverlaySessionController {
             scanResult: scanResult,
             layout: layout
         )
+        let elementIndex = buildElementIndex(context: context, scanResult: scanResult)
         activeSession = OverlaySessionState(
             snapshot: snapshot,
-            focusEngine: FocusEngine(layout: layout)
+            focusEngine: FocusEngine(layout: layout),
+            elementIndex: elementIndex
         )
         let labelMap = zip(layout.labels, scanResult.candidates).prefix(14).map { label, candidate in
             "\(label.id):\(label.text)@(\(Int(candidate.frame.minX)),\(Int(candidate.frame.minY)) \(Int(candidate.frame.width))x\(Int(candidate.frame.height)))"
@@ -129,20 +137,24 @@ final class OverlaySessionController {
         case .move(let moveCommand):
             session.pendingSecondConfirm = nil
             event = session.focusEngine.move(moveCommand)
+            session.queryInput.lastScope = .labels
             statusMessage = focusedMessage(for: session)
         case .typeLabel(let character):
             session.pendingSecondConfirm = nil
             let typingResult = session.focusEngine.typeLabelCharacter(character)
+            session.queryInput.lastScope = .labels
             event = typingResult.event
             let feedback = feedback(for: typingResult, typedCharacter: character, session: session)
             statusMessage = feedback.message
             statusTone = feedback.tone
         case .appendQuery(let grapheme):
             session.pendingSecondConfirm = nil
-            session.queryInput.buffer.append(grapheme)
+            appendQuery(grapheme, to: &session)
             session.queryInput.lastScope = session.queryInput.pinnedScope ?? .elements
-            event = nil
-            statusMessage = "Typing \(session.queryInput.buffer)"
+            let resolution = applyQueryResolution(to: &session)
+            activeSession = session
+            overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
+            return nil
         case .deleteQueryCharacter:
             session.pendingSecondConfirm = nil
             if !session.queryInput.buffer.isEmpty {
@@ -150,12 +162,20 @@ final class OverlaySessionController {
             } else {
                 session.focusEngine.clearLabelBuffer()
             }
+            if !session.queryInput.buffer.isEmpty {
+                let resolution = applyQueryResolution(to: &session)
+                activeSession = session
+                overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
+                return nil
+            }
             event = nil
-            statusMessage = session.queryInput.buffer.isEmpty ? "Input cleared" : "Typing \(session.queryInput.buffer)"
+            statusMessage = "Input cleared"
         case .clearQueryBuffer:
             session.pendingSecondConfirm = nil
             session.queryInput = QueryInputState(lastScope: session.queryInput.lastScope)
             session.focusEngine.clearLabelBuffer()
+            session.elementMatches = []
+            session.elementMatchIndex = 0
             event = nil
             statusMessage = "Input cleared"
         case .clearLabelBuffer:
@@ -173,8 +193,17 @@ final class OverlaySessionController {
             statusMessage = "Pinned \(scope.rawValue)"
         case .cycleMatch(let forward):
             session.pendingSecondConfirm = nil
-            event = session.focusEngine.move(forward ? .next : .previous)
-            statusMessage = focusedMessage(for: session)
+            if shouldCycleQueryMatches(session) {
+                cycleElementMatch(forward: forward, session: &session)
+                let resolution = applyQueryResolution(to: &session)
+                activeSession = session
+                overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
+                return nil
+            } else {
+                event = session.focusEngine.move(forward ? .next : .previous)
+                session.queryInput.lastScope = .labels
+                statusMessage = focusedMessage(for: session)
+            }
         case .dryRunConfirm:
             let confirmResult = session.focusEngine.dryRunConfirm()
             executeClickIfPossible(confirmResult: confirmResult, session: &session)
@@ -366,16 +395,106 @@ final class OverlaySessionController {
         tone: OverlayInteractionStatus.Tone
     ) {
         overlayPresenter.updateStatus(
-            OverlayInteractionStatus(
-                focusedLabel: labelText(for: session.focusEngine.focusedItemID, in: session),
-                typedLabelBuffer: session.focusEngine.labelBuffer,
-                queryBuffer: session.queryInput.buffer,
-                activeScope: session.queryInput.pinnedScope ?? session.queryInput.lastScope,
-                pinnedScope: session.queryInput.pinnedScope,
-                enterActionHint: AppContent.localized(for: .english).enterActionClick,
-                message: message,
-                tone: tone
-            )
+            status(for: session, resolution: nil, message: message, tone: tone)
+        )
+    }
+
+    private func buildElementIndex(
+        context: TargetContext,
+        scanResult: AccessibilityScanResult
+    ) -> ElementSearchIndex {
+        if let searchableNodeCollector {
+            let collectedIndex = searchableNodeCollector.buildIndex(context: context)
+            if !collectedIndex.nodes.isEmpty {
+                return collectedIndex
+            }
+        }
+
+        return ElementSearchIndex(
+            nodes: scanResult.candidates.enumerated().map { index, candidate in
+                SearchableNode(
+                    id: index,
+                    role: candidate.role,
+                    subrole: candidate.subrole,
+                    title: candidate.title,
+                    frame: candidate.frame
+                )
+            }
+        )
+    }
+
+    private func appendQuery(_ grapheme: String, to session: inout OverlaySessionState) {
+        if session.queryInput.buffer.isEmpty || grapheme.count > 1 {
+            session.queryInput.buffer = grapheme
+        } else {
+            session.queryInput.buffer.append(grapheme)
+        }
+    }
+
+    @discardableResult
+    private func applyQueryResolution(to session: inout OverlaySessionState) -> QueryResolution {
+        session.elementMatches = session.elementIndex.search(session.queryInput.buffer)
+        if session.elementMatches.isEmpty {
+            session.elementMatchIndex = 0
+        } else {
+            session.elementMatchIndex = session.elementMatchIndex % session.elementMatches.count
+        }
+
+        let resolution = intentRouter.resolve(
+            queryInput: session.queryInput,
+            focusEngine: session.focusEngine,
+            elementIndex: session.elementIndex,
+            elementMatchIndex: session.elementMatchIndex,
+            actionableCandidates: session.snapshot.scanResult.candidates
+        )
+        session.queryInput.lastScope = resolution.scope
+        if let focusTargetCandidateIndex = resolution.focusTargetCandidateIndex {
+            _ = session.focusEngine.focusItem(id: focusTargetCandidateIndex)
+        } else if resolution.scope == .elements {
+            _ = session.focusEngine.focusItem(id: -1)
+        }
+        return resolution
+    }
+
+    private func cycleElementMatch(forward: Bool, session: inout OverlaySessionState) {
+        guard !session.elementMatches.isEmpty else {
+            return
+        }
+
+        let delta = forward ? 1 : -1
+        session.elementMatchIndex = (
+            session.elementMatchIndex + delta + session.elementMatches.count
+        ) % session.elementMatches.count
+    }
+
+    private func shouldCycleQueryMatches(_ session: OverlaySessionState) -> Bool {
+        !session.queryInput.buffer.isEmpty
+            && (session.queryInput.pinnedScope ?? session.queryInput.lastScope) == .elements
+    }
+
+    private func status(
+        for session: OverlaySessionState,
+        resolution: QueryResolution?,
+        message: String?,
+        tone: OverlayInteractionStatus.Tone
+    ) -> OverlayInteractionStatus {
+        let activeScope = resolution?.scope ?? session.queryInput.pinnedScope ?? session.queryInput.lastScope
+        let enterHint = activeScope == .windows
+            ? AppContent.localized(for: .english).enterActionSwitchWindow
+            : AppContent.localized(for: .english).enterActionClick
+
+        return OverlayInteractionStatus(
+            focusedLabel: labelText(for: session.focusEngine.focusedItemID, in: session),
+            typedLabelBuffer: session.focusEngine.labelBuffer,
+            queryBuffer: session.queryInput.buffer,
+            activeScope: activeScope,
+            pinnedScope: session.queryInput.pinnedScope,
+            matchCount: resolution?.matchCount ?? 0,
+            matchIndex: resolution.map { $0.matchIndex + 1 } ?? 0,
+            focusedDisplayName: resolution?.focusedDisplayName,
+            enterActionHint: enterHint,
+            message: message,
+            tone: tone
         )
     }
 
@@ -527,6 +646,9 @@ struct OverlaySessionState: Equatable {
     let snapshot: OverlaySessionSnapshot
     var focusEngine: FocusEngine
     var queryInput: QueryInputState = QueryInputState()
+    var elementIndex: ElementSearchIndex = ElementSearchIndex(nodes: [])
+    var elementMatches: [SearchMatch] = []
+    var elementMatchIndex: Int = 0
     var pendingSecondConfirm: PendingSecondConfirm?
 }
 
