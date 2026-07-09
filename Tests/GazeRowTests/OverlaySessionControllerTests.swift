@@ -160,14 +160,14 @@ final class OverlaySessionControllerTests: XCTestCase {
         let sut = makeStartedSessionController(presenter: presenter)
 
         // when
-        let event = sut.handleKeyboardCommand(.typeLabel("B"))
+        let event = sut.handleKeyboardCommand(.typeLabel("S"))
 
         // then
-        XCTAssertEqual(event, .labelJump(typedLabel: "B", matched: true, to: 1))
+        XCTAssertEqual(event, .labelJump(typedLabel: "S", matched: true, to: 1))
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "B", message: "Focused", tone: .success)
+            OverlayInteractionStatus(focusedLabel: "S", message: "Focused", tone: .success)
         )
     }
 
@@ -330,7 +330,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
 
         // when
-        let result = sut.clickLabel("B")
+        let result = sut.clickLabel("S")
 
         // then
         XCTAssertEqual(result, .some(clickExecutor.result))
@@ -338,7 +338,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.focusUpdates, [0, 1, 1])
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "B", message: "Clicked", tone: .success)
+            OverlayInteractionStatus(focusedLabel: "S", message: "Clicked", tone: .success)
         )
         XCTAssertNil(sut.activeSession)
     }
@@ -370,6 +370,44 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertTrue(clickExecutor.requests.isEmpty)
         XCTAssertEqual(observedResults, [.failure(.missingFocusedTarget(index: -1))])
         XCTAssertNotNil(sut.activeSession)
+    }
+
+    func test_clickLabel_클릭성공시_scanner_cache를_무효화한다() {
+        // given
+        let scanner = makeTwoCandidateScanner()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(
+                    method: .axPress,
+                    riskClass: .safeNavigation,
+                    fallbackUsed: false
+                )
+            )
+        )
+        let sut = makeSessionController(scanner: scanner, clickExecutor: clickExecutor)
+        _ = sut.start()
+
+        // when
+        _ = sut.clickLabel("S")
+
+        // then
+        XCTAssertEqual(scanner.invalidateCallCount, 1)
+    }
+
+    func test_clickLabel_클릭실패시_scanner_cache를_무효화하지_않는다() {
+        // given
+        let scanner = makeTwoCandidateScanner()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.executionFailed(.axPressFailed(reason: "test")))
+        )
+        let sut = makeSessionController(scanner: scanner, clickExecutor: clickExecutor)
+        _ = sut.start()
+
+        // when
+        _ = sut.clickLabel("S")
+
+        // then
+        XCTAssertEqual(scanner.invalidateCallCount, 0)
     }
 
     func test_handleKeyboardCommand_click실패면_overlaySession을_유지() {
@@ -530,7 +568,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
 
         // when
-        _ = sut.handleKeyboardCommand(.typeLabel("B"))
+        _ = sut.handleKeyboardCommand(.typeLabel("S"))
 
         // then
         XCTAssertEqual(
@@ -682,6 +720,33 @@ final class OverlaySessionControllerTests: XCTestCase {
         return sut
     }
 
+    private func makeTwoCandidateScanner() -> StubOverlayScanner {
+        StubOverlayScanner(
+            result: .success(
+                makeScanResult(
+                    candidates: [
+                        makeCandidate(frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                        makeCandidate(frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+                    ]
+                )
+            )
+        )
+    }
+
+    private func makeSessionController(
+        scanner: StubOverlayScanner,
+        clickExecutor: StubOverlayClickExecutor
+    ) -> OverlaySessionController {
+        OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: scanner,
+            overlayPresenter: StubOverlayPresenter(),
+            interactionRecorder: StubInteractionRecorder(),
+            clickExecutor: clickExecutor,
+            windowTitleHasher: WindowTitleHasher(salt: SessionSalt(value: "default-test-salt"))
+        )
+    }
+
     private func makeContext() -> TargetContext {
         TargetContext(
             application: TargetApplication(
@@ -741,6 +806,7 @@ private final class StubOverlayTargetResolver: OverlaySessionTargetResolving {
 private final class StubOverlayScanner: OverlaySessionScanning {
     private let result: Result<AccessibilityScanResult, AccessibilityScanFailure>
     private(set) var scanCallCount = 0
+    private(set) var invalidateCallCount = 0
     private(set) var receivedContext: TargetContext?
 
     init(result: Result<AccessibilityScanResult, AccessibilityScanFailure>) {
@@ -751,6 +817,10 @@ private final class StubOverlayScanner: OverlaySessionScanning {
         scanCallCount += 1
         receivedContext = context
         return result
+    }
+
+    func invalidate() {
+        invalidateCallCount += 1
     }
 }
 

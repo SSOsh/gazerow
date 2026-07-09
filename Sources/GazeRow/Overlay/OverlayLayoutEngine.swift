@@ -105,10 +105,9 @@ struct OverlayLayoutEngine {
 
     /// 설정된 label 전략에 따라 자동 label 문자열을 생성한다.
     ///
-    /// `.fixedWidth`는 현행 기본(`LabelGenerator`, 배치 단위 고정폭)을 유지하고,
-    /// `.prefixFree`는 홈로우 우선 가변폭 hint(`HintLabelGenerator`)로 대부분의
-    /// 후보에 1글자 label을 배정한다. 두 전략 모두 prefix-free라 type-to-filter와
-    /// 정합한다.
+    /// `.prefixFree`는 현행 기본으로 홈로우 우선 가변폭 hint(`HintLabelGenerator`)를
+    /// 써서 대부분의 후보에 1글자 label을 배정하고, `.fixedWidth`는 배치 단위 고정폭
+    /// (`LabelGenerator`)을 쓴다. 두 전략 모두 prefix-free라 type-to-filter와 정합한다.
     private func generatedLabels(count: Int) -> [String] {
         switch configuration.labelStrategy {
         case .fixedWidth:

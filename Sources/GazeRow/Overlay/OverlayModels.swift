@@ -33,7 +33,7 @@ struct OverlayLayoutConfiguration: Equatable {
         ordersLabelsSpatially: Bool = true,
         rowBandHeight: CGFloat = 24,
         labelPlacement: LabelPlacement = .centered,
-        labelStrategy: LabelStrategy = .fixedWidth
+        labelStrategy: LabelStrategy = .prefixFree
     ) {
         self.labelSize = labelSize
         self.labelSpacing = max(0, labelSpacing)

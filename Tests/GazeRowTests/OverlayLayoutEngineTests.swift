@@ -42,7 +42,29 @@ final class OverlayLayoutEngineTests: XCTestCase {
         XCTAssertTrue(layout.metrics.isRetina)
     }
 
-    func test_makeLayout_labels가_없으면_prefix없는_기본_label을_생성() {
+    func test_makeLayout_fixedWidth_전략은_배치_단위_고정폭_label을_생성() {
+        // given
+        let candidates = (0..<28).map { index in
+            makeCandidate(frame: CGRect(x: 20 + index * 4, y: 120, width: 2, height: 2))
+        }
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(labelStrategy: .fixedWidth)
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
+            candidates: candidates
+        )
+
+        // then
+        XCTAssertEqual(layout.labels[0].text, "AA")
+        XCTAssertEqual(layout.labels[25].text, "AZ")
+        XCTAssertEqual(layout.labels[26].text, "BA")
+        XCTAssertEqual(layout.labels[27].text, "BB")
+    }
+
+    func test_makeLayout_기본_전략은_prefixFree라_대부분_후보에_1글자_label을_배정() {
         // given
         let candidates = (0..<28).map { index in
             makeCandidate(frame: CGRect(x: 20 + index * 4, y: 120, width: 2, height: 2))
@@ -56,10 +78,8 @@ final class OverlayLayoutEngineTests: XCTestCase {
         )
 
         // then
-        XCTAssertEqual(layout.labels[0].text, "AA")
-        XCTAssertEqual(layout.labels[25].text, "AZ")
-        XCTAssertEqual(layout.labels[26].text, "BA")
-        XCTAssertEqual(layout.labels[27].text, "BB")
+        let singleCount = layout.labels.filter { $0.text.count == 1 }.count
+        XCTAssertEqual(singleCount, 25)
     }
 
     func test_makeLayout_prefixFree_전략은_대부분_후보에_1글자_label을_배정() {
@@ -240,7 +260,9 @@ final class OverlayLayoutEngineTests: XCTestCase {
         // given
         let rightCandidate = makeCandidate(frame: CGRect(x: 300, y: 100, width: 20, height: 20))
         let leftCandidate = makeCandidate(frame: CGRect(x: 100, y: 100, width: 20, height: 20))
-        let sut = OverlayLayoutEngine()
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(labelStrategy: .fixedWidth)
+        )
 
         // when
         let layout = sut.makeLayout(
@@ -260,7 +282,10 @@ final class OverlayLayoutEngineTests: XCTestCase {
         let rightCandidate = makeCandidate(frame: CGRect(x: 300, y: 100, width: 20, height: 20))
         let leftCandidate = makeCandidate(frame: CGRect(x: 100, y: 100, width: 20, height: 20))
         let sut = OverlayLayoutEngine(
-            configuration: OverlayLayoutConfiguration(ordersLabelsSpatially: false)
+            configuration: OverlayLayoutConfiguration(
+                ordersLabelsSpatially: false,
+                labelStrategy: .fixedWidth
+            )
         )
 
         // when

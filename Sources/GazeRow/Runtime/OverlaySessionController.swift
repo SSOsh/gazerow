@@ -226,6 +226,9 @@ final class OverlaySessionController {
                     tone: .success
                 )
             )
+            // 클릭 성공은 target UI를 바꿀 수 있어 다음 activation에서 stale
+            // candidate가 재사용되지 않도록 scan cache를 무효화한다.
+            scanner.invalidate()
             close()
         case .failure(.executionFailed(.secondConfirmRequired(let riskClass))):
             session.pendingSecondConfirm = PendingSecondConfirm(
@@ -411,6 +414,14 @@ extension TargetResolver: OverlaySessionTargetResolving {}
 @MainActor
 protocol OverlaySessionScanning {
     func scan(context: TargetContext) -> Result<AccessibilityScanResult, AccessibilityScanFailure>
+
+    /// scan cache를 무효화한다. cache를 갖지 않는 scanner는 무효화할 상태가 없다.
+    func invalidate()
+}
+
+extension OverlaySessionScanning {
+    /// 기본 구현은 no-op이다. `CachingScanner`처럼 cache를 가진 scanner만 재정의한다.
+    func invalidate() {}
 }
 
 extension AccessibilityScanner: OverlaySessionScanning {}
