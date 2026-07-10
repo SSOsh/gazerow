@@ -115,6 +115,7 @@ enum AccessibilityAction {
     static let confirm = "AXConfirm"
     static let open = "AXOpen"
     static let showDefaultUI = "AXShowDefaultUI"
+    static let setValue = "AXSetValue"
     static let increment = "AXIncrement"
     static let decrement = "AXDecrement"
 }

@@ -101,6 +101,11 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
 
         let title: String?
         if clickabilityPolicy.hasClickAction(snapshot.actions)
+            || clickabilityPolicy.isFocusableInput(
+                role: role,
+                subrole: snapshot.subrole,
+                actions: snapshot.actions
+            )
             || (role != AccessibilityRole.image && clickabilityPolicy.isClickableRole(role)) {
             title = snapshot.title
         } else if role == AccessibilityRole.image {
