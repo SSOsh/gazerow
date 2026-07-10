@@ -43,7 +43,7 @@ final class IntentRouterTests: XCTestCase {
         XCTAssertEqual(scope, .labels)
     }
 
-    func test_chooseScope_두글자이상은_elements를_선택한다() {
+    func test_chooseScope_두글자이상은_매칭이_없으면_elements를_선택한다() {
         // given
         let sut = IntentRouter()
 
@@ -58,6 +58,60 @@ final class IntentRouterTests: XCTestCase {
 
         // then
         XCTAssertEqual(scope, .elements)
+    }
+
+    func test_chooseScope_windowMatch만_있으면_두글자이상도_windows를_선택한다() {
+        // given
+        let sut = IntentRouter()
+
+        // when
+        let scope = sut.chooseScope(
+            buffer: "safari",
+            pinnedScope: nil,
+            focusEngine: focusEngine,
+            elementMatches: [],
+            windowMatches: [windowMatch(entryID: 0, score: 80)],
+            lastScope: .labels
+        )
+
+        // then
+        XCTAssertEqual(scope, .windows)
+    }
+
+    func test_chooseScope_element와_window가_모두_있으면_높은_score_scope를_선택한다() {
+        // given
+        let sut = IntentRouter()
+
+        // when
+        let scope = sut.chooseScope(
+            buffer: "xcode",
+            pinnedScope: nil,
+            focusEngine: focusEngine,
+            elementMatches: [match(nodeID: 0, score: 40)],
+            windowMatches: [windowMatch(entryID: 0, score: 150)],
+            lastScope: .elements
+        )
+
+        // then
+        XCTAssertEqual(scope, .windows)
+    }
+
+    func test_chooseScope_최근scope가_windows이면_동시매칭에서_windows를_유지한다() {
+        // given
+        let sut = IntentRouter()
+
+        // when
+        let scope = sut.chooseScope(
+            buffer: "code",
+            pinnedScope: nil,
+            focusEngine: focusEngine,
+            elementMatches: [match(nodeID: 0, score: 120)],
+            windowMatches: [windowMatch(entryID: 0, score: 60)],
+            lastScope: .windows
+        )
+
+        // then
+        XCTAssertEqual(scope, .windows)
     }
 
     func test_chooseScope_한글은_elements를_선택한다() {
@@ -179,16 +233,16 @@ final class IntentRouterTests: XCTestCase {
         )
     }
 
-    private func match(nodeID: Int) -> SearchMatch {
+    private func match(nodeID: Int, score: Int = 100) -> SearchMatch {
         SearchMatch(
             nodeID: nodeID,
-            score: 100,
+            score: score,
             matchedFields: [.title],
             displayName: "Match"
         )
     }
 
-    private func windowMatch(entryID: Int) -> WindowMatch {
-        WindowMatch(entryID: entryID, score: 100, displayLine: "Window")
+    private func windowMatch(entryID: Int, score: Int = 100) -> WindowMatch {
+        WindowMatch(entryID: entryID, score: score, displayLine: "Window")
     }
 }

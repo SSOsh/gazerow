@@ -236,6 +236,7 @@ final class OverlaySessionControllerTests: XCTestCase {
                 matchCount: 1,
                 matchIndex: 1,
                 focusedDisplayName: "Delete",
+                highlightFrame: candidate.frame,
                 enterActionHint: AppContent.localized(for: .english).enterActionClick,
                 tone: .neutral
             )

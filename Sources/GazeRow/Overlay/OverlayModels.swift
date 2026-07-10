@@ -111,6 +111,7 @@ struct OverlayInteractionStatus: Equatable {
     let matchCount: Int
     let matchIndex: Int
     let focusedDisplayName: String?
+    let highlightFrame: CGRect?
     let enterActionHint: String
     let message: String?
     let tone: Tone
@@ -124,6 +125,7 @@ struct OverlayInteractionStatus: Equatable {
         matchCount: Int = 0,
         matchIndex: Int = 0,
         focusedDisplayName: String? = nil,
+        highlightFrame: CGRect? = nil,
         enterActionHint: String = "click",
         message: String? = nil,
         tone: Tone = .neutral
@@ -136,6 +138,7 @@ struct OverlayInteractionStatus: Equatable {
         self.matchCount = max(0, matchCount)
         self.matchIndex = max(0, matchIndex)
         self.focusedDisplayName = focusedDisplayName
+        self.highlightFrame = highlightFrame
         self.enterActionHint = enterActionHint
         self.message = message
         self.tone = tone

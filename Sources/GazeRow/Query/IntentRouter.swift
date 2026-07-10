@@ -111,19 +111,45 @@ struct IntentRouter {
             return .labels
         }
 
+        if let scope = bestSearchScope(
+            elementMatches: elementMatches,
+            windowMatches: windowMatches,
+            lastScope: lastScope
+        ) {
+            return scope
+        }
+
         if buffer.count >= 2 || containsHangul(buffer) || buffer.contains(" ") {
             return .elements
         }
 
-        if !elementMatches.isEmpty {
-            return .elements
+        return lastScope == .windows ? .elements : lastScope
+    }
+
+    private func bestSearchScope(
+        elementMatches: [SearchMatch],
+        windowMatches: [WindowMatch],
+        lastScope: QueryScope
+    ) -> QueryScope? {
+        guard !elementMatches.isEmpty || !windowMatches.isEmpty else {
+            return nil
         }
 
-        if !windowMatches.isEmpty {
+        guard !elementMatches.isEmpty else {
             return .windows
         }
 
-        return lastScope == .windows ? .elements : lastScope
+        guard !windowMatches.isEmpty else {
+            return .elements
+        }
+
+        if lastScope == .windows {
+            return .windows
+        }
+
+        let bestElementScore = elementMatches.map(\.score).max() ?? 0
+        let bestWindowScore = windowMatches.map(\.score).max() ?? 0
+        return bestWindowScore > bestElementScore ? .windows : .elements
     }
 
     private func elementResolution(

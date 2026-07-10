@@ -103,6 +103,8 @@ final class AppContentTests: XCTestCase {
         XCTAssertEqual(korean.queryScopeTitle(.labels), "라벨")
         XCTAssertEqual(korean.queryNoMatch, "매칭 없음")
         XCTAssertTrue(korean.queryKeyHint(for: .windows, enterActionHint: korean.enterActionSwitchWindow).contains("창 전환"))
+        XCTAssertTrue(korean.queryKeyHint(for: .labels, enterActionHint: korean.enterActionClick).contains("/ 요소"))
+        XCTAssertTrue(korean.queryKeyHint(for: .labels, enterActionHint: korean.enterActionClick).contains("; 창"))
         XCTAssertTrue(english.queryMatchSummary(count: 2, index: 1, displayName: "Delete").contains("Delete"))
     }
 }

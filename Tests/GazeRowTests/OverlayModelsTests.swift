@@ -99,6 +99,7 @@ final class OverlayModelsTests: XCTestCase {
             matchCount: 2,
             matchIndex: 1,
             focusedDisplayName: "Delete Item",
+            highlightFrame: CGRect(x: 10, y: 20, width: 30, height: 40),
             enterActionHint: "click"
         )
 
@@ -108,5 +109,6 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.matchCount, 2)
         XCTAssertEqual(sut.matchIndex, 1)
         XCTAssertEqual(sut.focusedDisplayName, "Delete Item")
+        XCTAssertEqual(sut.highlightFrame, CGRect(x: 10, y: 20, width: 30, height: 40))
     }
 }

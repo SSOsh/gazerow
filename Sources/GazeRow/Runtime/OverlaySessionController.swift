@@ -643,6 +643,7 @@ final class OverlaySessionController {
             matchCount: resolution?.matchCount ?? 0,
             matchIndex: resolution.map { $0.matchIndex + 1 } ?? 0,
             focusedDisplayName: resolution?.focusedDisplayName,
+            highlightFrame: resolution?.highlightFrame,
             enterActionHint: enterHint,
             message: message,
             tone: tone

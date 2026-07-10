@@ -143,6 +143,7 @@ final class OverlayWindowController {
                 matchCount: currentStatus.matchCount,
                 matchIndex: currentStatus.matchIndex,
                 focusedDisplayName: currentStatus.focusedDisplayName,
+                highlightFrame: currentStatus.highlightFrame,
                 enterActionHint: currentStatus.enterActionHint,
                 message: currentStatus.message,
                 tone: currentStatus.tone

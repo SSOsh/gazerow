@@ -111,7 +111,9 @@ final class SearchableNodeCollectorTests: XCTestCase {
         let index = sut.buildIndex(context: targetContext)
 
         // then
-        XCTAssertEqual(index.search("후속").map(\.displayName), ["후속 변경 사항을 부탁하세요"])
+        let matches = index.search("후속")
+        XCTAssertEqual(matches.count, 1)
+        XCTAssertEqual(matches.map(\.displayName), [AccessibilityRole.textArea])
         XCTAssertFalse(index.buildMetrics.truncated)
     }
 

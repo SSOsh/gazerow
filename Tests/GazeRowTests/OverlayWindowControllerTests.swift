@@ -314,6 +314,23 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertEqual(command, .appendQuery("s"))
     }
 
+    func test_OverlayKeyboardCommandRouter_첫_label입력후_두번째_ascii는_두글자_query로_승격한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        let first = sut.command(
+            for: FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "a")
+        )
+        let second = sut.command(
+            for: FocusKeyboardInput(keyCode: 11, charactersIgnoringModifiers: "b")
+        )
+
+        // then
+        XCTAssertEqual(first, .typeLabel("a"))
+        XCTAssertEqual(second, .appendQuery("ab"))
+    }
+
     private func makeLayout() -> OverlayLayout {
         OverlayLayout(
             targetFrame: CGRect(x: 0, y: 0, width: 200, height: 120),
