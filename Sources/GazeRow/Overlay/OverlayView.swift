@@ -26,7 +26,8 @@ struct OverlayView: View {
     }
 
     var body: some View {
-        let statusWidth = max(0, min(layout.localBounds.width - 16, 420))
+        let statusWidth = OverlayStatusPresentation.width(in: layout.localBounds)
+        let statusCenter = OverlayStatusPresentation.center(in: layout.localBounds)
         let focusStyle = QueryFocusStyle(scope: status.activeScope)
         let labelOpacity = status.activeScope == .windows ? 0.25 : 1.0
 
@@ -62,8 +63,8 @@ struct OverlayView: View {
             OverlayStatusView(status: status)
                 .frame(width: statusWidth, alignment: .leading)
                 .position(
-                    x: statusWidth / 2 + 8,
-                    y: layout.localBounds.height - 34
+                    x: statusCenter.x,
+                    y: statusCenter.y
                 )
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
@@ -246,7 +247,6 @@ private struct OverlayStatusView: View {
             Color.red.opacity(0.86)
         }
     }
-
     private var bufferText: String {
         let buffer = status.displayBuffer
         guard !buffer.isEmpty else {

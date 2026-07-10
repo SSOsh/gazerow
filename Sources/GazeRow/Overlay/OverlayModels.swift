@@ -153,6 +153,52 @@ struct OverlayInteractionStatus: Equatable {
     }
 }
 
+/// overlay 상태 바의 표시 문구와 배치 계산.
+///
+/// @author suho.do
+/// @since 2026-07-10
+struct OverlayStatusPresentation: Equatable {
+    static let maxWidth: CGFloat = 300
+    static let horizontalInset: CGFloat = 8
+    static let bottomMargin: CGFloat = 32
+    static let minimumCenterPadding: CGFloat = 18
+
+    let primaryText: String
+    let helperText: String
+    let focusedLabel: String?
+
+    init(status: OverlayInteractionStatus) {
+        self.primaryText = Self.primaryText(for: status)
+        self.helperText = "Return: click / Esc: close"
+        self.focusedLabel = status.focusedLabel
+    }
+
+    static func width(in bounds: CGRect) -> CGFloat {
+        max(0, min(bounds.width - horizontalInset * 2, maxWidth))
+    }
+
+    static func center(in bounds: CGRect) -> CGPoint {
+        let minY = bounds.minY + minimumCenterPadding
+        let maxY = bounds.maxY - minimumCenterPadding
+        let preferredY = bounds.maxY - bottomMargin
+        let y = maxY < minY ? bounds.midY : min(max(preferredY, minY), maxY)
+
+        return CGPoint(x: bounds.midX, y: y)
+    }
+
+    private static func primaryText(for status: OverlayInteractionStatus) -> String {
+        if let message = status.message {
+            return message
+        }
+
+        if !status.typedLabelBuffer.isEmpty {
+            return "Typing \(status.typedLabelBuffer)"
+        }
+
+        return "Ready"
+    }
+}
+
 /// label 개수와 candidate 개수가 맞지 않을 때의 정책.
 ///
 /// @author suho.do

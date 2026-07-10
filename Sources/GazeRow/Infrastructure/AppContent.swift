@@ -146,12 +146,12 @@ enum AppContent {
             switch scope {
             case .labels:
                 return language == .korean
-                    ? "Enter \(enterActionHint) · Esc 닫기"
-                    : "Enter \(enterActionHint) · Esc close"
+                    ? "Enter: \(enterActionHint) / Esc"
+                    : "Enter: \(enterActionHint) / Esc"
             case .elements, .windows:
                 return language == .korean
-                    ? "Tab 다음 · Enter \(enterActionHint) · Esc 닫기"
-                    : "Tab next · Enter \(enterActionHint) · Esc close"
+                    ? "Tab / Enter: \(enterActionHint) / Esc"
+                    : "Tab / Enter: \(enterActionHint) / Esc"
             }
         }
 
