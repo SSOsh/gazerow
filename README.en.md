@@ -59,9 +59,11 @@ You don't need to switch to an English layout.
 ### Query Overlay
 
 After opening the overlay, press `/` to pin element search or `;` to pin window search.
+You can also click the `Windows` / `Elements` / `Labels` chips in the bottom status bar to switch scopes.
 Type a query to show the match count and focused target in the status area.
 Use `Tab` / `Shift+Tab` to cycle query matches, and `Delete` to edit the query.
 In element scope, `Return` clicks the focused element; in window scope, `Return` switches to the selected app/window.
+When there is no match, the previous label focus is cleared so `Return` does not trigger an old label.
 Bare letter input still prioritizes label selection, so the existing label flow remains intact.
 
 ### Window control shortcuts

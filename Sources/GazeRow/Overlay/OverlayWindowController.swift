@@ -156,6 +156,11 @@ final class OverlayWindowController {
         }
 
         currentStatus = status
+        syncKeyboardState(QueryInputState(
+            buffer: status.queryBuffer,
+            pinnedScope: status.pinnedScope,
+            lastScope: status.activeScope
+        ))
         render(layout: currentLayout, status: status)
     }
 
@@ -204,10 +209,27 @@ final class OverlayWindowController {
                 status: status,
                 appearance: appearanceProvider(),
                 onScopeSelection: { [weak self] scope in
+                    self?.syncKeyboardScopeSelection(scope)
                     self?.panel?.onScopeSelection(scope)
                 }
             )
         )
+    }
+
+    private func syncKeyboardScopeSelection(_ scope: QueryScope) {
+        let state = scope == .labels
+            ? QueryInputState(lastScope: .labels)
+            : QueryInputState(
+                buffer: currentStatus.queryBuffer,
+                pinnedScope: scope,
+                lastScope: scope
+            )
+        syncKeyboardState(state)
+    }
+
+    private func syncKeyboardState(_ state: QueryInputState) {
+        panel?.syncKeyboardState(state)
+        keyboardEventTap?.syncKeyboardState(state)
     }
 
     private func labelText(for focusedLabelID: Int?) -> String? {
@@ -310,6 +332,10 @@ private final class OverlayPanel: NSPanel {
 
         onKeyboardCommand(command)
     }
+
+    func syncKeyboardState(_ state: QueryInputState) {
+        keyboardRouter.syncKeyboardState(state)
+    }
 }
 
 /// overlay 표시 중 앱 활성화 없이 keyboard 입력을 가로채는 event tap.
@@ -320,6 +346,11 @@ private final class OverlayPanel: NSPanel {
 protocol OverlayKeyboardEventTapping: AnyObject {
     func start() -> Bool
     func stop()
+    func syncKeyboardState(_ state: QueryInputState)
+}
+
+extension OverlayKeyboardEventTapping {
+    func syncKeyboardState(_ state: QueryInputState) {}
 }
 
 /// CGEvent tap 기반 overlay keyboard capture.
@@ -404,6 +435,10 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
         runLoopSource = nil
     }
 
+    func syncKeyboardState(_ state: QueryInputState) {
+        context.syncKeyboardState(state)
+    }
+
 }
 
 final class OverlayKeyboardEventTapContext: @unchecked Sendable {
@@ -413,6 +448,10 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
 
     init(onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void) {
         self.onKeyboardCommand = onKeyboardCommand
+    }
+
+    func syncKeyboardState(_ state: QueryInputState) {
+        keyboardRouter.syncKeyboardState(state)
     }
 
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -453,7 +492,7 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
     }
 }
 
-private struct OverlayKeyboardCommandRouter {
+struct OverlayKeyboardCommandRouter {
     private let mapper = FocusKeyboardCommandMapper()
     private var queryInput = QueryInputState()
     private var pendingLabelPrimer: Character?
@@ -464,6 +503,11 @@ private struct OverlayKeyboardCommandRouter {
         }
 
         return route(command)
+    }
+
+    mutating func syncKeyboardState(_ state: QueryInputState) {
+        queryInput = state
+        pendingLabelPrimer = nil
     }
 
     private mutating func route(_ command: FocusKeyboardCommand) -> FocusKeyboardCommand {

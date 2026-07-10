@@ -495,7 +495,7 @@ final class OverlaySessionController {
         session.queryInput.lastScope = resolution.scope
         if let focusTargetCandidateIndex = resolution.focusTargetCandidateIndex {
             _ = session.focusEngine.focusItem(id: focusTargetCandidateIndex)
-        } else if resolution.scope == .elements {
+        } else if resolution.scope == .elements || resolution.scope == .windows {
             _ = session.focusEngine.focusItem(id: -1)
         }
         return resolution

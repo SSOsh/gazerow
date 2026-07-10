@@ -450,6 +450,26 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
     }
 
+    func test_handleKeyboardCommand_windowsScope_match가_없으면_기존_label_focus를_비운다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: []) }
+        )
+        _ = sut.handleKeyboardCommand(.move(.next))
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("missing"))
+
+        // then
+        XCTAssertNil(sut.activeSession?.focusEngine.focusedItemID)
+        XCTAssertNil(presenter.statusUpdates.last?.focusedLabel)
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.matchCount, 0)
+    }
+
     func test_handleKeyboardCommand_windowsScope_cycleMatch는_windowMatchIndex를_순환한다() {
         // given
         let first = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Alpha")
