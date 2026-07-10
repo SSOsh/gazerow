@@ -36,7 +36,7 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
     private let clickExecutor: ClickExecutor<AXClickExecutionClient>
     private let clickPreparer: TargetApplicationClickPreparer
 
-    init(
+    nonisolated init(
         targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient> = OverlaySessionClickTargetResolver(client: AXAccessibilityElementClient()),
         clickExecutor: ClickExecutor<AXClickExecutionClient> = ClickExecutor(
             client: AXClickExecutionClient(),
@@ -126,7 +126,7 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
     private let clickabilityPolicy: AccessibilityClickabilityPolicy
     private let dateProvider: () -> Date
 
-    init(
+    nonisolated init(
         client: Client,
         configuration: AccessibilityScanConfiguration = AccessibilityScanConfiguration(),
         clickabilityPolicy: AccessibilityClickabilityPolicy = AccessibilityClickabilityPolicy(),

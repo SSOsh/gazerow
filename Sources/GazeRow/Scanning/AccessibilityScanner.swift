@@ -12,7 +12,7 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
     private let clickabilityPolicy: AccessibilityClickabilityPolicy
     private let dateProvider: () -> Date
 
-    init(
+    nonisolated init(
         client: Client,
         configuration: AccessibilityScanConfiguration = AccessibilityScanConfiguration(),
         clickabilityPolicy: AccessibilityClickabilityPolicy = AccessibilityClickabilityPolicy(),

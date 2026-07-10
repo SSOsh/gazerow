@@ -146,7 +146,8 @@ activation immediately. **Enable** it again to resume.
 | Languages | Korean / English |
 
 For now you build and run from source. It is based on Swift Package Manager and
-**requires the Xcode toolchain**.
+**requires Xcode 15 or newer (Swift 5.9 or newer)**. Xcode 14 and older are not
+supported because the app uses macOS 14 and SwiftUI Observation APIs.
 
 ```bash
 # Accept the Xcode license once (if needed)
@@ -164,9 +165,9 @@ scripts/build_local_app.sh
 open -n .build/local-app/GazeRow.app
 ```
 
-> **Note**: if `xcode-select` points to the Command Line Tools, you'll hit a SwiftPM
-> link error. Specify the Xcode toolchain via `DEVELOPER_DIR` as above, or switch with
-> `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
+> **Note**: if multiple Xcode versions are installed, specify the intended toolchain
+> with `DEVELOPER_DIR` as above. The local `.app` bundling/signing flow is verified
+> with the full Xcode app installed.
 
 After launching, click the cursor icon in the menu bar to try **Open Settings** /
 **Quit** and confirm it works. Without permission, use the **Request Permission**

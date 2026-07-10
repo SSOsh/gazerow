@@ -18,6 +18,8 @@ protocol FrontmostApplicationProviding {
 @MainActor
 struct NSWorkspaceFrontmostApplicationProvider: FrontmostApplicationProviding {
 
+    nonisolated init() {}
+
     func frontmostApplication() -> TargetApplication? {
         guard let application = NSWorkspace.shared.frontmostApplication else {
             return nil

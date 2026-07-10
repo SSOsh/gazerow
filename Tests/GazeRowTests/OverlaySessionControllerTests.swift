@@ -1051,17 +1051,23 @@ final class OverlaySessionControllerTests: XCTestCase {
     }
 
     private func makeStartedSessionController(
-        presenter: StubOverlayPresenter = StubOverlayPresenter(),
-        recorder: StubInteractionRecorder = StubInteractionRecorder(),
-        clickExecutor: StubOverlayClickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+        presenter: StubOverlayPresenter? = nil,
+        recorder: StubInteractionRecorder? = nil,
+        clickExecutor: StubOverlayClickExecutor? = nil,
         candidates: [ClickableCandidate]? = nil,
         searchableNodeCollector: (any SearchableNodeCollecting)? = nil,
         windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
-        windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning)),
+        windowActivator: (any WindowActivating)? = nil,
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt(value: "default-test-salt")),
         dateProvider: @escaping () -> Date = Date.init,
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) -> OverlaySessionController {
+        let presenter = presenter ?? StubOverlayPresenter()
+        let recorder = recorder ?? StubInteractionRecorder()
+        let clickExecutor = clickExecutor ?? StubOverlayClickExecutor(
+            result: .failure(.missingFocusedTarget(index: 0))
+        )
+        let windowActivator = windowActivator ?? StubWindowActivator(result: .failure(.appNotRunning))
         let context = makeContext()
         let resolver = StubOverlayTargetResolver(result: .success(context))
         let scanner = StubOverlayScanner(
@@ -1107,11 +1113,13 @@ final class OverlaySessionControllerTests: XCTestCase {
     private func makeSessionController(
         scanner: StubOverlayScanner,
         clickExecutor: StubOverlayClickExecutor,
-        presenter: StubOverlayPresenter = StubOverlayPresenter(),
+        presenter: StubOverlayPresenter? = nil,
         windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
-        windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning))
+        windowActivator: (any WindowActivating)? = nil
     ) -> OverlaySessionController {
-        OverlaySessionController(
+        let presenter = presenter ?? StubOverlayPresenter()
+        let windowActivator = windowActivator ?? StubWindowActivator(result: .failure(.appNotRunning))
+        return OverlaySessionController(
             targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
             scanner: scanner,
             overlayPresenter: presenter,

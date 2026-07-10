@@ -20,7 +20,7 @@ final class OverlaySessionController {
     private let windowActivator: any WindowActivating
     private let windowTitleHasher: WindowTitleHasher
     private let dateProvider: () -> Date
-    private let isSessionEnabled: () -> Bool
+    private let isSessionEnabled: @MainActor () -> Bool
     private let clickResultObserver: @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void
     private(set) var activeSession: OverlaySessionState?
     private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
@@ -39,7 +39,7 @@ final class OverlaySessionController {
         windowActivator: any WindowActivating = WindowActivator(),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         dateProvider: @escaping () -> Date = Date.init,
-        isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled },
+        isSessionEnabled: @escaping @MainActor () -> Bool = { SessionController.shared.isEnabled },
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) {
         self.targetResolver = targetResolver

@@ -143,8 +143,9 @@ GazeRow에 손쉬운 사용 권한이 있을 때만 동작합니다.
 | 필요 권한 | 손쉬운 사용(Accessibility) |
 | 언어 | 한국어 / English |
 
-현재는 소스에서 직접 빌드해 실행합니다. Swift Package Manager 기반이며 **Xcode
-toolchain이 필요**합니다.
+현재는 소스에서 직접 빌드해 실행합니다. Swift Package Manager 기반이며
+**Xcode 15 이상(Swift 5.9 이상) toolchain**이 필요합니다. macOS 14와 SwiftUI
+Observation API를 사용하므로 Xcode 14 이하는 지원 대상이 아닙니다.
 
 ```bash
 # Xcode 라이선스 최초 1회 동의 (필요 시)
@@ -162,9 +163,9 @@ scripts/build_local_app.sh
 open -n .build/local-app/GazeRow.app
 ```
 
-> **주의**: `xcode-select`가 Command Line Tools를 가리키면 SwiftPM 링크 오류가
-> 발생합니다. 위처럼 `DEVELOPER_DIR`로 Xcode toolchain을 지정하거나,
-> `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`로 전환하세요.
+> **주의**: 여러 Xcode 버전이 설치되어 있으면 위처럼 `DEVELOPER_DIR`로 원하는
+> Xcode toolchain을 지정하세요. 로컬 `.app` 번들 생성/서명 흐름은 전체 Xcode
+> 설치를 기준으로 검증합니다.
 
 실행 후 메뉴바 커서 아이콘을 클릭하면 **Open Settings** / **Quit** 등으로 동작을
 확인할 수 있습니다. 권한이 없으면 Settings의 **권한 요청** 버튼이나 위 런치 옵션으로

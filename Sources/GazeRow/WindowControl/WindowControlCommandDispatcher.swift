@@ -12,7 +12,7 @@ struct WindowControlCommandDispatcher {
     private let shortcutSet: WindowControlShortcutSet
     private let client: any WindowControlButtonPressing
 
-    init(
+    nonisolated init(
         shortcutSet: WindowControlShortcutSet = .default,
         client: any WindowControlButtonPressing = AXWindowControlButtonClient()
     ) {

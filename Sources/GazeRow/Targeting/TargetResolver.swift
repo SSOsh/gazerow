@@ -10,7 +10,7 @@ struct TargetResolver {
     private let accessibilityClient: AccessibilityTargetClient
     private let dateProvider: () -> Date
 
-    init(
+    nonisolated init(
         frontmostApplicationProvider: FrontmostApplicationProviding = NSWorkspaceFrontmostApplicationProvider(),
         accessibilityClient: AccessibilityTargetClient = AXAccessibilityTargetClient(),
         dateProvider: @escaping () -> Date = Date.init

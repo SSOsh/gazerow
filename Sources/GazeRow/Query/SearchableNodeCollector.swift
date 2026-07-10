@@ -19,7 +19,7 @@ struct AccessibilitySearchableNodeCollector<Client: AccessibilityElementClient>:
     private let configuration: AccessibilityScanConfiguration
     private let dateProvider: () -> Date
 
-    init(
+    nonisolated init(
         client: Client,
         configuration: AccessibilityScanConfiguration = AccessibilityScanConfiguration(),
         dateProvider: @escaping () -> Date = Date.init
