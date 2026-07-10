@@ -130,6 +130,11 @@ struct FocusEngine: Equatable {
         }
 
         let previousID = focusedItemID
+        guard previousID != nearestItem.id else {
+            labelBuffer = ""
+            return nil
+        }
+
         focusedItemID = nearestItem.id
         labelBuffer = ""
 

@@ -175,6 +175,18 @@ final class FocusEngineTests: XCTestCase {
         XCTAssertEqual(event, .focusChanged(from: 0, to: 2, method: .gaze))
     }
 
+    func test_focusNearest_같은_item이면_event를_내지_않는다() {
+        // given
+        var sut = FocusEngine(items: items, initialFocusedItemID: 2)
+
+        // when
+        let event = sut.focusNearest(to: CGPoint(x: 4, y: 43))
+
+        // then
+        XCTAssertNil(event)
+        XCTAssertEqual(sut.focusedItemID, 2)
+    }
+
     func test_focusNearest_item이_없으면_focus를_비움() {
         // given
         var sut = FocusEngine(items: [])
