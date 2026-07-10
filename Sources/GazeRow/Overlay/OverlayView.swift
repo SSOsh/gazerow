@@ -10,19 +10,22 @@ struct OverlayView: View {
     let focusedLabelID: Int?
     let status: OverlayInteractionStatus
     let appearance: OverlayAppearance
+    let onScopeSelection: (QueryScope) -> Void
 
     init(
         layout: OverlayLayout,
         showsBoundary: Bool = true,
         focusedLabelID: Int? = nil,
         status: OverlayInteractionStatus = OverlayInteractionStatus(),
-        appearance: OverlayAppearance = OverlayAppearance()
+        appearance: OverlayAppearance = OverlayAppearance(),
+        onScopeSelection: @escaping (QueryScope) -> Void = { _ in }
     ) {
         self.layout = layout
         self.showsBoundary = showsBoundary
         self.focusedLabelID = focusedLabelID
         self.status = status
         self.appearance = appearance
+        self.onScopeSelection = onScopeSelection
     }
 
     var body: some View {
@@ -59,7 +62,10 @@ struct OverlayView: View {
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
             }
 
-            OverlayStatusView(status: status)
+            OverlayStatusView(
+                status: status,
+                onScopeSelection: onScopeSelection
+            )
                 .frame(width: statusWidth, alignment: .leading)
                 .position(
                     x: statusWidth / 2 + 8,
@@ -189,6 +195,7 @@ private struct QueryFocusStyle: Equatable {
 
 private struct OverlayStatusView: View {
     let status: OverlayInteractionStatus
+    let onScopeSelection: (QueryScope) -> Void
     private let content = AppContent.localized(for: .english)
 
     var body: some View {
@@ -198,7 +205,10 @@ private struct OverlayStatusView: View {
                     ScopeChip(
                         title: content.queryScopeTitle(scope),
                         isActive: status.activeScope == scope,
-                        isPinned: status.pinnedScope == scope
+                        isPinned: status.pinnedScope == scope,
+                        action: {
+                            onScopeSelection(scope)
+                        }
                     )
                 }
 
@@ -286,21 +296,26 @@ private struct ScopeChip: View {
     let title: String
     let isActive: Bool
     let isPinned: Bool
+    let action: () -> Void
 
     var body: some View {
-        Text(isPinned ? "\(title)*" : title)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundStyle(Color.white.opacity(isActive ? 1 : 0.74))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(
-                isActive ? Color.white.opacity(0.28) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 5)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color.white.opacity(isActive ? 0.84 : 0.45), lineWidth: 1)
-            }
+        Button(action: action) {
+            Text(isPinned ? "\(title)*" : title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(isActive ? 1 : 0.74))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(
+                    isActive ? Color.white.opacity(0.28) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(Color.white.opacity(isActive ? 0.84 : 0.45), lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 }
 

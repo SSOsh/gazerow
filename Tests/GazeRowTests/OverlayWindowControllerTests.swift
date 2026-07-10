@@ -176,6 +176,26 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_show는_scopeChip_click을_위해_mouseInput을_허용한다() {
+        // given
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+
+        // when
+        sut.show(layout: makeLayout())
+
+        // then
+        XCTAssertTrue(sut.acceptsMouseInput)
+
+        sut.close()
+    }
+
     func test_show는_render시_appearanceProvider를_조회한다() {
         // given: appearanceProvider는 렌더 시점마다 최신 설정을 읽어야 한다.
         var appearanceCallCount = 0

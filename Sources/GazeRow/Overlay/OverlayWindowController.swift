@@ -60,12 +60,17 @@ final class OverlayWindowController {
         panel?.hidesOnDeactivate == false
     }
 
+    var acceptsMouseInput: Bool {
+        panel?.ignoresMouseEvents == false
+    }
+
     func show(
         targetFrame: CGRect,
         candidates: [ClickableCandidate],
         labels: [String] = [],
         onEscape: @escaping () -> Void = {},
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in },
+        onScopeSelection: @MainActor @escaping (QueryScope) -> Void = { _ in }
     ) -> OverlayLayout {
         let layout = layoutEngine.makeLayout(
             targetFrame: targetFrame,
@@ -77,7 +82,8 @@ final class OverlayWindowController {
         show(
             layout: layout,
             onEscape: onEscape,
-            onKeyboardCommand: onKeyboardCommand
+            onKeyboardCommand: onKeyboardCommand,
+            onScopeSelection: onScopeSelection
         )
         return layout
     }
@@ -85,7 +91,8 @@ final class OverlayWindowController {
     func show(
         layout: OverlayLayout,
         onEscape: @escaping () -> Void = {},
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in },
+        onScopeSelection: @MainActor @escaping (QueryScope) -> Void = { _ in }
     ) {
         close()
         let panelFrame = OverlayScreenFrameMapper(
@@ -103,11 +110,12 @@ final class OverlayWindowController {
             onEscape()
         }
         panel.onKeyboardCommand = onKeyboardCommand
+        panel.onScopeSelection = onScopeSelection
         panel.level = .statusBar
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false
-        panel.ignoresMouseEvents = true
+        panel.ignoresMouseEvents = false
         // NSPanel은 hidesOnDeactivate 기본값이 true라 앱 비활성 시 자동 숨김된다.
         // overlay는 앱을 활성화하지 않고(사용자 앱 포커스 유지) 표시해야 하므로 끈다.
         panel.hidesOnDeactivate = false
@@ -151,6 +159,10 @@ final class OverlayWindowController {
         render(layout: currentLayout, status: status)
     }
 
+    func setMouseInputEnabled(_ isEnabled: Bool) {
+        panel?.ignoresMouseEvents = !isEnabled
+    }
+
     func close() {
         keyboardEventTap?.stop()
         keyboardEventTap = nil
@@ -190,7 +202,10 @@ final class OverlayWindowController {
                 layout: layout,
                 focusedLabelID: focusedLabelID(for: status.focusedLabel),
                 status: status,
-                appearance: appearanceProvider()
+                appearance: appearanceProvider(),
+                onScopeSelection: { [weak self] scope in
+                    self?.panel?.onScopeSelection(scope)
+                }
             )
         )
     }
@@ -269,6 +284,7 @@ struct OverlayScreenFrameMapper {
 private final class OverlayPanel: NSPanel {
     var onEscape: () -> Void = {}
     var onKeyboardCommand: @MainActor (FocusKeyboardCommand) -> Void = { _ in }
+    var onScopeSelection: @MainActor (QueryScope) -> Void = { _ in }
     private var keyboardRouter = OverlayKeyboardCommandRouter()
 
     override var canBecomeKey: Bool {
@@ -485,6 +501,16 @@ private struct OverlayKeyboardCommandRouter {
             return command
         case .clearQueryBuffer, .clearLabelBuffer, .closeOverlay:
             queryInput = QueryInputState()
+            pendingLabelPrimer = nil
+            return command
+        case .selectScope(let scope):
+            queryInput = scope == .labels
+                ? QueryInputState(lastScope: .labels)
+                : QueryInputState(
+                    buffer: queryInput.buffer,
+                    pinnedScope: scope,
+                    lastScope: scope
+                )
             pendingLabelPrimer = nil
             return command
         case .move, .cycleMatch, .dryRunConfirm:

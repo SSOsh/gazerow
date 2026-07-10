@@ -100,6 +100,9 @@ final class OverlaySessionController {
             },
             onKeyboardCommand: { [weak self] command in
                 _ = self?.handleKeyboardCommand(command)
+            },
+            onScopeSelection: { [weak self] scope in
+                _ = self?.handleKeyboardCommand(.selectScope(scope))
             }
         )
         let shownAt = dateProvider()
@@ -200,6 +203,18 @@ final class OverlaySessionController {
             refreshWindowIndexIfNeeded(session: &session)
             event = nil
             statusMessage = "Pinned \(scope.rawValue)"
+        case .selectScope(let scope):
+            session.pendingSecondConfirm = nil
+            selectScope(scope, session: &session)
+            if session.queryInput.buffer.isEmpty {
+                event = nil
+                statusMessage = scope == .labels ? "Labels" : "Pinned \(scope.rawValue)"
+            } else {
+                let resolution = applyQueryResolution(to: &session)
+                activeSession = session
+                overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
+                return nil
+            }
         case .cycleMatch(let forward):
             session.pendingSecondConfirm = nil
             if shouldCycleQueryMatches(session, scope: .elements) {
@@ -296,6 +311,7 @@ final class OverlaySessionController {
         }
 
         let isSecondConfirmProvided = session.pendingSecondConfirm?.focusedItemID == focusedItemID
+        overlayPresenter.setMouseInputEnabled(false)
         let result = clickExecutor.execute(
             focusedIndex: focusedItemID,
             context: session.snapshot.context,
@@ -323,6 +339,7 @@ final class OverlaySessionController {
             scanner.invalidate()
             close()
         case .failure(.executionFailed(.secondConfirmRequired(let riskClass))):
+            overlayPresenter.setMouseInputEnabled(true)
             session.pendingSecondConfirm = PendingSecondConfirm(
                 focusedItemID: focusedItemID,
                 riskClass: riskClass
@@ -337,6 +354,7 @@ final class OverlaySessionController {
                 )
             )
         case .failure:
+            overlayPresenter.setMouseInputEnabled(true)
             session.pendingSecondConfirm = nil
             activeSession = session
             overlayPresenter.updateStatus(
@@ -520,6 +538,22 @@ final class OverlaySessionController {
         }
     }
 
+    private func selectScope(_ scope: QueryScope, session: inout OverlaySessionState) {
+        switch scope {
+        case .labels:
+            session.queryInput = QueryInputState(lastScope: .labels)
+            session.elementMatches = []
+            session.elementMatchIndex = 0
+            session.windowMatches = []
+            session.windowMatchIndex = 0
+            session.focusEngine.clearLabelBuffer()
+        case .elements, .windows:
+            session.queryInput.pinnedScope = scope
+            session.queryInput.lastScope = scope
+            refreshWindowIndexIfNeeded(session: &session)
+        }
+    }
+
     private func activateFocusedWindow(session: inout OverlaySessionState) {
         let resolution = applyQueryResolution(to: &session)
         guard let entryID = resolution.windowEntryID,
@@ -572,6 +606,9 @@ final class OverlaySessionController {
             },
             onKeyboardCommand: { [weak self] command in
                 _ = self?.handleKeyboardCommand(command)
+            },
+            onScopeSelection: { [weak self] scope in
+                _ = self?.handleKeyboardCommand(.selectScope(scope))
             }
         )
         let snapshot = OverlaySessionSnapshot(context: context, scanResult: scanResult, layout: layout)
@@ -719,7 +756,8 @@ protocol OverlaySessionPresenting {
         candidates: [ClickableCandidate],
         labels: [String],
         onEscape: @escaping () -> Void,
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void,
+        onScopeSelection: @MainActor @escaping (QueryScope) -> Void
     ) -> OverlayLayout
 
     func close()
@@ -727,6 +765,8 @@ protocol OverlaySessionPresenting {
     func updateFocus(focusedLabelID: Int?)
 
     func updateStatus(_ status: OverlayInteractionStatus)
+
+    func setMouseInputEnabled(_ isEnabled: Bool)
 }
 
 extension OverlayWindowController: OverlaySessionPresenting {}
