@@ -60,6 +60,40 @@ final class ElementSearchIndexTests: XCTestCase {
         XCTAssertEqual(matches.first?.displayName, "general")
     }
 
+    func test_search_title_약어를_낮은점수로_검색한다() {
+        // given
+        let sut = ElementSearchIndex(
+            nodes: [
+                node(id: 0, title: "Visual Studio Code", frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+            ]
+        )
+
+        // when
+        let matches = sut.search("vsc")
+
+        // then
+        XCTAssertEqual(matches.first?.nodeID, 0)
+        XCTAssertEqual(matches.first?.score, 85)
+    }
+
+    func test_search_title_순서검색을_contains보다_낮은점수로_검색한다() {
+        // given
+        let sut = ElementSearchIndex(
+            nodes: [
+                node(id: 0, title: "Delete Item", frame: CGRect(x: 10, y: 10, width: 20, height: 20)),
+                node(id: 1, title: "Open DLT Panel", frame: CGRect(x: 10, y: 40, width: 20, height: 20))
+            ]
+        )
+
+        // when
+        let matches = sut.search("dlt")
+
+        // then
+        XCTAssertEqual(matches.map(\.nodeID), [1, 0])
+        XCTAssertEqual(matches.first?.score, 100)
+        XCTAssertEqual(matches.last?.score, 65)
+    }
+
     func test_init_secureField와_zeroFrame과_emptyText를_제외한다() {
         // given
         let sut = ElementSearchIndex(
