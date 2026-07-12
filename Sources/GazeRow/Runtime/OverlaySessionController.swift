@@ -9,6 +9,10 @@ import Foundation
 /// @since 2026-07-02
 @MainActor
 final class OverlaySessionController {
+    /// gaze focus 흔들림 완화용 히스테리시스 margin(pt).
+    /// 새 후보가 현재 focus보다 이 값 이상 더 가까워야 focus를 옮긴다.
+    private static let gazeHysteresisMargin: CGFloat = 16
+
     private let targetResolver: any OverlaySessionTargetResolving
     private let scanner: any OverlaySessionScanning
     private let overlayPresenter: any OverlaySessionPresenting
@@ -264,7 +268,10 @@ final class OverlaySessionController {
             return nil
         }
 
-        let event = session.focusEngine.focusNearest(to: gazePoint)
+        let event = session.focusEngine.focusNearest(
+            to: gazePoint,
+            hysteresisMargin: Self.gazeHysteresisMargin
+        )
         activeSession = session
         updateOverlayStatus(for: session, message: focusedMessage(for: session), tone: .neutral)
         record(event, context: session.snapshot.context)
