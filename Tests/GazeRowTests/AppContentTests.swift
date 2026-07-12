@@ -108,6 +108,20 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(english.queryMatchSummary(count: 2, index: 1, displayName: "Delete").contains("Delete"))
     }
 
+    func test_queryScopeRole는_각scope의_역할을_한영으로_설명한다() {
+        // given
+        let english = AppContent.localized(for: .english)
+        let korean = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(english.queryScopeRole(.labels), "Aim a label to click")
+        XCTAssertEqual(english.queryScopeRole(.elements), "Search elements by name")
+        XCTAssertEqual(english.queryScopeRole(.windows), "Search windows to switch")
+        XCTAssertEqual(korean.queryScopeRole(.labels), "라벨을 겨냥해 클릭")
+        XCTAssertEqual(korean.queryScopeRole(.elements), "요소를 이름으로 검색")
+        XCTAssertEqual(korean.queryScopeRole(.windows), "창을 이름으로 검색·전환")
+    }
+
     func test_overlayStatusText_english는_기존영문문구를_유지한다() {
         // given
         let content = AppContent.localized(for: .english)

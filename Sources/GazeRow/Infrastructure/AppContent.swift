@@ -128,6 +128,21 @@ enum AppContent {
             }
         }
 
+        /// 각 scope가 담당하는 역할을 한 줄로 설명한다.
+        ///
+        /// labels·elements는 화면 위 대상을 다루고(공간), windows는 이름으로 창을
+        /// 검색·전환한다(의미). 사용자가 지금 어떤 scope로 무엇을 하는지 명확히 한다.
+        func queryScopeRole(_ scope: QueryScope) -> String {
+            switch scope {
+            case .labels:
+                return language == .korean ? "라벨을 겨냥해 클릭" : "Aim a label to click"
+            case .elements:
+                return language == .korean ? "요소를 이름으로 검색" : "Search elements by name"
+            case .windows:
+                return language == .korean ? "창을 이름으로 검색·전환" : "Search windows to switch"
+            }
+        }
+
         func queryMatchSummary(count: Int, index: Int, displayName: String) -> String {
             let safeCount = max(0, count)
             let safeIndex = min(max(1, index), max(1, safeCount))

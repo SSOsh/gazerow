@@ -242,6 +242,7 @@ private struct OverlayStatusView: View {
                 ForEach(QueryScope.allCases, id: \.self) { scope in
                     ScopeChip(
                         title: content.queryScopeTitle(scope),
+                        accentColor: QueryFocusStyle(scope: scope).markerColor,
                         isActive: status.activeScope == scope,
                         isPinned: status.pinnedScope == scope,
                         action: {
@@ -322,7 +323,9 @@ private struct OverlayStatusView: View {
             return message
         }
 
-        return content.readyBadge
+        // idle 상태에서는 현재 활성 scope의 역할을 노출해
+        // "지금 무엇을 하는 scope인지"를 항상 읽을 수 있게 한다.
+        return content.queryScopeRole(status.activeScope)
     }
 
     private var keyHintText: String {
@@ -332,6 +335,7 @@ private struct OverlayStatusView: View {
 
 private struct ScopeChip: View {
     let title: String
+    let accentColor: Color
     let isActive: Bool
     let isPinned: Bool
     let action: () -> Void
@@ -344,12 +348,15 @@ private struct ScopeChip: View {
                 .padding(.horizontal, 7)
                 .padding(.vertical, 3)
                 .background(
-                    isActive ? Color.white.opacity(0.28) : Color.clear,
+                    isActive ? accentColor.opacity(0.42) : Color.clear,
                     in: RoundedRectangle(cornerRadius: 5)
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: 5)
-                        .stroke(Color.white.opacity(isActive ? 0.84 : 0.45), lineWidth: 1)
+                        .stroke(
+                            isActive ? accentColor.opacity(0.95) : Color.white.opacity(0.45),
+                            lineWidth: 1
+                        )
                 }
         }
         .buttonStyle(.plain)
