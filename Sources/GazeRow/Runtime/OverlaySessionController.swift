@@ -9,6 +9,8 @@ import Foundation
 /// @since 2026-07-02
 @MainActor
 final class OverlaySessionController {
+    private static let secondConfirmTimeout: TimeInterval = 3
+
     private let targetResolver: any OverlaySessionTargetResolving
     private let scanner: any OverlaySessionScanning
     private let overlayPresenter: any OverlaySessionPresenting
@@ -295,7 +297,10 @@ final class OverlaySessionController {
             return
         }
 
-        let isSecondConfirmProvided = session.pendingSecondConfirm?.focusedItemID == focusedItemID
+        let isSecondConfirmProvided = isPendingSecondConfirmValid(
+            for: focusedItemID,
+            session: &session
+        )
         let result = clickExecutor.execute(
             focusedIndex: focusedItemID,
             context: session.snapshot.context,
@@ -325,7 +330,8 @@ final class OverlaySessionController {
         case .failure(.executionFailed(.secondConfirmRequired(let riskClass))):
             session.pendingSecondConfirm = PendingSecondConfirm(
                 focusedItemID: focusedItemID,
-                riskClass: riskClass
+                riskClass: riskClass,
+                createdAt: dateProvider()
             )
             activeSession = session
             overlayPresenter.updateStatus(
@@ -348,6 +354,26 @@ final class OverlaySessionController {
                 )
             )
         }
+    }
+
+    private func isPendingSecondConfirmValid(
+        for focusedItemID: Int,
+        session: inout OverlaySessionState
+    ) -> Bool {
+        guard let pendingSecondConfirm = session.pendingSecondConfirm else {
+            return false
+        }
+
+        if pendingSecondConfirm.isValid(
+            for: focusedItemID,
+            at: dateProvider(),
+            timeout: Self.secondConfirmTimeout
+        ) {
+            return true
+        }
+
+        session.pendingSecondConfirm = nil
+        return false
     }
 
     func close() {
@@ -776,6 +802,26 @@ struct OverlaySessionState: Equatable {
 struct PendingSecondConfirm: Equatable {
     let focusedItemID: Int
     let riskClass: ClickRiskClass
+    let createdAt: Date
+
+    init(
+        focusedItemID: Int,
+        riskClass: ClickRiskClass,
+        createdAt: Date = Date(timeIntervalSince1970: 0)
+    ) {
+        self.focusedItemID = focusedItemID
+        self.riskClass = riskClass
+        self.createdAt = createdAt
+    }
+
+    func isValid(
+        for focusedItemID: Int,
+        at date: Date,
+        timeout: TimeInterval
+    ) -> Bool {
+        self.focusedItemID == focusedItemID
+            && date.timeIntervalSince(createdAt) <= timeout
+    }
 }
 
 /// overlay session activation 결과.

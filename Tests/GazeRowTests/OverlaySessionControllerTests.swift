@@ -798,13 +798,17 @@ final class OverlaySessionControllerTests: XCTestCase {
 
     func test_handleKeyboardCommand_focus가_바뀌면_secondConfirm대기를_초기화() {
         // given
+        let timestamp = Date(timeIntervalSince1970: 100)
         let clickExecutor = StubOverlayClickExecutor(
             results: [
                 .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
                 .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive)))
             ]
         )
-        let sut = makeStartedSessionController(clickExecutor: clickExecutor)
+        let sut = makeStartedSessionController(
+            clickExecutor: clickExecutor,
+            dateProvider: { timestamp }
+        )
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
 
         // when
@@ -816,8 +820,40 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(clickExecutor.requests.map(\.isSecondConfirmProvided), [false, false])
         XCTAssertEqual(
             sut.activeSession?.pendingSecondConfirm,
-            PendingSecondConfirm(focusedItemID: 1, riskClass: .destructive)
+            PendingSecondConfirm(focusedItemID: 1, riskClass: .destructive, createdAt: timestamp)
         )
+    }
+
+    func test_handleKeyboardCommand_secondConfirm이_만료되면_다시_확인을_요구한다() {
+        // given
+        var currentDate = Date(timeIntervalSince1970: 200)
+        let clickExecutor = StubOverlayClickExecutor(
+            results: [
+                .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
+                .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
+                .success(
+                    ClickExecutionSuccess(
+                        method: .axPress,
+                        riskClass: .destructive,
+                        fallbackUsed: false
+                    )
+                )
+            ]
+        )
+        let sut = makeStartedSessionController(
+            clickExecutor: clickExecutor,
+            dateProvider: { currentDate }
+        )
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // when
+        currentDate = Date(timeIntervalSince1970: 204)
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(clickExecutor.requests.map(\.isSecondConfirmProvided), [false, false, true])
+        XCTAssertEqual(sut.activeSession, nil)
     }
 
     func test_handleKeyboardCommand_focusChanged를_interactionLog에_기록() {
