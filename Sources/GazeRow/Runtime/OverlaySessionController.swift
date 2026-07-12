@@ -268,6 +268,13 @@ final class OverlaySessionController {
             return nil
         }
 
+        // gaze는 공간 겨냥 scope(labels·elements)에서만 focus를 옮긴다.
+        // windows처럼 공간 대상이 없는 scope에서는 gaze가 label focus를 가로채
+        // 상태바(windows)와 어긋나는 모달리티 불일치(원인 4)를 만들지 않도록 무시한다.
+        guard activeScope(for: session).isSpatial else {
+            return nil
+        }
+
         let event = session.focusEngine.focusNearest(
             to: gazePoint,
             hysteresisMargin: Self.gazeHysteresisMargin
@@ -644,7 +651,7 @@ final class OverlaySessionController {
         message: String?,
         tone: OverlayInteractionStatus.Tone
     ) -> OverlayInteractionStatus {
-        let activeScope = resolution?.scope ?? session.queryInput.pinnedScope ?? session.queryInput.lastScope
+        let activeScope = resolution?.scope ?? activeScope(for: session)
         let enterHint = activeScope == .windows
             ? content.enterActionSwitchWindow
             : content.enterActionClick
@@ -663,6 +670,12 @@ final class OverlaySessionController {
             message: message,
             tone: tone
         )
+    }
+
+    /// 새 resolution이 없을 때(예: gaze)의 현재 활성 scope.
+    /// pin이 있으면 pin을, 없으면 마지막으로 해석된 scope를 쓴다.
+    private func activeScope(for session: OverlaySessionState) -> QueryScope {
+        session.queryInput.pinnedScope ?? session.queryInput.lastScope
     }
 
     private func focusedMessage(for session: OverlaySessionState) -> String? {

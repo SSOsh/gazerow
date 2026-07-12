@@ -1029,6 +1029,27 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
     }
 
+    func test_focusNearestLabel_windows_scope에서는_gaze를_무시한다() {
+        // given: windows scope를 pin하면 공간 겨냥 대상이 없다(원인 4)
+        let presenter = StubOverlayPresenter()
+        let recorder = StubInteractionRecorder()
+        let sut = makeStartedSessionController(presenter: presenter, recorder: recorder)
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        let focusedItemIDBefore = sut.activeSession?.focusEngine.focusedItemID
+        let focusUpdatesBefore = presenter.focusUpdates.count
+        let eventsBefore = recorder.events.count
+
+        // when
+        let event = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then: gaze는 no-op — focus·기록을 바꾸지 않고 windows scope를 유지한다
+        XCTAssertNil(event)
+        XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, focusedItemIDBefore)
+        XCTAssertEqual(presenter.focusUpdates.count, focusUpdatesBefore)
+        XCTAssertEqual(recorder.events.count, eventsBefore)
+    }
+
     func test_handleKeyboardCommand_closeOverlay는_session을_정리() {
         // given
         let presenter = StubOverlayPresenter()
