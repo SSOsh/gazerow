@@ -85,9 +85,27 @@ final class OverlayStartFailureGuidanceTests: XCTestCase {
         XCTAssertTrue(sut.message.contains("Some UI groups could not be read"))
         XCTAssertTrue(sut.message.contains("Click the target window"))
     }
+
+    func test_noCandidates_supportedBaseline앱은_후보수회귀_가능성을_안내한다() {
+        // given
+        let failure = makeNoCandidatesFailure(
+            bundleIdentifier: "com.microsoft.VSCode",
+            localizedName: "Code",
+            nodesVisited: 40
+        )
+
+        // when
+        let sut = OverlayStartFailureGuidance(failure: failure, language: .english)
+
+        // then
+        XCTAssertTrue(sut.message.contains("VS Code is a supported baseline app"))
+        XCTAssertTrue(sut.message.contains("candidate-count regression"))
+    }
 }
 
 private func makeNoCandidatesFailure(
+    bundleIdentifier: String = "com.apple.finder",
+    localizedName: String = "Finder",
     nodesVisited: Int,
     didHitDepthLimit: Bool = false,
     didHitNodeLimit: Bool = false,
@@ -97,8 +115,8 @@ private func makeNoCandidatesFailure(
     .noCandidates(
         context: TargetContext(
             application: TargetApplication(
-                localizedName: "Finder",
-                bundleIdentifier: "com.apple.finder",
+                localizedName: localizedName,
+                bundleIdentifier: bundleIdentifier,
                 processIdentifier: 100
             ),
             window: TargetWindow(frame: CGRect(x: 0, y: 0, width: 100, height: 100), title: nil),

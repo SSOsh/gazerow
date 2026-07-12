@@ -106,7 +106,7 @@ struct OverlayStartFailureGuidance: Equatable {
         }
 
         let appName = context.application.localizedName
-        let reason = noCandidatesReason(scanResult: scanResult, language: language)
+        let reason = noCandidatesReason(context: context, scanResult: scanResult, language: language)
 
         if language == .korean {
             return "\(appName) 창에서 클릭 가능한 UI 요소를 찾지 못했습니다. \(reason)"
@@ -116,6 +116,7 @@ struct OverlayStartFailureGuidance: Equatable {
     }
 
     private static func noCandidatesReason(
+        context: TargetContext,
         scanResult: AccessibilityScanResult,
         language: AppLanguage
     ) -> String {
@@ -147,6 +148,15 @@ struct OverlayStartFailureGuidance: Equatable {
             return language == .korean
                 ? "현재 창이 접근성 요소를 거의 노출하지 않습니다. 다른 창이나 앱에서 다시 시도하세요."
                 : "The window exposed almost no accessibility elements. Try another window or app."
+        }
+
+        if let baseline = AppCandidateQualityBaseline.baseline(
+            for: context.application.bundleIdentifier
+        ),
+           baseline.isBelowBaseline(candidateCount: scanResult.candidateCount) {
+            return language == .korean
+                ? "\(baseline.displayName)는 평가된 지원 앱입니다. 대상 창을 한 번 클릭해 focus를 되돌린 뒤 다시 overlay를 여세요. 계속 0개면 후보 수 회귀로 기록하세요."
+                : "\(baseline.displayName) is a supported baseline app. Click the target window to restore focus, then reopen the overlay. If it stays at 0, record it as a candidate-count regression."
         }
 
         return language == .korean
