@@ -108,11 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = item.button {
-            button.image = NSImage(
-                systemSymbolName: "cursorarrow.rays",
-                accessibilityDescription: "GazeRow"
-            )
-            button.image?.isTemplate = true
+            button.image = StatusItemIconFactory.makeIcon()
         }
 
         item.menu = buildMenu()

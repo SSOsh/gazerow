@@ -18,7 +18,7 @@ click it without touching the mouse. (Homerow style)
 
 ## Quick Start
 
-1. **Launch the app** — it appears as a cursor icon in the menu bar, with no Dock icon.
+1. **Launch the app** — it appears as a GazeRow eye icon in the menu bar, with no Dock icon.
 2. **Grant permission** — in the first-run guide (or Settings), allow **Accessibility
    permission** and press **Recheck**. Overlay and clicks require this permission.
 3. **Open the overlay** — bring the app you want to operate to the front and press `Command+Shift+Space`.
@@ -168,7 +168,7 @@ open -n .build/local-app/GazeRow.app
 > link error. Specify the Xcode toolchain via `DEVELOPER_DIR` as above, or switch with
 > `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
 
-After launching, click the cursor icon in the menu bar to try **Open Settings** /
+After launching, click the GazeRow eye icon in the menu bar to try **Open Settings** /
 **Quit** and confirm it works. Without permission, use the **Request Permission**
 button in Settings or the launch option above to open the permission flow.
 

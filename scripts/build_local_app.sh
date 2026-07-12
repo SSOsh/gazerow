@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 CONFIGURATION="${CONFIGURATION:-debug}"
 APP_DIR="${APP_DIR:-${ROOT_DIR}/.build/local-app/GazeRow.app}"
+APP_ICON="${APP_ICON:-${ROOT_DIR}/Assets/AppIcon.icns}"
 
 cd "${ROOT_DIR}"
 export DEVELOPER_DIR
@@ -26,10 +27,17 @@ if [[ ! -x "${EXECUTABLE_PATH}" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${APP_ICON}" ]]; then
+  echo "App icon not found: ${APP_ICON}" >&2
+  echo "Regenerate it with: DEVELOPER_DIR=${DEVELOPER_DIR} scripts/generate_app_icon.swift" >&2
+  exit 1
+fi
+
 echo "==> Creating app bundle: ${APP_DIR}"
 rm -rf "${APP_DIR}"
 mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
 cp "${EXECUTABLE_PATH}" "${APP_DIR}/Contents/MacOS/GazeRow"
+cp "${APP_ICON}" "${APP_DIR}/Contents/Resources/AppIcon.icns"
 chmod +x "${APP_DIR}/Contents/MacOS/GazeRow"
 
 cat > "${APP_DIR}/Contents/Info.plist" <<'PLIST'
@@ -43,6 +51,8 @@ cat > "${APP_DIR}/Contents/Info.plist" <<'PLIST'
   <string>GazeRow</string>
   <key>CFBundleIdentifier</key>
   <string>dev.local.gazerow</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
