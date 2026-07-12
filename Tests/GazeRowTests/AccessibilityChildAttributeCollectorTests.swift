@@ -22,6 +22,24 @@ final class AccessibilityChildAttributeCollectorTests: XCTestCase {
         XCTAssertEqual(readAttributes.prefix(3), ["AXContents", "AXVisibleChildren", "AXChildren"])
     }
 
+    func test_collect_기본순서는_navigation과_visibleRow계열도_읽는다() {
+        // given
+        let sut = AccessibilityChildAttributeCollector<Int>()
+        var readAttributes: [String] = []
+
+        // when
+        _ = sut.collect { attribute in
+            readAttributes.append(attribute)
+            return .success([])
+        }
+
+        // then
+        XCTAssertTrue(readAttributes.contains("AXChildrenInNavigationOrder"))
+        XCTAssertTrue(readAttributes.contains("AXVisibleRows"))
+        XCTAssertTrue(readAttributes.contains("AXTabs"))
+        XCTAssertTrue(readAttributes.contains("AXSelectedRows"))
+    }
+
     func test_collect_nonEmpty_attribute들을_모두_합쳐서_반환한다() {
         // given
         let sut = AccessibilityChildAttributeCollector<Int>(

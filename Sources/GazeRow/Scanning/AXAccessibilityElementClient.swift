@@ -10,6 +10,9 @@ import Foundation
 struct AXAccessibilityElementClient: AccessibilityElementClient {
     private let rootElementSelector = AccessibilityRootElementSelector<AXUIElement>()
     private let childAttributeCollector = AccessibilityChildAttributeCollector<AXUIElement>()
+    private let additionalRootElementCollector = AccessibilityAdditionalRootElementCollector<AXUIElement> { element in
+        AnyHashable(CFHash(element))
+    }
     private let messagingTimeout: Float = 1.0
 
     func rootElement(for context: TargetContext) -> Result<AXUIElement, AccessibilityScanFailure> {
@@ -42,14 +45,18 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         let applicationElement = AXUIElementCreateApplication(context.application.processIdentifier)
         AXUIElementSetMessagingTimeout(applicationElement, messagingTimeout)
 
-        guard let focusedElement = copyFocusedUIElement(from: applicationElement),
-              let focusedFrame = copyFrame(from: focusedElement),
-              focusedFrame.intersects(context.window.frame) else {
-            return []
-        }
-
-        configureTimeout(for: focusedElement)
-        return [focusedElement]
+        let roots = additionalRootElementCollector.collect(
+            focusedElement: copyFocusedUIElement(from: applicationElement),
+            within: context.window.frame,
+            relatedElement: { attribute, element in
+                copyRelatedRootElement(attribute, from: element)
+            },
+            elementFrame: { element in
+                copyFrame(from: element)
+            }
+        )
+        roots.forEach(configureTimeout)
+        return roots
     }
 
     private func copyFocusedUIElement(from applicationElement: AXUIElement) -> AXUIElement? {
@@ -57,6 +64,23 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         let error = AXUIElementCopyAttributeValue(
             applicationElement,
             kAXFocusedUIElementAttribute as CFString,
+            &value
+        )
+
+        guard error == .success,
+              let value,
+              CFGetTypeID(value) == AXUIElementGetTypeID() else {
+            return nil
+        }
+
+        return (value as! AXUIElement)
+    }
+
+    private func copyRelatedRootElement(_ attribute: String, from element: AXUIElement) -> AXUIElement? {
+        var value: AnyObject?
+        let error = AXUIElementCopyAttributeValue(
+            element,
+            attribute as CFString,
             &value
         )
 

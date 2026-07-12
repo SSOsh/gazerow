@@ -80,18 +80,11 @@ private struct OverlayLabelView: View {
     let labelOpacity: Double
 
     var body: some View {
-        HStack(spacing: 1) {
-            if let prefix = shortcutPrefix {
-                Text(prefix)
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.72 * appearance.labelTextOpacity))
-                    .baselineOffset(1)
-            }
-
-            Text(shortcutKey)
-                .font(.system(size: 15, weight: .heavy, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(appearance.labelTextOpacity))
-        }
+        Text(label.displayText)
+            .font(.system(size: 15, weight: .heavy, design: .monospaced))
+            .minimumScaleFactor(0.72)
+            .lineLimit(1)
+            .foregroundStyle(Color.white.opacity(appearance.labelTextOpacity))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(backgroundColor, in: RoundedRectangle(cornerRadius: 5))
             .overlay {
@@ -106,18 +99,6 @@ private struct OverlayLabelView: View {
         isFocused
             ? focusStyle.markerColor.opacity(0.96)
             : Color.accentColor.opacity(appearance.labelBackgroundOpacity)
-    }
-
-    private var shortcutPrefix: String? {
-        guard label.text.count > 1 else {
-            return nil
-        }
-
-        return String(label.text.dropLast())
-    }
-
-    private var shortcutKey: String {
-        String(label.text.suffix(1))
     }
 }
 
@@ -159,9 +140,7 @@ private struct OverlayTargetMarkerView: View {
     }
 
     private var fillColor: Color {
-        isFocused
-            ? focusStyle.markerColor.opacity(0.18)
-            : Color.accentColor.opacity(appearance.markerFillOpacity)
+        isFocused ? Color.clear : Color.accentColor.opacity(appearance.markerFillOpacity)
     }
 
     private var strokeColor: Color {

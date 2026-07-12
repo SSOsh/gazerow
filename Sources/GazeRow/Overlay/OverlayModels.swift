@@ -75,6 +75,10 @@ struct OverlayLabel: Equatable, Identifiable {
     let candidateFrame: CGRect
     let labelFrame: CGRect
     let anchorPoint: CGPoint
+
+    var displayText: String {
+        text.uppercased()
+    }
 }
 
 /// target window overlay layout.

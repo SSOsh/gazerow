@@ -49,7 +49,13 @@ struct AccessibilityChildAttributeCollector<Element> {
             "AXContents",
             "AXVisibleChildren",
             "AXChildren",
-            "AXRows"
+            "AXChildrenInNavigationOrder",
+            "AXVisibleRows",
+            "AXRows",
+            "AXColumns",
+            "AXTabs",
+            "AXSelectedChildren",
+            "AXSelectedRows"
         ]
     }
 }

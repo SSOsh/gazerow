@@ -69,6 +69,20 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertFalse(sut.isRetina)
     }
 
+    func test_OverlayLabel_displayText는_여러글자도_모두_대문자로_표시한다() {
+        // given
+        let sut = OverlayLabel(
+            id: 0,
+            text: "aa",
+            candidateFrame: .zero,
+            labelFrame: .zero,
+            anchorPoint: .zero
+        )
+
+        // then
+        XCTAssertEqual(sut.displayText, "AA")
+    }
+
     func test_LayoutMetrics_isRetina_displayScaleFactor_경계() {
         // given
         let retina = OverlayLayoutMetrics(
