@@ -108,6 +108,34 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.searchField)
     }
 
+    func test_scan_additionalRootElement의_textArea도_candidate로_수집() {
+        // given
+        let root = FakeElement()
+        let focusedTextArea = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.textArea,
+                title: "Focused input",
+                frame: CGRect(x: 120, y: 520, width: 320, height: 44)
+            )
+        )
+        let sut = AccessibilityScanner(
+            client: FakeAccessibilityElementClient(
+                root: .success(root),
+                additionalRootElements: [focusedTextArea]
+            )
+        )
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidates.map(\.role), [AccessibilityRole.textArea])
+    }
+
     func test_scan_selectableContainerRole은_action이_없어도_candidate로_수집() {
         // given
         let row = FakeElement(
@@ -553,9 +581,14 @@ private struct FakeElement {
 @MainActor
 private struct FakeAccessibilityElementClient: AccessibilityElementClient {
     let root: Result<FakeElement, AccessibilityScanFailure>
+    var additionalRootElements: [FakeElement] = []
 
     func rootElement(for context: TargetContext) -> Result<FakeElement, AccessibilityScanFailure> {
         root
+    }
+
+    func additionalRootElements(for context: TargetContext) -> [FakeElement] {
+        additionalRootElements
     }
 
     func snapshot(of element: FakeElement) -> AccessibilityElementSnapshot {

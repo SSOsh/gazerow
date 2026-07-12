@@ -34,6 +34,41 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         )
     }
 
+    func additionalRootElements(for context: TargetContext) -> [AXUIElement] {
+        guard AXIsProcessTrusted() else {
+            return []
+        }
+
+        let applicationElement = AXUIElementCreateApplication(context.application.processIdentifier)
+        AXUIElementSetMessagingTimeout(applicationElement, messagingTimeout)
+
+        guard let focusedElement = copyFocusedUIElement(from: applicationElement),
+              let focusedFrame = copyFrame(from: focusedElement),
+              focusedFrame.intersects(context.window.frame) else {
+            return []
+        }
+
+        configureTimeout(for: focusedElement)
+        return [focusedElement]
+    }
+
+    private func copyFocusedUIElement(from applicationElement: AXUIElement) -> AXUIElement? {
+        var value: AnyObject?
+        let error = AXUIElementCopyAttributeValue(
+            applicationElement,
+            kAXFocusedUIElementAttribute as CFString,
+            &value
+        )
+
+        guard error == .success,
+              let value,
+              CFGetTypeID(value) == AXUIElementGetTypeID() else {
+            return nil
+        }
+
+        return (value as! AXUIElement)
+    }
+
     private func copyWindowElement(
         _ attribute: String,
         from applicationElement: AXUIElement
@@ -173,6 +208,11 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
     func children(of element: AXUIElement) -> Result<[AXUIElement], AccessibilityScanFailure> {
         childAttributeCollector.collect { attribute in
             copyChildElements(attribute, from: element)
+        }.map { elements in
+            AccessibilityElementDeduplicator<AXUIElement> { element in
+                AnyHashable(CFHash(element))
+            }
+            .deduplicated(elements)
         }
     }
 
