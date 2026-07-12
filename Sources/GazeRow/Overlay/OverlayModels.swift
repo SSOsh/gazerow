@@ -24,6 +24,8 @@ struct OverlayLayoutConfiguration: Equatable {
     let rowBandHeight: CGFloat
     let labelPlacement: LabelPlacement
     let labelStrategy: LabelStrategy
+    let usesAdaptivePlacementForDenseLayouts: Bool
+    let denseCandidateThreshold: Int
 
     init(
         labelSize: CGSize = CGSize(width: 32, height: 22),
@@ -33,7 +35,9 @@ struct OverlayLayoutConfiguration: Equatable {
         ordersLabelsSpatially: Bool = true,
         rowBandHeight: CGFloat = 24,
         labelPlacement: LabelPlacement = .centered,
-        labelStrategy: LabelStrategy = .prefixFree
+        labelStrategy: LabelStrategy = .prefixFree,
+        usesAdaptivePlacementForDenseLayouts: Bool = true,
+        denseCandidateThreshold: Int = 24
     ) {
         self.labelSize = labelSize
         self.labelSpacing = max(0, labelSpacing)
@@ -43,6 +47,8 @@ struct OverlayLayoutConfiguration: Equatable {
         self.rowBandHeight = max(1, rowBandHeight)
         self.labelPlacement = labelPlacement
         self.labelStrategy = labelStrategy
+        self.usesAdaptivePlacementForDenseLayouts = usesAdaptivePlacementForDenseLayouts
+        self.denseCandidateThreshold = max(2, denseCandidateThreshold)
     }
 }
 

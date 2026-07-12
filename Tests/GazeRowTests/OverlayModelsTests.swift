@@ -17,6 +17,8 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.labelSpacing, 6)
         XCTAssertEqual(sut.edgeInset, 4)
         XCTAssertEqual(sut.collisionShiftLimit, 12)
+        XCTAssertTrue(sut.usesAdaptivePlacementForDenseLayouts)
+        XCTAssertEqual(sut.denseCandidateThreshold, 24)
     }
 
     func test_LayoutConfiguration_음수_spacing은_0으로_clamp() {
@@ -41,6 +43,14 @@ final class OverlayModelsTests: XCTestCase {
 
         // then
         XCTAssertEqual(sut.collisionShiftLimit, 0)
+    }
+
+    func test_LayoutConfiguration_denseThreshold는_최소2로_clamp() {
+        // given
+        let sut = OverlayLayoutConfiguration(denseCandidateThreshold: -1)
+
+        // then
+        XCTAssertEqual(sut.denseCandidateThreshold, 2)
     }
 
     func test_DisplayInfo_isRetina_scaleFactor_2이상이면_true() {
