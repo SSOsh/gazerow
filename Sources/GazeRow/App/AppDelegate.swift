@@ -395,6 +395,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installOverlayActivationShortcut() {
         let registrationStatuses = registerGlobalHotKeys()
         printHotKeyRegistrationIfNeeded(registrationStatuses)
+        presentHotKeyRegistrationGuidanceIfNeeded(registrationStatuses)
 
         globalShortcutMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let overlayCommand = Self.focusKeyboardCommand(from: event)
@@ -475,7 +476,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// overlay/gaze activation용 Carbon hotkey들을 등록한다.
-    private func registerGlobalHotKeys() -> [OSStatus] {
+    private func registerGlobalHotKeys() -> [GlobalHotKeyRegistrationStatus] {
         let controllers = GlobalHotKeyDefinition.overlayActivationDefinitions.map { definition in
             GlobalHotKeyController(definition: definition) { [weak self] in
                 self?.showOverlay()
@@ -484,9 +485,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         globalHotKeyControllers = controllers
 
         let statuses = globalHotKeyControllers.map { controller in
-            controller.register()
+            GlobalHotKeyRegistrationStatus(
+                definition: controller.definition,
+                osStatus: controller.register()
+            )
         }
-        AppLogger.overlay.info("global hotkey registration statuses=\(statuses.map(String.init).joined(separator: ","), privacy: .public)")
+        AppLogger.overlay.info("global hotkey registration statuses=\(GlobalHotKeyRegistrationGuidance(statuses: statuses).logSummary, privacy: .public)")
         return statuses
     }
 
@@ -712,18 +716,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 로컬 진단 옵션에서 Carbon hotkey 등록 결과를 stdout에 출력한다.
-    private func printHotKeyRegistrationIfNeeded(_ statuses: [OSStatus]) {
+    private func printHotKeyRegistrationIfNeeded(_ statuses: [GlobalHotKeyRegistrationStatus]) {
         guard launchOptions.printsHotKeyRegistration else {
             return
         }
 
-        let statusText = statuses.map(String.init).joined(separator: ",")
-        print("GAZEROW_HOTKEY_REGISTRATION statuses=\(statusText)")
+        print("GAZEROW_HOTKEY_REGISTRATION \(GlobalHotKeyRegistrationGuidance(statuses: statuses).probeSummary)")
         fflush(stdout)
 
         if launchOptions.isHotKeyRegistrationProbeOnly {
             NSApp.terminate(nil)
         }
+    }
+
+    /// Carbon hotkey 등록 실패가 있을 때 충돌 가능성과 대체 단축키를 안내한다.
+    private func presentHotKeyRegistrationGuidanceIfNeeded(_ statuses: [GlobalHotKeyRegistrationStatus]) {
+        guard !launchOptions.isHotKeyRegistrationProbeOnly,
+              let message = GlobalHotKeyRegistrationGuidance(statuses: statuses).failureMessage else {
+            return
+        }
+
+        AppLogger.overlay.error("global hotkey registration guidance=\(message, privacy: .public)")
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "GazeRow shortcut registration failed"
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     /// overlay 시작 실패가 조용히 묻히지 않도록 사용자가 해야 할 다음 행동을 설명한다.

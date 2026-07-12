@@ -55,6 +55,16 @@ final class GlobalHotKeyDefinitionTests: XCTestCase {
         XCTAssertEqual(result, [.overlayActivation, .fallbackOverlayActivation])
     }
 
+    func test_displayName은_modifier와_key를_표시한다() {
+        // then
+        XCTAssertEqual(GlobalHotKeyDefinition.overlayActivation.displayName, "Command+Shift+Space")
+        XCTAssertEqual(
+            GlobalHotKeyDefinition.fallbackOverlayActivation.displayName,
+            "Control+Option+Command+Space"
+        )
+        XCTAssertEqual(GlobalHotKeyDefinition.gazeActivation.displayName, "Control+Shift+Space")
+    }
+
     func test_fourCharacterCode는_4글자_signature를_생성() {
         // when
         let code = GlobalHotKeyDefinition.fourCharacterCode("GzRw")
@@ -145,6 +155,96 @@ final class GlobalHotKeyDefinitionTests: XCTestCase {
         XCTAssertTrue(overlayPressed)
         XCTAssertFalse(fallbackHandled)
         XCTAssertFalse(fallbackPressed)
+    }
+
+    // MARK: - 등록 결과 안내
+
+    func test_GlobalHotKeyRegistrationStatus_noErr는_registered로_표시한다() {
+        // given
+        let sut = GlobalHotKeyRegistrationStatus(
+            definition: .overlayActivation,
+            osStatus: noErr
+        )
+
+        // then
+        XCTAssertTrue(sut.isRegistered)
+        XCTAssertEqual(sut.reason, "registered")
+        XCTAssertEqual(sut.probeToken, "id1=0")
+    }
+
+    func test_GlobalHotKeyRegistrationStatus_충돌_status는_사용중으로_표시한다() {
+        // given
+        let sut = GlobalHotKeyRegistrationStatus(
+            definition: .overlayActivation,
+            osStatus: OSStatus(eventHotKeyExistsErr)
+        )
+
+        // then
+        XCTAssertFalse(sut.isRegistered)
+        XCTAssertEqual(sut.reason, "shortcut already in use")
+    }
+
+    func test_GlobalHotKeyRegistrationGuidance_모두성공이면_failureMessage가_nil이다() {
+        // given
+        let sut = GlobalHotKeyRegistrationGuidance(
+            statuses: [
+                GlobalHotKeyRegistrationStatus(definition: .overlayActivation, osStatus: noErr),
+                GlobalHotKeyRegistrationStatus(definition: .fallbackOverlayActivation, osStatus: noErr)
+            ]
+        )
+
+        // then
+        XCTAssertNil(sut.failureMessage)
+        XCTAssertEqual(sut.logSummary, "id1=0,id2=0")
+        XCTAssertEqual(sut.probeSummary, "statuses=0,0 details=id1=0,id2=0")
+    }
+
+    func test_GlobalHotKeyRegistrationGuidance_일부실패면_대체단축키를_안내한다() throws {
+        // given
+        let sut = GlobalHotKeyRegistrationGuidance(
+            statuses: [
+                GlobalHotKeyRegistrationStatus(
+                    definition: .overlayActivation,
+                    osStatus: OSStatus(eventHotKeyExistsErr)
+                ),
+                GlobalHotKeyRegistrationStatus(definition: .fallbackOverlayActivation, osStatus: noErr)
+            ]
+        )
+
+        // when
+        let message = try XCTUnwrap(sut.failureMessage)
+
+        // then
+        XCTAssertTrue(message.contains("Command+Shift+Space: shortcut already in use"))
+        XCTAssertTrue(message.contains("You can still use Control+Option+Command+Space"))
+        XCTAssertTrue(sut.probeSummary.contains("statuses=-9878,0"))
+        XCTAssertTrue(sut.probeSummary.contains("details=id1=-9878,id2=0"))
+        XCTAssertTrue(sut.probeSummary.contains("guidance=\""))
+    }
+
+    func test_GlobalHotKeyRegistrationGuidance_모두실패면_재시작과충돌해결을_안내한다() throws {
+        // given
+        let sut = GlobalHotKeyRegistrationGuidance(
+            statuses: [
+                GlobalHotKeyRegistrationStatus(
+                    definition: .overlayActivation,
+                    osStatus: OSStatus(eventHotKeyExistsErr)
+                ),
+                GlobalHotKeyRegistrationStatus(
+                    definition: .fallbackOverlayActivation,
+                    osStatus: OSStatus(eventHotKeyInvalidErr)
+                )
+            ]
+        )
+
+        // when
+        let message = try XCTUnwrap(sut.failureMessage)
+
+        // then
+        XCTAssertTrue(message.contains("Global shortcuts failed to register"))
+        XCTAssertTrue(message.contains("Command+Shift+Space: shortcut already in use"))
+        XCTAssertTrue(message.contains("Control+Option+Command+Space: invalid hotkey"))
+        XCTAssertTrue(message.contains("restart GazeRow"))
     }
 
 }
