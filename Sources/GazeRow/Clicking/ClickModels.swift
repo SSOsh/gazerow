@@ -99,6 +99,21 @@ enum ClickRiskClass: Equatable {
             false
         }
     }
+
+    var statusText: String {
+        switch self {
+        case .safeNavigation:
+            "safe action"
+        case .stateChange:
+            "state change"
+        case .destructive:
+            "destructive action"
+        case .externalEffect:
+            "external action"
+        case .unknownRisk:
+            "unknown action"
+        }
+    }
 }
 
 /// click 실행 실패 사유.

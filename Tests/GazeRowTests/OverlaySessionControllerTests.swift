@@ -498,7 +498,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(
             presenter.statusUpdates.last,
             OverlayInteractionStatus(
-                message: "Click failed: no focused target",
+                message: "Click failed: no focused target. Type a label or press Tab first.",
                 tone: .failure
             )
         )
@@ -724,7 +724,7 @@ final class OverlaySessionControllerTests: XCTestCase {
             presenter.statusUpdates.last,
             OverlayInteractionStatus(
                 focusedLabel: "A",
-                message: "Click failed: no supported action",
+                message: "Click failed: no supported action. Try another label.",
                 tone: .failure
             )
         )

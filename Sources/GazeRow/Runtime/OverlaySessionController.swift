@@ -288,7 +288,7 @@ final class OverlaySessionController {
             overlayPresenter.updateStatus(
                 OverlayInteractionStatus(
                     typedLabelBuffer: session.focusEngine.labelBuffer,
-                    message: result.statusText,
+                    message: result.statusMessage,
                     tone: .failure
                 )
             )
@@ -332,7 +332,7 @@ final class OverlaySessionController {
                 OverlayInteractionStatus(
                     focusedLabel: focusedLabel,
                     typedLabelBuffer: session.focusEngine.labelBuffer,
-                    message: "Press Return again for \(riskClass.statusText)",
+                    message: OverlayClickFailureGuidance(riskClass: riskClass).message,
                     tone: .warning
                 )
             )
@@ -343,7 +343,7 @@ final class OverlaySessionController {
                 OverlayInteractionStatus(
                     focusedLabel: focusedLabel,
                     typedLabelBuffer: session.focusEngine.labelBuffer,
-                    message: result.statusText,
+                    message: result.statusMessage,
                     tone: .failure
                 )
             )
@@ -860,21 +860,6 @@ private extension ClickRiskClass {
             "unknownRisk"
         }
     }
-
-    var statusText: String {
-        switch self {
-        case .safeNavigation:
-            "safe action"
-        case .stateChange:
-            "state change"
-        case .destructive:
-            "destructive action"
-        case .externalEffect:
-            "external action"
-        case .unknownRisk:
-            "unknown action"
-        }
-    }
 }
 
 private extension Result {
@@ -887,42 +872,12 @@ private extension Result {
 }
 
 private extension Result where Success == ClickExecutionSuccess, Failure == OverlaySessionClickFailure {
-    var statusText: String {
+    var statusMessage: String {
         switch self {
         case .success:
             "Click succeeded"
         case .failure(let failure):
-            failure.statusText
-        }
-    }
-}
-
-private extension OverlaySessionClickFailure {
-    var statusText: String {
-        switch self {
-        case .scanFailed:
-            "Click failed: target changed"
-        case .missingFocusedTarget:
-            "Click failed: no focused target"
-        case .executionFailed(let failure):
-            failure.statusText
-        }
-    }
-}
-
-private extension ClickExecutionFailure {
-    var statusText: String {
-        switch self {
-        case .missingPressAction:
-            "Click failed: no supported action"
-        case .secondConfirmRequired(let riskClass):
-            "Press Return again for \(riskClass.statusText)"
-        case .axPressFailed:
-            "Click failed: accessibility action failed"
-        case .coordinateFallbackDisabled:
-            "Click failed: coordinate fallback is off"
-        case .coordinateFallbackFailed:
-            "Click failed: coordinate fallback failed"
+            OverlayClickFailureGuidance(failure: failure).message
         }
     }
 }
