@@ -96,8 +96,8 @@ final class IntentRouterTests: XCTestCase {
         XCTAssertEqual(scope, .windows)
     }
 
-    func test_chooseScope_최근scope가_windows이면_동시매칭에서_windows를_유지한다() {
-        // given
+    func test_chooseScope_최근scope가_windows이면_margin이내_경합에서_windows를_유지한다() {
+        // given: score 차이(10)가 margin(20) 이내라 경합으로 본다
         let sut = IntentRouter()
 
         // when
@@ -105,13 +105,49 @@ final class IntentRouterTests: XCTestCase {
             buffer: "code",
             pinnedScope: nil,
             focusEngine: focusEngine,
-            elementMatches: [match(nodeID: 0, score: 120)],
-            windowMatches: [windowMatch(entryID: 0, score: 60)],
+            elementMatches: [match(nodeID: 0, score: 100)],
+            windowMatches: [windowMatch(entryID: 0, score: 90)],
             lastScope: .windows
         )
 
-        // then
+        // then: margin 이내 경합이므로 직전 scope(windows)에 관성을 준다
         XCTAssertEqual(scope, .windows)
+    }
+
+    func test_chooseScope_score경합이_margin이내면_직전scope에_관성을_준다() {
+        // given: window가 10점 앞서지만 margin(20) 이내이고 직전은 elements
+        let sut = IntentRouter()
+
+        // when
+        let scope = sut.chooseScope(
+            buffer: "code",
+            pinnedScope: nil,
+            focusEngine: focusEngine,
+            elementMatches: [match(nodeID: 0, score: 100)],
+            windowMatches: [windowMatch(entryID: 0, score: 110)],
+            lastScope: .elements
+        )
+
+        // then: 미세 우위로는 뒤집지 않고 elements를 유지한다
+        XCTAssertEqual(scope, .elements)
+    }
+
+    func test_chooseScope_승자가_margin이상_앞서면_직전scope와_무관하게_전환한다() {
+        // given: element가 30점 앞서고 margin(20)을 넘는데 직전은 windows
+        let sut = IntentRouter()
+
+        // when
+        let scope = sut.chooseScope(
+            buffer: "code",
+            pinnedScope: nil,
+            focusEngine: focusEngine,
+            elementMatches: [match(nodeID: 0, score: 130)],
+            windowMatches: [windowMatch(entryID: 0, score: 100)],
+            lastScope: .windows
+        )
+
+        // then: 명백한 우위는 관성을 이기고 elements로 전환(대칭 히스테리시스)
+        XCTAssertEqual(scope, .elements)
     }
 
     func test_chooseScope_한글은_elements를_선택한다() {
