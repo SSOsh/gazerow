@@ -623,19 +623,66 @@ final class OverlaySessionController {
             ? AppContent.localized(for: .english).enterActionSwitchWindow
             : AppContent.localized(for: .english).enterActionClick
 
+        // elements scope에서 gaze로 focus를 옮긴 경우(resolution == nil)만
+        // 겨냥한 candidate의 element 이름을 status 요약에 주입한다.
+        // labels/windows scope와 검색(resolution != nil) 경로는 영향받지 않는다.
+        let gazeDisplayName = (resolution == nil && activeScope == .elements)
+            ? gazeElementDisplayName(for: session)
+            : nil
+
         return OverlayInteractionStatus(
             focusedLabel: labelText(for: session.focusEngine.focusedItemID, in: session),
             typedLabelBuffer: session.focusEngine.labelBuffer,
             queryBuffer: session.queryInput.buffer,
             activeScope: activeScope,
             pinnedScope: session.queryInput.pinnedScope,
-            matchCount: resolution?.matchCount ?? 0,
-            matchIndex: resolution.map { $0.matchIndex + 1 } ?? 0,
-            focusedDisplayName: resolution?.focusedDisplayName,
+            matchCount: resolution?.matchCount ?? (gazeDisplayName != nil ? 1 : 0),
+            matchIndex: resolution.map { $0.matchIndex + 1 } ?? (gazeDisplayName != nil ? 1 : 0),
+            focusedDisplayName: resolution?.focusedDisplayName ?? gazeDisplayName,
             enterActionHint: enterHint,
             message: message,
             tone: tone
         )
+    }
+
+    /// elements scope gaze 겨냥 시 focus된 candidate의 element 이름.
+    ///
+    /// gaze 겨냥 대상은 `layout.labels`(= `scanResult.candidates`, 1:1)이며
+    /// `label.id == candidate index`이므로 `focusedItemID`로 직접 조회한다.
+    private func gazeElementDisplayName(for session: OverlaySessionState) -> String? {
+        guard let focusedItemID = session.focusEngine.focusedItemID,
+              focusedItemID >= 0,
+              session.snapshot.scanResult.candidates.indices.contains(focusedItemID) else {
+            return nil
+        }
+
+        let candidate = session.snapshot.scanResult.candidates[focusedItemID]
+        return candidateDisplayName(candidate, index: focusedItemID)
+    }
+
+    /// `ElementSearchIndex.displayName`(node)과 동일 우선순위를
+    /// candidate에 맞춰 재현한다(title→role→subrole→"Element {id}").
+    /// candidate에는 value 필드가 없어 title 다음 role로 이어진다.
+    private func candidateDisplayName(_ candidate: ClickableCandidate, index: Int) -> String {
+        if let title = nonEmptyTrimmed(candidate.title) {
+            return title
+        }
+        if let role = nonEmptyTrimmed(candidate.role) {
+            return role
+        }
+        if let subrole = nonEmptyTrimmed(candidate.subrole) {
+            return subrole
+        }
+        return "Element \(index)"
+    }
+
+    private func nonEmptyTrimmed(_ value: String?) -> String? {
+        guard let value else {
+            return nil
+        }
+
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func focusedMessage(for session: OverlaySessionState) -> String? {

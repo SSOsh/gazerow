@@ -971,6 +971,102 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
     }
 
+    func test_focusNearestLabel_elements_scope에서_겨냥한_요소이름과_index를_status에_반영한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [
+                makeCandidate(title: "Open", frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                makeCandidate(title: "Save Draft", frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+            ]
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.elements))
+
+        // when
+        let event = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then
+        XCTAssertEqual(event, .focusChanged(from: 0, to: 1, method: .gaze))
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+        let status = presenter.statusUpdates.last
+        XCTAssertEqual(status?.activeScope, .elements)
+        XCTAssertEqual(status?.focusedDisplayName, "Save Draft")
+        XCTAssertEqual(status?.matchCount, 1)
+        XCTAssertEqual(status?.matchIndex, 1)
+    }
+
+    func test_focusNearestLabel_labels_scope에서는_element맥락을_주입하지_않는다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [
+                makeCandidate(title: "Open", frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                makeCandidate(title: "Save Draft", frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+            ]
+        )
+
+        // when
+        _ = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then
+        let status = presenter.statusUpdates.last
+        XCTAssertEqual(status?.activeScope, .labels)
+        XCTAssertNil(status?.focusedDisplayName)
+        XCTAssertEqual(status?.matchCount, 0)
+        XCTAssertNotNil(status?.focusedLabel)
+    }
+
+    func test_focusNearestLabel_windows_scope에서는_element맥락을_주입하지_않는다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [
+                makeCandidate(title: "Open", frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                makeCandidate(title: "Save Draft", frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+            ]
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then
+        let status = presenter.statusUpdates.last
+        XCTAssertEqual(status?.activeScope, .windows)
+        XCTAssertNil(status?.focusedDisplayName)
+        XCTAssertEqual(status?.matchCount, 0)
+    }
+
+    func test_focusNearestLabel_elements_scope에서_title이_없으면_role을_이름으로_쓴다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [
+                makeCandidate(title: "Open", frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                ClickableCandidate(
+                    role: AccessibilityRole.link,
+                    subrole: nil,
+                    title: nil,
+                    frame: CGRect(x: 220, y: 180, width: 44, height: 24),
+                    actions: [AccessibilityAction.press]
+                )
+            ]
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.elements))
+
+        // when
+        _ = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then
+        let status = presenter.statusUpdates.last
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+        XCTAssertEqual(status?.focusedDisplayName, AccessibilityRole.link)
+    }
+
     func test_handleKeyboardCommand_closeOverlay는_session을_정리() {
         // given
         let presenter = StubOverlayPresenter()
