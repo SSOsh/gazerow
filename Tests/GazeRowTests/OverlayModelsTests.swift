@@ -111,4 +111,54 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.focusedDisplayName, "Delete Item")
         XCTAssertEqual(sut.highlightFrame, CGRect(x: 10, y: 20, width: 30, height: 40))
     }
+
+    func test_StatusBarLayout_큰_창은_하단에_고정하고_기존_위치를_유지한다() {
+        // given
+        let bounds = CGRect(x: 0, y: 0, width: 360, height: 220)
+
+        // when
+        let sut = OverlayStatusBarLayout(bounds: bounds)
+
+        // then
+        XCTAssertEqual(sut.width, 344)          // min(360 - 16, 420)
+        XCTAssertEqual(sut.centerX, 180)        // 8 + 344 / 2
+        XCTAssertEqual(sut.centerY, 186)        // 220 - 34 (하단 고정)
+    }
+
+    func test_StatusBarLayout_넓은_창은_최대_폭을_넘지_않는다() {
+        // given
+        let bounds = CGRect(x: 0, y: 0, width: 1000, height: 600)
+
+        // when
+        let sut = OverlayStatusBarLayout(bounds: bounds)
+
+        // then
+        XCTAssertEqual(sut.width, 420)          // maxWidth clamp
+        XCTAssertEqual(sut.centerX, 218)        // 8 + 420 / 2
+        XCTAssertEqual(sut.centerY, 566)        // 600 - 34
+    }
+
+    func test_StatusBarLayout_작은_창은_상태바를_세로_중앙에_두어_이탈을_막는다() {
+        // given: height(40)가 estimatedHeight(44) + bottomInset(34)보다 작다
+        let bounds = CGRect(x: 0, y: 0, width: 200, height: 40)
+
+        // when
+        let sut = OverlayStatusBarLayout(bounds: bounds)
+
+        // then
+        XCTAssertEqual(sut.centerY, 20)         // height / 2 (하단 고정 대신 중앙)
+        XCTAssertEqual(sut.width, 184)          // min(200 - 16, 420)
+    }
+
+    func test_StatusBarLayout_아주_좁은_창은_폭이_음수가_되지_않는다() {
+        // given
+        let bounds = CGRect(x: 0, y: 0, width: 10, height: 200)
+
+        // when
+        let sut = OverlayStatusBarLayout(bounds: bounds)
+
+        // then
+        XCTAssertEqual(sut.width, 0)            // max(0, 10 - 16)
+        XCTAssertEqual(sut.centerX, 8)          // 8 + 0 / 2
+    }
 }

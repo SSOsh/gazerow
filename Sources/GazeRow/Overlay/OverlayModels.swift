@@ -156,6 +156,35 @@ struct OverlayInteractionStatus: Equatable {
     }
 }
 
+/// overlay 하단 상태바의 폭·위치를 창 크기에 맞춰 계산한다.
+///
+/// 큰 창에서는 기존과 동일하게 하단에 고정하되, 상태바(2줄)를 담기 어려운 작은 창에서는
+/// 세로 중앙에 배치해 상태바가 창 밖으로 이탈하거나 후보 위로 밀려나는 것을 막는다.
+///
+/// @author suho.do
+/// @since 2026-07-10
+struct OverlayStatusBarLayout: Equatable {
+    let width: CGFloat
+    let centerX: CGFloat
+    let centerY: CGFloat
+
+    init(
+        bounds: CGRect,
+        estimatedHeight: CGFloat = 44,
+        horizontalInset: CGFloat = 8,
+        bottomInset: CGFloat = 34,
+        maxWidth: CGFloat = 420
+    ) {
+        let available = max(0, bounds.width - horizontalInset * 2)
+        let resolvedWidth = min(available, maxWidth)
+        self.width = resolvedWidth
+        self.centerX = horizontalInset + resolvedWidth / 2
+        self.centerY = bounds.height >= estimatedHeight + bottomInset
+            ? bounds.height - bottomInset
+            : bounds.height / 2
+    }
+}
+
 /// label 개수와 candidate 개수가 맞지 않을 때의 정책.
 ///
 /// @author suho.do

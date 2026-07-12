@@ -20,6 +20,8 @@ final class OverlayWindowController {
     ) -> any OverlayKeyboardEventTapping
     /// 렌더 시점마다 최신 appearance 설정을 읽어 오도록 provider로 주입한다.
     private let appearanceProvider: @MainActor () -> OverlayAppearance
+    /// 렌더 시점마다 최신 언어 설정을 읽어 overlay 문구를 로컬라이즈한다.
+    private let contentProvider: @MainActor () -> AppContent.Localized
     private var keyboardEventTap: (any OverlayKeyboardEventTapping)?
 
     nonisolated init(
@@ -38,6 +40,9 @@ final class OverlayWindowController {
         },
         appearanceProvider: @escaping @MainActor () -> OverlayAppearance = {
             OverlayAppearanceSettings().appearance
+        },
+        contentProvider: @escaping @MainActor () -> AppContent.Localized = {
+            AppContent.localized(for: AppLanguageSettings().selectedLanguage)
         }
     ) {
         self.layoutEngine = layoutEngine
@@ -46,6 +51,7 @@ final class OverlayWindowController {
         self.applicationActivator = applicationActivator
         self.keyboardEventTapFactory = keyboardEventTapFactory
         self.appearanceProvider = appearanceProvider
+        self.contentProvider = contentProvider
     }
 
     var isVisible: Bool {
@@ -209,6 +215,7 @@ final class OverlayWindowController {
                 focusedLabelID: focusedLabelID(for: status.focusedLabel),
                 status: status,
                 appearance: appearanceProvider(),
+                content: contentProvider(),
                 onScopeSelection: { [weak self] scope in
                     self?.syncKeyboardScopeSelection(scope)
                     self?.panel?.onScopeSelection(scope)

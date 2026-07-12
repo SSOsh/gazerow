@@ -10,6 +10,7 @@ struct OverlayView: View {
     let focusedLabelID: Int?
     let status: OverlayInteractionStatus
     let appearance: OverlayAppearance
+    let content: AppContent.Localized
     let onScopeSelection: (QueryScope) -> Void
 
     init(
@@ -18,6 +19,7 @@ struct OverlayView: View {
         focusedLabelID: Int? = nil,
         status: OverlayInteractionStatus = OverlayInteractionStatus(),
         appearance: OverlayAppearance = OverlayAppearance(),
+        content: AppContent.Localized = AppContent.localized(for: .english),
         onScopeSelection: @escaping (QueryScope) -> Void = { _ in }
     ) {
         self.layout = layout
@@ -25,11 +27,12 @@ struct OverlayView: View {
         self.focusedLabelID = focusedLabelID
         self.status = status
         self.appearance = appearance
+        self.content = content
         self.onScopeSelection = onScopeSelection
     }
 
     var body: some View {
-        let statusWidth = max(0, min(layout.localBounds.width - 16, 420))
+        let statusBarLayout = OverlayStatusBarLayout(bounds: layout.localBounds)
         let focusStyle = QueryFocusStyle(scope: status.activeScope)
         let labelOpacity = status.activeScope == .windows ? 0.25 : 1.0
         let highlightFrame = localHighlightFrame
@@ -71,12 +74,13 @@ struct OverlayView: View {
 
             OverlayStatusView(
                 status: status,
+                content: content,
                 onScopeSelection: onScopeSelection
             )
-                .frame(width: statusWidth, alignment: .leading)
+                .frame(width: statusBarLayout.width, alignment: .leading)
                 .position(
-                    x: statusWidth / 2 + 8,
-                    y: layout.localBounds.height - 34
+                    x: statusBarLayout.centerX,
+                    y: statusBarLayout.centerY
                 )
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
@@ -229,8 +233,8 @@ private struct QueryFocusStyle: Equatable {
 
 private struct OverlayStatusView: View {
     let status: OverlayInteractionStatus
+    let content: AppContent.Localized
     let onScopeSelection: (QueryScope) -> Void
-    private let content = AppContent.localized(for: .english)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
