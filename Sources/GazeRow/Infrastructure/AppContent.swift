@@ -35,6 +35,7 @@ enum AppContent {
     struct Localized {
         let language: AppLanguage
         let languageLabel: String
+        let setupReadinessTitle: String
         let permissionsTitle: String
         let accessibilityLabel: String
         let requestPermissionButton: String
@@ -166,6 +167,45 @@ enum AppContent {
                 return language == .korean ? "캘리브레이션 완료 (\(status.sampleCount)점)" : "Calibrated (\(status.sampleCount) points)"
             }
             return language == .korean ? "캘리브레이션 안 됨" : "Not calibrated"
+        }
+
+        func setupReadinessHeadline(for state: SettingsReadinessSummary.State) -> String {
+            switch state {
+            case .permissionRequired:
+                return language == .korean ? "손쉬운 사용 권한이 필요합니다" : "Accessibility permission required"
+            case .sessionDisabled:
+                return language == .korean ? "세션이 비활성화되어 있습니다" : "Session is disabled"
+            case .ready:
+                return language == .korean ? "Overlay를 사용할 준비가 됐습니다" : "Overlay is ready"
+            }
+        }
+
+        func setupReadinessDetail(for state: SettingsReadinessSummary.State) -> String {
+            switch state {
+            case .permissionRequired:
+                return language == .korean
+                    ? "시스템 설정에서 GazeRow를 허용한 뒤 다시 확인을 누르세요."
+                    : "Allow GazeRow in System Settings, then press Recheck."
+            case .sessionDisabled:
+                return language == .korean
+                    ? "세션을 활성화하면 단축키로 overlay를 다시 열 수 있습니다."
+                    : "Enable the session to open the overlay with the shortcut again."
+            case .ready:
+                return language == .korean
+                    ? "\(OverlayActivationShortcut.activationDisplayName)로 overlay를 열고 라벨을 입력해 focus를 이동하세요."
+                    : "Press \(OverlayActivationShortcut.activationDisplayName), then type a label to move focus."
+            }
+        }
+
+        func setupReadinessBadge(for state: SettingsReadinessSummary.State) -> String {
+            switch state {
+            case .permissionRequired:
+                return needsPermissionBadge
+            case .sessionDisabled:
+                return disabledBadge
+            case .ready:
+                return readyBadge
+            }
         }
 
         func diagnosticsMessage(_ message: String?) -> String? {
@@ -303,6 +343,7 @@ enum AppContent {
     private static let english = Localized(
         language: .english,
         languageLabel: "Language",
+        setupReadinessTitle: "Setup Status",
         permissionsTitle: "Permissions",
         accessibilityLabel: "Accessibility",
         requestPermissionButton: "Request Permission",
@@ -378,6 +419,7 @@ enum AppContent {
     private static let korean = Localized(
         language: .korean,
         languageLabel: "언어",
+        setupReadinessTitle: "설정 상태",
         permissionsTitle: "권한",
         accessibilityLabel: "손쉬운 사용",
         requestPermissionButton: "권한 요청",

@@ -105,4 +105,20 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(korean.queryKeyHint(for: .windows, enterActionHint: korean.enterActionSwitchWindow).contains("창 전환"))
         XCTAssertTrue(english.queryMatchSummary(count: 2, index: 1, displayName: "Delete").contains("Delete"))
     }
+
+    func test_setupReadinessContent는_상태별_다음행동을_제공한다() {
+        // given
+        let english = AppContent.localized(for: .english)
+        let korean = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(english.setupReadinessTitle, "Setup Status")
+        XCTAssertTrue(english.setupReadinessDetail(for: .permissionRequired).contains("Recheck"))
+        XCTAssertTrue(english.setupReadinessDetail(for: .sessionDisabled).contains("Enable"))
+        XCTAssertTrue(english.setupReadinessDetail(for: .ready).contains(OverlayActivationShortcut.activationDisplayName))
+
+        XCTAssertEqual(korean.setupReadinessTitle, "설정 상태")
+        XCTAssertTrue(korean.setupReadinessHeadline(for: .permissionRequired).contains("손쉬운 사용"))
+        XCTAssertEqual(korean.setupReadinessBadge(for: .ready), korean.readyBadge)
+    }
 }

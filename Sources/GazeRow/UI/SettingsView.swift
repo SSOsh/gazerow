@@ -112,6 +112,10 @@ struct SettingsView: View {
 
             Divider()
 
+            readinessSummarySection
+
+            Divider()
+
             statusSection
 
             Divider()
@@ -171,6 +175,76 @@ struct SettingsView: View {
         }
     }
 
+    /// 기본 overlay 사용 가능 여부와 다음 행동을 Settings 상단에 요약한다.
+    private var readinessSummarySection: some View {
+        let summary = settingsReadinessSummary
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(content.setupReadinessTitle)
+                    .font(.headline)
+                Spacer()
+                readinessBadge(for: summary.state)
+            }
+
+            Text(content.setupReadinessHeadline(for: summary.state))
+                .font(.callout)
+                .fontWeight(.medium)
+
+            Text(content.setupReadinessDetail(for: summary.state))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            readinessActions(for: summary.state)
+        }
+        .padding(12)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    /// 현재 Settings 상태에서 계산한 기본 사용 가능 상태.
+    private var settingsReadinessSummary: SettingsReadinessSummary {
+        SettingsReadinessSummary(
+            isAccessibilityGranted: permissionManager.accessibilityStatus == .granted,
+            isSessionEnabled: session.isEnabled
+        )
+    }
+
+    /// readiness 상태에 맞는 바로가기 액션.
+    @ViewBuilder
+    private func readinessActions(for state: SettingsReadinessSummary.State) -> some View {
+        switch state {
+        case .permissionRequired:
+            actionButtons {
+                Button(content.requestPermissionButton) {
+                    requestAccessibilityPermission()
+                }
+                Button(content.openSystemSettingsButton) {
+                    permissionManager.openAccessibilitySettings()
+                }
+                Button(content.recheckButton) {
+                    refreshPermission()
+                }
+            }
+        case .sessionDisabled:
+            actionButtons {
+                Button(content.enableButton) {
+                    session.toggle()
+                }
+            }
+        case .ready:
+            actionButtons {
+                Button(content.knownLimitationsButton) {
+                    showLimitations = true
+                }
+                Button(content.recheckButton) {
+                    refreshPermission()
+                    refreshGazeSampleCount()
+                }
+            }
+        }
+    }
+
     /// 앱 내부 설명/설정 문구 언어를 선택하는 섹션.
     private var languageSection: some View {
         HStack {
@@ -213,7 +287,7 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack(spacing: 8) {
+            actionButtons {
                 if permissionManager.accessibilityStatus == .notGranted {
                     Button(content.requestPermissionButton) {
                         requestAccessibilityPermission()
@@ -226,7 +300,6 @@ struct SettingsView: View {
                     refreshPermission()
                 }
             }
-            .controlSize(.small)
 
             Divider()
 
@@ -260,7 +333,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 8) {
+            actionButtons {
                 if cameraPermissionManager.cameraStatus != .authorized {
                     Button(content.requestCameraButton) {
                         requestCameraPermission()
@@ -273,7 +346,6 @@ struct SettingsView: View {
                     cameraPermissionManager.refresh()
                 }
             }
-            .controlSize(.small)
 
             calibrationRows
         }
@@ -291,7 +363,7 @@ struct SettingsView: View {
             }
             .font(.callout)
 
-            HStack(spacing: 8) {
+            actionButtons {
                 Button(content.calibrateButton) {
                     NotificationCenter.default.post(name: .gazeCalibrationRequested, object: nil)
                 }
@@ -301,7 +373,6 @@ struct SettingsView: View {
                     refreshGazeSampleCount()
                 }
             }
-            .controlSize(.small)
 
             Text(content.calibrationHelp)
                 .font(.caption)
@@ -317,6 +388,26 @@ struct SettingsView: View {
             isCameraAuthorized: cameraPermissionManager.cameraStatus == .authorized,
             sampleCount: gazeSampleCount
         )
+    }
+
+    /// readiness 상태를 색상 배지로 표현한다.
+    private func readinessBadge(for state: SettingsReadinessSummary.State) -> some View {
+        let color: Color = switch state {
+        case .permissionRequired:
+            .orange
+        case .sessionDisabled:
+            .secondary
+        case .ready:
+            .green
+        }
+
+        return Text(content.setupReadinessBadge(for: state))
+            .font(.caption)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.18), in: Capsule())
+            .foregroundStyle(color)
     }
 
     /// 권한 상태를 색상 배지로 표현한다.
@@ -377,13 +468,25 @@ struct SettingsView: View {
                 sessionBadge
             }
 
-            HStack(spacing: 8) {
-                Button(session.isEnabled ? content.disableButton : content.enableButton) {
-                    session.toggle()
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Button(session.isEnabled ? content.disableButton : content.enableButton) {
+                        session.toggle()
+                    }
+                    Text(content.sessionKillSwitchNotice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                Text(content.sessionKillSwitchNotice)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Button(session.isEnabled ? content.disableButton : content.enableButton) {
+                        session.toggle()
+                    }
+                    Text(content.sessionKillSwitchNotice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .controlSize(.small)
         }
@@ -512,7 +615,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 8) {
+            actionButtons {
                 Button(content.deleteLogsButton) {
                     logStore.deleteAll()
                     diagnosticsFeedback.didDeleteLogs()
@@ -533,7 +636,6 @@ struct SettingsView: View {
                     }
                 }
             }
-            .controlSize(.small)
 
             if let message = content.diagnosticsMessage(diagnosticsFeedback.message) {
                 Text(message)
@@ -559,6 +661,22 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    /// 긴 버튼 묶음은 가능한 경우 한 줄로, 좁은 폭에서는 세로로 배치한다.
+    private func actionButtons<Content: View>(
+        @ViewBuilder _ content: () -> Content
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) {
+                content()
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                content()
+            }
+        }
+        .controlSize(.small)
+    }
 
     /// 권한 상태를 갱신하고 결과를 Info 로그로 남긴다.
     ///
