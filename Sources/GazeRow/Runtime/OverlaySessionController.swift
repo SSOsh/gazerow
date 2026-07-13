@@ -24,9 +24,11 @@ final class OverlaySessionController {
     private let windowTitleHasher: WindowTitleHasher
     private let dateProvider: () -> Date
     private let isSessionEnabled: () -> Bool
+    private let activationTracer: any OverlayActivationTracing
     private let clickResultObserver: @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void
     private(set) var activeSession: OverlaySessionState?
     private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
+    private var activeActivationID: UUID?
 
     init(
         targetResolver: any OverlaySessionTargetResolving = TargetResolver(),
@@ -43,6 +45,7 @@ final class OverlaySessionController {
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         dateProvider: @escaping () -> Date = Date.init,
         isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled },
+        activationTracer: any OverlayActivationTracing = OverlayActivationTracer(),
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) {
         self.targetResolver = targetResolver
@@ -57,18 +60,25 @@ final class OverlaySessionController {
         self.windowTitleHasher = windowTitleHasher
         self.dateProvider = dateProvider
         self.isSessionEnabled = isSessionEnabled
+        self.activationTracer = activationTracer
         self.clickResultObserver = clickResultObserver
     }
 
     func start() -> OverlaySessionStartResult {
         lastClickResult = nil
+        let startedAt = dateProvider()
+        if let activeActivationID {
+            activationTracer.end(activationID: activeActivationID)
+        }
+        let activationID = activationTracer.begin(at: startedAt)
+        activeActivationID = activationID
+        trace(.shortcutReceived, activationID: activationID, at: startedAt)
 
         guard isSessionEnabled() else {
             close()
             return .failure(.sessionDisabled)
         }
 
-        let startedAt = dateProvider()
         let context: TargetContext
         switch targetResolver.resolve() {
         case .success(let resolvedContext):
@@ -78,6 +88,7 @@ final class OverlaySessionController {
             return .failure(.targetResolutionFailed(failure))
         }
         let targetResolvedAt = dateProvider()
+        trace(.targetResolved, activationID: activationID, at: targetResolvedAt)
 
         let scanResult: AccessibilityScanResult
         switch scanner.scan(context: context) {
@@ -88,38 +99,65 @@ final class OverlaySessionController {
             return .failure(.scanFailed(failure))
         }
         let scannedAt = dateProvider()
+        trace(
+            .scanCompleted,
+            activationID: activationID,
+            at: scannedAt,
+            metadata: OverlayActivationTraceMetadata(
+                nodesVisited: scanResult.nodesVisited,
+                candidateCount: scanResult.candidateCount
+            )
+        )
 
         guard !scanResult.candidates.isEmpty else {
             close()
             return .failure(.noCandidates(context: context, scanResult: scanResult))
         }
 
-        let layout = overlayPresenter.show(
+        let layout = overlayPresenter.makeLayout(
             targetFrame: context.window.frame,
             candidates: scanResult.candidates,
-            labels: [],
-            onEscape: { [weak self] in
-                self?.close()
-            },
-            onKeyboardCommand: { [weak self] command in
-                _ = self?.handleKeyboardCommand(command)
-            }
+            labels: []
         )
-        let shownAt = dateProvider()
+        let layoutCompletedAt = dateProvider()
+        trace(
+            .layoutCompleted,
+            activationID: activationID,
+            at: layoutCompletedAt,
+            metadata: OverlayActivationTraceMetadata(candidateCount: layout.labels.count)
+        )
 
         let snapshot = OverlaySessionSnapshot(
             context: context,
             scanResult: scanResult,
             layout: layout
         )
-        let elementIndex = buildElementIndex(context: context, scanResult: scanResult)
-        let windowIndex = windowSearchIndexProvider()
-        activeSession = OverlaySessionState(
+        let session = OverlaySessionState(
             snapshot: snapshot,
             focusEngine: FocusEngine(layout: layout),
-            elementIndex: elementIndex,
-            windowIndex: windowIndex
+            elementIndex: makeFallbackElementIndex(scanResult: scanResult)
         )
+        activeSession = session
+        trace(
+            .sessionReady,
+            activationID: activationID,
+            at: dateProvider(),
+            metadata: OverlayActivationTraceMetadata(hasActiveSession: true)
+        )
+        _ = overlayPresenter.show(
+            layout: layout,
+            initialStatus: status(for: session, resolution: nil, message: "Ready", tone: .neutral),
+            onEscape: { [weak self] in
+                self?.close()
+            },
+            onKeyboardCommand: { [weak self] capturedCommand in
+                _ = self?.handleCapturedKeyboardCommand(capturedCommand)
+            },
+            onPresentationEvent: { [weak self] event in
+                self?.tracePresentationEvent(event, activationID: activationID)
+            }
+        )
+        let shownAt = dateProvider()
         let labelMap = zip(layout.labels, scanResult.candidates).prefix(14).map { label, candidate in
             "\(label.id):\(label.text)@(\(Int(candidate.frame.minX)),\(Int(candidate.frame.minY)) \(Int(candidate.frame.width))x\(Int(candidate.frame.height)))"
         }.joined(separator: " ")
@@ -129,17 +167,31 @@ final class OverlaySessionController {
         AppLogger.overlay.info(
             "overlay start timing targetMs=\(Self.milliseconds(from: startedAt, to: targetResolvedAt), privacy: .public) scanMs=\(Self.milliseconds(from: targetResolvedAt, to: scannedAt), privacy: .public) showMs=\(Self.milliseconds(from: scannedAt, to: shownAt), privacy: .public) totalMs=\(Self.milliseconds(from: startedAt, to: shownAt), privacy: .public) nodes=\(scanResult.nodesVisited, privacy: .public) candidates=\(scanResult.candidateCount, privacy: .public) timeout=\(scanResult.didTimeout, privacy: .public)"
         )
-        if let activeSession {
-            updateOverlayStatus(for: activeSession, message: "Ready", tone: .neutral)
-        }
-
         return .success(snapshot)
     }
 
     func handleKeyboardCommand(_ command: FocusKeyboardCommand) -> FocusEngineEvent? {
+        handleKeyboardCommand(command, captureMode: nil)
+    }
+
+    private func handleCapturedKeyboardCommand(_ capturedCommand: OverlayCapturedKeyboardCommand) -> FocusEngineEvent? {
+        handleKeyboardCommand(capturedCommand.command, captureMode: capturedCommand.captureMode)
+    }
+
+    private func handleKeyboardCommand(
+        _ command: FocusKeyboardCommand,
+        captureMode: OverlayKeyboardCaptureMode?
+    ) -> FocusEngineEvent? {
+        traceKeyboardCommand(.keyCaptured, command: command, captureMode: captureMode)
         guard var session = activeSession else {
             return nil
         }
+        traceKeyboardCommand(
+            .commandHandled,
+            command: command,
+            captureMode: captureMode,
+            hasActiveSession: true
+        )
 
         let event: FocusEngineEvent?
         var statusMessage: String?
@@ -162,6 +214,7 @@ final class OverlaySessionController {
             session.pendingSecondConfirm = nil
             appendQuery(grapheme, to: &session)
             session.queryInput.lastScope = session.queryInput.pinnedScope ?? .elements
+            prepareIndex(for: session.queryInput.lastScope, session: &session)
             let resolution = applyQueryResolution(to: &session)
             activeSession = session
             overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
@@ -174,6 +227,7 @@ final class OverlaySessionController {
                 session.focusEngine.clearLabelBuffer()
             }
             if !session.queryInput.buffer.isEmpty {
+                prepareIndex(for: session.queryInput.lastScope, session: &session)
                 let resolution = applyQueryResolution(to: &session)
                 activeSession = session
                 overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
@@ -200,18 +254,20 @@ final class OverlaySessionController {
             session.pendingSecondConfirm = nil
             session.queryInput.pinnedScope = scope
             session.queryInput.lastScope = scope
-            refreshWindowIndexIfNeeded(session: &session)
+            prepareIndex(for: scope, session: &session)
             event = nil
             statusMessage = "Pinned \(scope.rawValue)"
         case .cycleMatch(let forward):
             session.pendingSecondConfirm = nil
             if shouldCycleQueryMatches(session, scope: .elements) {
+                ensureSearchableElementIndexIfNeeded(session: &session)
                 cycleElementMatch(forward: forward, session: &session)
                 let resolution = applyQueryResolution(to: &session)
                 activeSession = session
                 overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
                 return nil
             } else if shouldCycleQueryMatches(session, scope: .windows) {
+                ensureWindowIndexIfNeeded(session: &session)
                 cycleWindowMatch(forward: forward, session: &session)
                 let resolution = applyQueryResolution(to: &session)
                 activeSession = session
@@ -238,6 +294,9 @@ final class OverlaySessionController {
         activeSession = session
         updateOverlayStatus(for: session, message: statusMessage, tone: statusTone)
         record(event, context: session.snapshot.context)
+        if event != nil {
+            traceKeyboardCommand(.focusStateChanged, command: command, hasActiveSession: true)
+        }
         return event
     }
 
@@ -374,6 +433,10 @@ final class OverlaySessionController {
     func close() {
         overlayPresenter.close()
         activeSession = nil
+        if let activeActivationID {
+            activationTracer.end(activationID: activeActivationID)
+        }
+        activeActivationID = nil
     }
 
     private func record(_ event: FocusEngineEvent?, context: TargetContext) {
@@ -439,18 +502,10 @@ final class OverlaySessionController {
         )
     }
 
-    private func buildElementIndex(
-        context: TargetContext,
+    private func makeFallbackElementIndex(
         scanResult: AccessibilityScanResult
     ) -> ElementSearchIndex {
-        if let searchableNodeCollector {
-            let collectedIndex = searchableNodeCollector.buildIndex(context: context)
-            if !collectedIndex.nodes.isEmpty {
-                return collectedIndex
-            }
-        }
-
-        return ElementSearchIndex(
+        ElementSearchIndex(
             nodes: scanResult.candidates.enumerated().map { index, candidate in
                 SearchableNode(
                     id: index,
@@ -461,6 +516,30 @@ final class OverlaySessionController {
                 )
             }
         )
+    }
+
+    private func ensureSearchableElementIndexIfNeeded(session: inout OverlaySessionState) {
+        guard !session.didAttemptSearchableIndexBuild else {
+            return
+        }
+
+        session.didAttemptSearchableIndexBuild = true
+        guard let searchableNodeCollector else {
+            return
+        }
+
+        let collectedIndex = searchableNodeCollector.buildIndex(context: session.snapshot.context)
+        if !collectedIndex.nodes.isEmpty {
+            session.elementIndex = collectedIndex
+        }
+    }
+
+    private func ensureWindowIndexIfNeeded(session: inout OverlaySessionState) {
+        guard session.windowIndex == nil || session.windowIndex?.isStale() == true else {
+            return
+        }
+
+        session.windowIndex = windowSearchIndexProvider()
     }
 
     private func appendQuery(_ grapheme: String, to session: inout OverlaySessionState) {
@@ -474,7 +553,8 @@ final class OverlaySessionController {
     @discardableResult
     private func applyQueryResolution(to session: inout OverlaySessionState) -> QueryResolution {
         session.elementMatches = session.elementIndex.search(session.queryInput.buffer)
-        session.windowMatches = session.windowIndex.search(session.queryInput.buffer)
+        let windowIndex = session.windowIndex ?? WindowSearchIndex(entries: [])
+        session.windowMatches = windowIndex.search(session.queryInput.buffer)
         if session.elementMatches.isEmpty {
             session.elementMatchIndex = 0
         } else {
@@ -492,7 +572,7 @@ final class OverlaySessionController {
             elementIndex: session.elementIndex,
             elementMatchIndex: session.elementMatchIndex,
             actionableCandidates: session.snapshot.scanResult.candidates,
-            windowIndex: session.windowIndex,
+            windowIndex: windowIndex,
             windowMatchIndex: session.windowMatchIndex
         )
         session.queryInput.lastScope = resolution.scope
@@ -531,20 +611,22 @@ final class OverlaySessionController {
             && (session.queryInput.pinnedScope ?? session.queryInput.lastScope) == scope
     }
 
-    private func refreshWindowIndexIfNeeded(session: inout OverlaySessionState) {
-        guard session.queryInput.pinnedScope == .windows || session.queryInput.lastScope == .windows else {
+    private func prepareIndex(for scope: QueryScope, session: inout OverlaySessionState) {
+        switch scope {
+        case .labels:
             return
-        }
-
-        if session.windowIndex.isStale() {
-            session.windowIndex = windowSearchIndexProvider()
+        case .elements:
+            ensureSearchableElementIndexIfNeeded(session: &session)
+        case .windows:
+            ensureWindowIndexIfNeeded(session: &session)
         }
     }
 
     private func activateFocusedWindow(session: inout OverlaySessionState) {
+        ensureWindowIndexIfNeeded(session: &session)
         let resolution = applyQueryResolution(to: &session)
         guard let entryID = resolution.windowEntryID,
-              let entry = session.windowIndex.entry(id: entryID) else {
+              let entry = session.windowIndex?.entry(id: entryID) else {
             activeSession = session
             overlayPresenter.updateStatus(
                 status(for: session, resolution: resolution, message: "Window not found", tone: .failure)
@@ -584,27 +666,30 @@ final class OverlaySessionController {
             return
         }
 
-        let layout = overlayPresenter.show(
+        let layout = overlayPresenter.makeLayout(
             targetFrame: context.window.frame,
             candidates: scanResult.candidates,
-            labels: [],
-            onEscape: { [weak self] in
-                self?.close()
-            },
-            onKeyboardCommand: { [weak self] command in
-                _ = self?.handleKeyboardCommand(command)
-            }
+            labels: []
         )
         let snapshot = OverlaySessionSnapshot(context: context, scanResult: scanResult, layout: layout)
         let session = OverlaySessionState(
             snapshot: snapshot,
             focusEngine: FocusEngine(layout: layout),
             queryInput: QueryInputState(lastScope: .elements),
-            elementIndex: buildElementIndex(context: context, scanResult: scanResult),
-            windowIndex: windowSearchIndexProvider()
+            elementIndex: makeFallbackElementIndex(scanResult: scanResult)
         )
         activeSession = session
-        updateOverlayStatus(for: session, message: message, tone: .success)
+        _ = overlayPresenter.show(
+            layout: layout,
+            initialStatus: status(for: session, resolution: nil, message: message, tone: .success),
+            onEscape: { [weak self] in
+                self?.close()
+            },
+            onKeyboardCommand: { [weak self] capturedCommand in
+                _ = self?.handleCapturedKeyboardCommand(capturedCommand)
+            },
+            onPresentationEvent: { _ in }
+        )
     }
 
     private func status(
@@ -696,7 +781,7 @@ final class OverlaySessionController {
         )
         return indices.compactMap { index in
             guard session.windowMatches.indices.contains(index),
-                  let entry = session.windowIndex.entry(id: session.windowMatches[index].entryID) else {
+                  let entry = session.windowIndex?.entry(id: session.windowMatches[index].entryID) else {
                 return nil
             }
 
@@ -803,6 +888,88 @@ final class OverlaySessionController {
     private static func milliseconds(from start: Date, to end: Date) -> Int {
         max(0, Int((end.timeIntervalSince(start) * 1_000).rounded()))
     }
+
+    private func trace(
+        _ phase: OverlayActivationPhase,
+        activationID: UUID,
+        at date: Date,
+        metadata: OverlayActivationTraceMetadata = OverlayActivationTraceMetadata()
+    ) {
+        activationTracer.mark(
+            phase,
+            activationID: activationID,
+            at: date,
+            metadata: metadata
+        )
+    }
+
+    private func traceKeyboardCommand(
+        _ phase: OverlayActivationPhase,
+        command: FocusKeyboardCommand,
+        captureMode: OverlayKeyboardCaptureMode? = nil,
+        hasActiveSession: Bool? = nil
+    ) {
+        guard let activeActivationID else {
+            return
+        }
+
+        trace(
+            phase,
+            activationID: activeActivationID,
+            at: dateProvider(),
+            metadata: OverlayActivationTraceMetadata(
+                commandKind: commandKind(for: command),
+                captureMode: captureMode?.rawValue,
+                hasActiveSession: hasActiveSession ?? (activeSession != nil)
+            )
+        )
+    }
+
+    private func tracePresentationEvent(
+        _ event: OverlayPresentationEvent,
+        activationID: UUID
+    ) {
+        let phase: OverlayActivationPhase
+        let metadata: OverlayActivationTraceMetadata
+        switch event {
+        case .captureReady(let captureMode):
+            phase = .captureReady
+            metadata = OverlayActivationTraceMetadata(captureMode: captureMode.rawValue)
+        case .panelsOrdered:
+            phase = .panelsOrdered
+            metadata = OverlayActivationTraceMetadata()
+        case .firstDisplayPass:
+            phase = .firstDisplayPass
+            metadata = OverlayActivationTraceMetadata()
+        }
+
+        trace(phase, activationID: activationID, at: dateProvider(), metadata: metadata)
+    }
+
+    private func commandKind(for command: FocusKeyboardCommand) -> String {
+        switch command {
+        case .move:
+            "move"
+        case .typeLabel:
+            "type_label"
+        case .appendQuery:
+            "append_query"
+        case .deleteQueryCharacter:
+            "delete_query_character"
+        case .clearQueryBuffer:
+            "clear_query_buffer"
+        case .clearLabelBuffer:
+            "clear_label_buffer"
+        case .pinScope:
+            "pin_scope"
+        case .cycleMatch:
+            "cycle_match"
+        case .dryRunConfirm:
+            "confirm"
+        case .closeOverlay:
+            "close_overlay"
+        }
+    }
 }
 
 /// overlay session target resolve abstraction.
@@ -841,20 +1008,54 @@ extension AccessibilityScanner: OverlaySessionScanning {}
 /// @since 2026-07-02
 @MainActor
 protocol OverlaySessionPresenting {
-    @discardableResult
-    func show(
+    func makeLayout(
         targetFrame: CGRect,
         candidates: [ClickableCandidate],
-        labels: [String],
-        onEscape: @escaping () -> Void,
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void
+        labels: [String]
     ) -> OverlayLayout
+
+    @discardableResult
+    func show(
+        layout: OverlayLayout,
+        initialStatus: OverlayInteractionStatus,
+        onEscape: @escaping () -> Void,
+        onKeyboardCommand: @MainActor @escaping (OverlayCapturedKeyboardCommand) -> Void,
+        onPresentationEvent: @MainActor @escaping (OverlayPresentationEvent) -> Void
+    ) -> OverlayKeyboardCaptureMode
 
     func close()
 
     func updateFocus(focusedLabelID: Int?)
 
     func updateStatus(_ status: OverlayInteractionStatus)
+}
+
+/// overlay keyboard capture 경로.
+///
+/// @author suho.do
+/// @since 2026-07-13
+enum OverlayKeyboardCaptureMode: String, Equatable {
+    case eventTap = "event_tap"
+    case panelFallback = "panel_fallback"
+}
+
+/// capture 경로를 보존한 overlay keyboard command.
+///
+/// @author suho.do
+/// @since 2026-07-13
+struct OverlayCapturedKeyboardCommand: Equatable {
+    let command: FocusKeyboardCommand
+    let captureMode: OverlayKeyboardCaptureMode
+}
+
+/// overlay panel 공개 lifecycle event.
+///
+/// @author suho.do
+/// @since 2026-07-13
+enum OverlayPresentationEvent: Equatable {
+    case captureReady(OverlayKeyboardCaptureMode)
+    case panelsOrdered
+    case firstDisplayPass
 }
 
 extension OverlayWindowController: OverlaySessionPresenting {}
@@ -889,9 +1090,10 @@ struct OverlaySessionState: Equatable {
     var focusEngine: FocusEngine
     var queryInput: QueryInputState = QueryInputState()
     var elementIndex: ElementSearchIndex = ElementSearchIndex(nodes: [])
+    var didAttemptSearchableIndexBuild = false
     var elementMatches: [SearchMatch] = []
     var elementMatchIndex: Int = 0
-    var windowIndex: WindowSearchIndex = WindowSearchIndex(entries: [])
+    var windowIndex: WindowSearchIndex?
     var windowMatches: [WindowMatch] = []
     var windowMatchIndex: Int = 0
     var pendingSecondConfirm: PendingSecondConfirm?

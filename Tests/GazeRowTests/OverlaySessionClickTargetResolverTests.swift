@@ -37,6 +37,33 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
         XCTAssertEqual(targets.map(\.frame), [first.snapshot.frame, second.snapshot.frame])
     }
 
+    func test_resolveTargets_additionalRootElement를_scanner와_같은_순서로_수집() throws {
+        // given
+        let primary = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+        )
+        let additional = FakeClickElement(
+            id: 2,
+            snapshot: makeSnapshot(frame: CGRect(x: 40, y: 10, width: 20, height: 20))
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(role: "AXGroup", frame: CGRect(x: 0, y: 0, width: 100, height: 100), actions: []),
+            children: [primary]
+        )
+        let sut = OverlaySessionClickTargetResolver(
+            client: FakeClickTargetClient(root: .success(root), extraRoots: [additional])
+        )
+
+        // when
+        let result = sut.resolveTargets(context: makeContext())
+
+        // then
+        let targets = try unwrapSuccess(result)
+        XCTAssertEqual(targets.map(\.element.id), [2, 1])
+    }
+
     func test_resolveTargets_selectableContainerRole은_action이_없어도_수집() throws {
         // given
         let row = FakeClickElement(
@@ -323,9 +350,14 @@ private struct FakeClickElement: Equatable {
 @MainActor
 private struct FakeClickTargetClient: AccessibilityElementClient {
     let root: Result<FakeClickElement, AccessibilityScanFailure>
+    var extraRoots: [FakeClickElement] = []
 
     func rootElement(for context: TargetContext) -> Result<FakeClickElement, AccessibilityScanFailure> {
         root
+    }
+
+    func additionalRootElements(for context: TargetContext) -> [FakeClickElement] {
+        extraRoots
     }
 
     func snapshot(of element: FakeClickElement) -> AccessibilityElementSnapshot {

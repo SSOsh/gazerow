@@ -394,14 +394,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         presentHotKeyRegistrationGuidanceIfNeeded(registrationStatuses)
 
         globalShortcutMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let overlayCommand = Self.focusKeyboardCommand(from: event)
             let input = OverlayActivationShortcutInput(event: event)
-
-            if let overlayCommand {
-                Task { @MainActor in
-                    _ = self?.handleOverlayKeyboardCommand(overlayCommand)
-                }
-            }
 
             switch overlayActivationMonitorRoute(for: input) {
             case .gaze:
@@ -420,11 +413,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         localShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if let overlayCommand = Self.focusKeyboardCommand(from: event),
-               MainActor.assumeIsolated({ self?.handleOverlayKeyboardCommand(overlayCommand) == true }) {
-                return nil
-            }
-
             let input = OverlayActivationShortcutInput(event: event)
 
             switch overlayActivationMonitorRoute(for: input) {
@@ -443,32 +431,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return event
             }
         }
-    }
-
-    private static func focusKeyboardCommand(from event: NSEvent) -> FocusKeyboardCommand? {
-        FocusKeyboardCommandMapper().command(
-            for: FocusKeyboardInput(
-                keyCode: event.keyCode,
-                charactersIgnoringModifiers: event.charactersIgnoringModifiers,
-                isShiftPressed: event.modifierFlags.contains(.shift)
-            )
-        )
-    }
-
-    @MainActor
-    private func handleOverlayKeyboardCommand(_ command: FocusKeyboardCommand) -> Bool {
-        guard overlaySessionController.activeSession != nil else {
-            AppLogger.interaction.info(
-                "overlay key ignored (no active session) command=\(String(describing: command), privacy: .public)"
-            )
-            return false
-        }
-
-        AppLogger.interaction.info(
-            "overlay key handled command=\(String(describing: command), privacy: .public)"
-        )
-        _ = overlaySessionController.handleKeyboardCommand(command)
-        return true
     }
 
     /// overlay/gaze activation용 Carbon hotkey들을 등록한다.

@@ -143,7 +143,7 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
 
         switch client.rootElement(for: context) {
         case .success(let root):
-            return .success(resolveTargets(root: root, startedAt: startedAt))
+            return .success(resolveTargets(root: root, context: context, startedAt: startedAt))
         case .failure(let failure):
             return .failure(failure)
         }
@@ -151,9 +151,11 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
 
     private func resolveTargets(
         root: Client.Element,
+        context: TargetContext,
         startedAt: Date
     ) -> [ClickTarget<Client.Element>] {
         var stack: [(element: Client.Element, depth: Int)] = [(root, 0)]
+        stack.append(contentsOf: client.additionalRootElements(for: context).map { ($0, 0) })
         var nodesVisited = 0
         var targets: [ClickTarget<Client.Element>] = []
         var targetKeys = Set<ClickTargetKey>()

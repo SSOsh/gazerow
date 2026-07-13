@@ -169,47 +169,47 @@ resolve target
 
 ### TICKET-FL-000: 재현 계측과 기준선 확보
 
-- [ ] activation ID를 생성해 한 session의 로그를 연결한다.
-- [ ] `shortcutReceived`, `targetResolved`, `scanCompleted`, `layoutCompleted`, `sessionReady`, `captureReady`, `panelsOrdered`, `firstDisplayPass`, `keyCaptured`, `commandHandled`, `focusStateChanged`, `focusRendered` 시점을 기록한다.
+- [x] activation ID를 생성해 한 session의 로그를 연결한다.
+- [→] `shortcutReceived`, `targetResolved`, `scanCompleted`, `layoutCompleted`, `sessionReady`, `captureReady`, `panelsOrdered`, `firstDisplayPass`, `keyCaptured`, `commandHandled`, `focusStateChanged`, `focusRendered` 시점을 기록한다. `focusRendered`는 TICKET-FL-004의 persistent render state 도입 때 연결한다.
 - [ ] 기존 `totalMs`를 `activationToFirstFrameMs`와 `activationToSessionReadyMs`로 분리한다.
-- [ ] key 로그에는 capture 경로(event tap/panel/local monitor), command 종류, session 유무만 남기고 raw query/window title은 기록하지 않는다.
+- [→] key 로그에는 capture 경로(event tap/panel/local monitor), command 종류, session 유무만 남기고 raw query/window title은 기록하지 않는다. 현재 command 종류와 session 유무를 기록하며, capture 경로는 TICKET-FL-001의 presenter callback 연결 때 추가한다.
 - [ ] Finder, Safari, Chrome, VS Code, System Settings에서 cold/warm activation과 첫 `F`를 각 10회 측정한다.
 - [ ] 첫 입력 실패를 capture 누락, session 무시, render 지연 중 하나로 분류한다.
 
 ### TICKET-FL-001: 화면 공개 전 input readiness 보장
 
-- [ ] layout 생성 후 label-only minimal `OverlaySessionState`를 먼저 준비한다.
-- [ ] keyboard capture를 panel 공개 전에 준비한다.
-- [ ] event tap 성공 시에만 panel을 공개하거나, fallback key focus가 준비된 직후 공개한다.
-- [ ] Input Monitoring 권한 확인/요청은 activation critical path 밖의 onboarding/settings로 이동한다.
-- [ ] event tap에서 MainActor로 전달한 command의 FIFO 순서를 보장한다.
-- [ ] 테스트: `captureReady`가 `panelsOrdered`보다 먼저 발생한다.
-- [ ] 테스트: panel 공개 직후 첫 `F`가 정확히 한 번 처리된다.
-- [ ] 테스트: 빠른 `F` -> `Return` 순서가 유지된다.
+- [x] layout 생성 후 label-only minimal `OverlaySessionState`를 먼저 준비한다.
+- [x] keyboard capture를 panel 공개 전에 준비한다.
+- [x] event tap 성공 시에만 panel을 공개하거나, fallback key focus가 준비된 직후 공개한다.
+- [→] Input Monitoring 권한 확인/요청은 activation critical path 밖의 onboarding/settings로 이동한다. activation 중 요청은 제거했고, settings의 명시적 요청 UI는 후속 UX 티켓에서 추가한다.
+- [x] event tap에서 MainActor로 전달한 command의 FIFO 순서를 보장한다.
+- [x] 테스트: `captureReady`가 `panelsOrdered`보다 먼저 발생한다.
+- [x] 테스트: panel 공개 직후 첫 `F`가 정확히 한 번 처리된다.
+- [x] 테스트: 빠른 `F` -> `Return` 순서가 유지된다.
 
 ### TICKET-FL-002: label-only fast path와 lazy index
 
-- [ ] start 시 searchable collector 호출을 제거한다.
-- [ ] start 시 `windowSearchIndexProvider()` 호출을 제거한다.
-- [ ] scan candidates 기반 fallback element index 또는 별도 minimal state로 label click 계약을 유지한다.
-- [ ] `/` elements scope 최초 진입 시 searchable index를 한 번 준비한다.
-- [ ] `;` windows scope 최초 진입 시 window index를 한 번 준비한다.
-- [ ] index 생성 실패/빈 결과는 label session을 닫지 않고 graceful degrade한다.
-- [ ] rescan 경로에도 같은 fast path를 적용한다.
-- [ ] 테스트: label-only start/input에서 두 index provider가 호출되지 않는다.
-- [ ] 테스트: 각 scope 최초 진입에서 해당 provider만 한 번 호출된다.
-- [ ] 테스트: query 실패 후에도 기존 label focus/click이 유지된다.
+- [x] start 시 searchable collector 호출을 제거한다.
+- [x] start 시 `windowSearchIndexProvider()` 호출을 제거한다.
+- [x] scan candidates 기반 fallback element index 또는 별도 minimal state로 label click 계약을 유지한다.
+- [x] `/` elements scope 최초 진입 시 searchable index를 한 번 준비한다.
+- [x] `;` windows scope 최초 진입 시 window index를 한 번 준비한다.
+- [x] index 생성 실패/빈 결과는 label session을 닫지 않고 graceful degrade한다.
+- [x] rescan 경로에도 같은 fast path를 적용한다.
+- [x] 테스트: label-only start/input에서 두 index provider가 호출되지 않는다.
+- [x] 테스트: 각 scope 최초 진입에서 해당 provider만 한 번 호출된다.
+- [x] 테스트: query 실패 후에도 기존 label focus/click이 유지된다.
 
 ### TICKET-FL-003: keyboard router 단일화와 정책 복구
 
-- [ ] `pendingLabelPrimer` 기반 두 번째 bare letter 자동 query 전환을 제거한다.
-- [ ] event tap과 panel fallback이 동일 router 구현/정책을 사용하게 하고, AppDelegate monitor는 overlay 문자 입력 소유권에서 제외한다.
-- [ ] overlay 활성 중 중복 capture 경로가 같은 keyDown을 두 번 처리하지 않도록 한다.
-- [ ] close/reopen 시 router와 query state를 함께 초기화한다.
-- [ ] 테스트: 1글자 label `F`가 모든 capture 경로에서 `.typeLabel("F")`가 된다.
-- [ ] 테스트: 2글자 label `FA`가 `.typeLabel("F")`, `.typeLabel("A")`로 완성된다.
-- [ ] 테스트: `/` + `find`, `;` + `code`는 각 pinned query로 유지된다.
-- [ ] 테스트: event tap 성공/실패 경로의 command sequence가 동일하다.
+- [x] `pendingLabelPrimer` 기반 두 번째 bare letter 자동 query 전환을 제거한다.
+- [x] event tap과 panel fallback이 동일 router 구현/정책을 사용하게 하고, AppDelegate monitor는 overlay 문자 입력 소유권에서 제외한다.
+- [x] overlay 활성 중 중복 capture 경로가 같은 keyDown을 두 번 처리하지 않도록 한다.
+- [x] close/reopen 시 router와 query state를 함께 초기화한다.
+- [x] 테스트: 1글자 label `F`가 모든 capture 경로에서 `.typeLabel("F")`가 된다.
+- [x] 테스트: 2글자 label `FA`가 `.typeLabel("F")`, `.typeLabel("A")`로 완성된다.
+- [x] 테스트: `/` + `find`, `;` + `code`는 각 pinned query로 유지된다.
+- [x] 테스트: event tap 성공/실패 경로의 command sequence가 동일하다.
 
 ### TICKET-FL-004: incremental overlay rendering
 

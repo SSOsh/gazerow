@@ -130,6 +130,38 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertEqual(keyboardEventTap.stopCallCount, 1)
     }
 
+    func test_show는_capture준비후_panel을_공개한다() {
+        // given
+        let keyboardEventTap = FakeOverlayKeyboardEventTap(startResult: true)
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                keyboardEventTap
+            }
+        )
+        var presentationEvents: [OverlayPresentationEvent] = []
+
+        // when
+        let captureMode = sut.show(
+            layout: makeLayout(),
+            initialStatus: OverlayInteractionStatus(),
+            onPresentationEvent: { event in
+                presentationEvents.append(event)
+            }
+        )
+
+        // then
+        XCTAssertEqual(captureMode, .eventTap)
+        XCTAssertEqual(
+            Array(presentationEvents.prefix(2)),
+            [.captureReady(.eventTap), .panelsOrdered]
+        )
+
+        sut.close()
+    }
+
     func test_show는_keyboardEventTap이_실패하면_application을_activate한다() {
         // given
         var activateCallCount = 0
@@ -265,6 +297,104 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func test_OverlayKeyboardEventTapContext_연속입력은_FIFO순서로_전달한다() {
+        // given
+        let expectation = expectation(description: "keyboard commands delivered")
+        expectation.expectedFulfillmentCount = 2
+        var receivedCommands: [FocusKeyboardCommand] = []
+        let sut = OverlayKeyboardEventTapContext { command in
+            receivedCommands.append(command)
+            expectation.fulfill()
+        }
+        let labelEvent = CGEvent(keyboardEventSource: nil, virtualKey: 3, keyDown: true)!
+        let confirmEvent = CGEvent(keyboardEventSource: nil, virtualKey: 36, keyDown: true)!
+
+        // when
+        _ = sut.handle(type: .keyDown, event: labelEvent)
+        _ = sut.handle(type: .keyDown, event: confirmEvent)
+        wait(for: [expectation], timeout: 1)
+
+        // then
+        XCTAssertEqual(receivedCommands, [.typeLabel("F"), .dryRunConfirm])
+    }
+
+    func test_OverlayKeyboardEventTapContext_stop후_대기중인입력을_전달하지않는다() {
+        // given
+        let expectation = expectation(description: "keyboard command is not delivered")
+        expectation.isInverted = true
+        let sut = OverlayKeyboardEventTapContext { _ in
+            expectation.fulfill()
+        }
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 3, keyDown: true)!
+
+        // when
+        _ = sut.handle(type: .keyDown, event: event)
+        sut.stopAcceptingCommands()
+        wait(for: [expectation], timeout: 0.1)
+    }
+
+    func test_OverlayKeyboardCommandRouter_두번째_bareLabel도_label명령으로_유지한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        let first = sut.command(for: FocusKeyboardInput(keyCode: 3, charactersIgnoringModifiers: "F"))
+        let second = sut.command(for: FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "A"))
+
+        // then
+        XCTAssertEqual(first, .typeLabel("F"))
+        XCTAssertEqual(second, .typeLabel("A"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_scopePin후_query를_유지한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        let pin = sut.command(for: FocusKeyboardInput(keyCode: 41, charactersIgnoringModifiers: "/"))
+        let first = sut.command(for: FocusKeyboardInput(keyCode: 3, charactersIgnoringModifiers: "f"))
+        let second = sut.command(for: FocusKeyboardInput(keyCode: 2, charactersIgnoringModifiers: "d"))
+
+        // then
+        XCTAssertEqual(pin, .pinScope(.elements))
+        XCTAssertEqual(first, .appendQuery("f"))
+        XCTAssertEqual(second, .appendQuery("d"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_windowScopePin후_query를_유지한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        let pin = sut.command(for: FocusKeyboardInput(keyCode: 41, charactersIgnoringModifiers: ";"))
+        let first = sut.command(for: FocusKeyboardInput(keyCode: 8, charactersIgnoringModifiers: "c"))
+        let second = sut.command(for: FocusKeyboardInput(keyCode: 31, charactersIgnoringModifiers: "o"))
+
+        // then
+        XCTAssertEqual(pin, .pinScope(.windows))
+        XCTAssertEqual(first, .appendQuery("c"))
+        XCTAssertEqual(second, .appendQuery("o"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_두_capture경로는_동일한_commandSequence를_만든다() {
+        // given
+        let inputs = [
+            FocusKeyboardInput(keyCode: 3, charactersIgnoringModifiers: "F"),
+            FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "A"),
+            FocusKeyboardInput(keyCode: 36)
+        ]
+        var eventTapRouter = OverlayKeyboardCommandRouter()
+        var panelRouter = OverlayKeyboardCommandRouter()
+
+        // when
+        let eventTapCommands = inputs.compactMap { eventTapRouter.command(for: $0) }
+        let panelCommands = inputs.compactMap { panelRouter.command(for: $0) }
+
+        // then
+        XCTAssertEqual(eventTapCommands, [.typeLabel("F"), .typeLabel("A"), .dryRunConfirm])
+        XCTAssertEqual(panelCommands, eventTapCommands)
+    }
+
     func test_OverlayKeyboardEventTap_start는_secureEventInput이면_false() {
         // given
         let sut = OverlayKeyboardEventTap(
@@ -279,12 +409,11 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertFalse(result)
     }
 
-    func test_OverlayKeyboardEventTap_start는_inputMonitoring권한이_없고_요청거절이면_false() {
+    func test_OverlayKeyboardEventTap_start는_inputMonitoring권한이_없으면_요청하지않고_false() {
         // given
         let sut = OverlayKeyboardEventTap(
             isSecureEventInputEnabled: { false },
             hasListenEventAccess: { false },
-            requestListenEventAccess: { false },
             onKeyboardCommand: { _ in }
         )
 

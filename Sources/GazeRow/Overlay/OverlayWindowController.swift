@@ -87,11 +87,10 @@ final class OverlayWindowController {
         onEscape: @escaping () -> Void = {},
         onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) -> OverlayLayout {
-        let layout = layoutEngine.makeLayout(
+        let layout = makeLayout(
             targetFrame: targetFrame,
             candidates: candidates,
-            labels: labels,
-            displayInfo: displayInfoProvider(targetFrame)
+            labels: labels
         )
 
         show(
@@ -102,11 +101,43 @@ final class OverlayWindowController {
         return layout
     }
 
+    func makeLayout(
+        targetFrame: CGRect,
+        candidates: [ClickableCandidate],
+        labels: [String] = []
+    ) -> OverlayLayout {
+        layoutEngine.makeLayout(
+            targetFrame: targetFrame,
+            candidates: candidates,
+            labels: labels,
+            displayInfo: displayInfoProvider(targetFrame)
+        )
+    }
+
     func show(
         layout: OverlayLayout,
         onEscape: @escaping () -> Void = {},
         onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) {
+        _ = show(
+            layout: layout,
+            initialStatus: OverlayInteractionStatus(),
+            onEscape: onEscape,
+            onKeyboardCommand: { capturedCommand in
+                onKeyboardCommand(capturedCommand.command)
+            },
+            onPresentationEvent: { _ in }
+        )
+    }
+
+    @discardableResult
+    func show(
+        layout: OverlayLayout,
+        initialStatus: OverlayInteractionStatus,
+        onEscape: @escaping () -> Void = {},
+        onKeyboardCommand: @MainActor @escaping (OverlayCapturedKeyboardCommand) -> Void = { _ in },
+        onPresentationEvent: @MainActor @escaping (OverlayPresentationEvent) -> Void
+    ) -> OverlayKeyboardCaptureMode {
         close()
         let mapper = OverlayScreenFrameMapper(screenFrames: screenFrameProvider())
         let targetPanelFrame = mapper.appKitFrame(fromAXFrame: layout.targetFrame)
@@ -122,20 +153,37 @@ final class OverlayWindowController {
             self?.close()
             onEscape()
         }
-        targetPanel.onKeyboardCommand = onKeyboardCommand
+        targetPanel.onKeyboardCommand = { command in
+            onKeyboardCommand(
+                OverlayCapturedKeyboardCommand(command: command, captureMode: .panelFallback)
+            )
+        }
 
         self.targetPanel = targetPanel
         self.commandBarPanel = commandBarPanel
         currentCommandBarVisibleFrame = targetScreen.visibleFrame
         currentLayout = layout
-        currentStatus = OverlayInteractionStatus()
+        currentStatus = initialStatus
         render(layout: layout, status: currentStatus)
-        targetPanel.orderFrontRegardless()
-        commandBarPanel.orderFrontRegardless()
-        prepareKeyboardCapture(
+        let captureMode = prepareKeyboardCapture(
             onKeyboardCommand: onKeyboardCommand,
             panel: targetPanel
         )
+        onPresentationEvent(.captureReady(captureMode))
+        targetPanel.orderFrontRegardless()
+        commandBarPanel.orderFrontRegardless()
+        onPresentationEvent(.panelsOrdered)
+        targetPanel.displayIfNeeded()
+        commandBarPanel.displayIfNeeded()
+        Task { @MainActor [weak self, weak targetPanel, weak commandBarPanel] in
+            guard let self,
+                  self.targetPanel === targetPanel,
+                  self.commandBarPanel === commandBarPanel else {
+                return
+            }
+            onPresentationEvent(.firstDisplayPass)
+        }
+        return captureMode
     }
 
     func updateFocus(focusedLabelID: Int?) {
@@ -182,27 +230,32 @@ final class OverlayWindowController {
     }
 
     private func prepareKeyboardCapture(
-        onKeyboardCommand: @escaping @MainActor (FocusKeyboardCommand) -> Void,
+        onKeyboardCommand: @escaping @MainActor (OverlayCapturedKeyboardCommand) -> Void,
         panel: OverlayPanel
-    ) {
+    ) -> OverlayKeyboardCaptureMode {
         let eventTap = keyboardEventTapFactory { command in
-            onKeyboardCommand(command)
+            onKeyboardCommand(
+                OverlayCapturedKeyboardCommand(command: command, captureMode: .eventTap)
+            )
         }
         keyboardEventTap = eventTap
 
         guard eventTap.start() else {
             AppLogger.overlay.info("overlay keyboard event tap unavailable; activating app fallback")
             activateKeyboardFocusFallback(panel: panel)
-            return
+            return .panelFallback
         }
 
         AppLogger.overlay.info("overlay keyboard event tap enabled")
+        return .eventTap
     }
 
     private func activateKeyboardFocusFallback(panel: OverlayPanel) {
         applicationActivator()
-        panel.makeKeyAndOrderFront(nil)
-        panel.orderFrontRegardless()
+        panel.makeKey()
+        if !panel.isKeyWindow {
+            panel.makeKeyAndOrderFront(nil)
+        }
     }
 
     private func render(layout: OverlayLayout, status: OverlayInteractionStatus) {
@@ -391,7 +444,6 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
     private let context: OverlayKeyboardEventTapContext
     private let isSecureEventInputEnabled: () -> Bool
     private let hasListenEventAccess: () -> Bool
-    private let requestListenEventAccess: () -> Bool
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
@@ -402,15 +454,11 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
         hasListenEventAccess: @escaping () -> Bool = {
             CGPreflightListenEventAccess()
         },
-        requestListenEventAccess: @escaping () -> Bool = {
-            CGRequestListenEventAccess()
-        },
         onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
     ) {
         self.context = OverlayKeyboardEventTapContext(onKeyboardCommand: onKeyboardCommand)
         self.isSecureEventInputEnabled = isSecureEventInputEnabled
         self.hasListenEventAccess = hasListenEventAccess
-        self.requestListenEventAccess = requestListenEventAccess
     }
 
     func start() -> Bool {
@@ -421,10 +469,12 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
             return false
         }
 
-        guard hasListenEventAccess() || requestListenEventAccess() else {
+        guard hasListenEventAccess() else {
             AppLogger.overlay.info("overlay keyboard event tap blocked by input monitoring permission")
             return false
         }
+
+        context.startAcceptingCommands()
 
         let userInfo = Unmanaged.passUnretained(context).toOpaque()
         let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
@@ -460,6 +510,7 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         }
 
+        context.stopAcceptingCommands()
         context.eventTap = nil
         eventTap = nil
         runLoopSource = nil
@@ -471,6 +522,8 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
     var eventTap: CFMachPort?
     private var keyboardRouter = OverlayKeyboardCommandRouter()
     private let onKeyboardCommand: @MainActor @Sendable (FocusKeyboardCommand) -> Void
+    private let commandStateLock = NSLock()
+    private var isAcceptingCommands = true
 
     init(onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void) {
         self.onKeyboardCommand = onKeyboardCommand
@@ -492,11 +545,35 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         }
 
-        Task { @MainActor in
-            onKeyboardCommand(command)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.acceptsCommands else {
+                return
+            }
+
+            MainActor.assumeIsolated {
+                self.onKeyboardCommand(command)
+            }
         }
 
         return nil
+    }
+
+    func stopAcceptingCommands() {
+        commandStateLock.lock()
+        isAcceptingCommands = false
+        commandStateLock.unlock()
+    }
+
+    func startAcceptingCommands() {
+        commandStateLock.lock()
+        isAcceptingCommands = true
+        commandStateLock.unlock()
+    }
+
+    private var acceptsCommands: Bool {
+        commandStateLock.lock()
+        defer { commandStateLock.unlock() }
+        return isAcceptingCommands
     }
 
     private func keyboardCommand(from event: CGEvent) -> FocusKeyboardCommand? {
@@ -514,10 +591,9 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
     }
 }
 
-private struct OverlayKeyboardCommandRouter {
+struct OverlayKeyboardCommandRouter {
     private let mapper = FocusKeyboardCommandMapper()
     private var queryInput = QueryInputState()
-    private var pendingLabelPrimer: Character?
 
     mutating func command(for input: FocusKeyboardInput) -> FocusKeyboardCommand? {
         guard let command = mapper.command(for: input, queryInput: queryInput) else {
@@ -530,42 +606,23 @@ private struct OverlayKeyboardCommandRouter {
     private mutating func route(_ command: FocusKeyboardCommand) -> FocusKeyboardCommand {
         switch command {
         case .typeLabel(let character):
-            if let pendingLabelPrimer {
-                let query = "\(pendingLabelPrimer)\(character)".precomposedStringWithCanonicalMapping
-                queryInput.buffer = query
-                self.pendingLabelPrimer = nil
-                return .appendQuery(query)
-            }
-
-            pendingLabelPrimer = Character(String(character).lowercased())
-            return command
+            return .typeLabel(character)
         case .appendQuery(let grapheme):
-            if let pendingLabelPrimer {
-                let query = "\(pendingLabelPrimer)\(grapheme)".precomposedStringWithCanonicalMapping
-                queryInput.buffer = query
-                self.pendingLabelPrimer = nil
-                return .appendQuery(query)
-            }
-
             queryInput.buffer.append(grapheme)
             return command
         case .pinScope(let scope):
             queryInput.pinnedScope = scope
             queryInput.lastScope = scope
-            pendingLabelPrimer = nil
             return command
         case .deleteQueryCharacter:
             if !queryInput.buffer.isEmpty {
                 queryInput.buffer.removeLast()
             }
-            pendingLabelPrimer = nil
             return command
         case .clearQueryBuffer, .clearLabelBuffer, .closeOverlay:
             queryInput = QueryInputState()
-            pendingLabelPrimer = nil
             return command
         case .move, .cycleMatch, .dryRunConfirm:
-            pendingLabelPrimer = nil
             return command
         }
     }
