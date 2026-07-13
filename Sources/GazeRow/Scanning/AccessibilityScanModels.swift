@@ -52,6 +52,34 @@ struct ClickableCandidate: Equatable {
     let title: String?
     let frame: CGRect
     let actions: [String]
+
+    /// 상태바 표시용 element 이름.
+    ///
+    /// 우선순위(title→role→subrole→"Element {index}")는
+    /// `ElementSearchIndex.displayName(for:)`(node 기반)과 정렬한다.
+    /// candidate에는 value 필드가 없어 title 다음 role로 이어진다.
+    /// `index`는 fallback 라벨에만 쓰이는 candidate 순번이다.
+    func displayName(index: Int) -> String {
+        if let title = Self.nonEmptyTrimmed(title) {
+            return title
+        }
+        if let role = Self.nonEmptyTrimmed(role) {
+            return role
+        }
+        if let subrole = Self.nonEmptyTrimmed(subrole) {
+            return subrole
+        }
+        return "Element \(index)"
+    }
+
+    private static func nonEmptyTrimmed(_ value: String?) -> String? {
+        guard let value else {
+            return nil
+        }
+
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
 }
 
 /// AX scan 결과와 계측 값.

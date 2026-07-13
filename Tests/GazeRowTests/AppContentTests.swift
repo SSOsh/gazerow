@@ -104,6 +104,9 @@ final class AppContentTests: XCTestCase {
         XCTAssertEqual(korean.queryNoMatch, "매칭 없음")
         XCTAssertTrue(korean.queryKeyHint(for: .windows, enterActionHint: korean.enterActionSwitchWindow).contains("창 전환"))
         XCTAssertTrue(english.queryMatchSummary(count: 2, index: 1, displayName: "Delete").contains("Delete"))
+        // 겨냥 요약은 매칭 개수/인덱스 없이 대상 이름만 보여 검색 요약과 구분된다.
+        XCTAssertEqual(english.gazeTargetSummary(displayName: "Save Draft"), "Aiming · Save Draft")
+        XCTAssertEqual(korean.gazeTargetSummary(displayName: "Save Draft"), "겨냥 · Save Draft")
     }
 
     func test_setupReadinessContent는_상태별_다음행동을_제공한다() {

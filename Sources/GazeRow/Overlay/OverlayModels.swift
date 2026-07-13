@@ -122,6 +122,9 @@ struct OverlayInteractionStatus: Equatable {
     let matchCount: Int
     let matchIndex: Int
     let focusedDisplayName: String?
+    /// elements scope에서 gaze로 element를 겨냥 중임을 나타낸다.
+    /// 검색 매칭(matchCount)과 구분해 요약 문구를 분기하기 위한 플래그다.
+    let isGazeTargeting: Bool
     let enterActionHint: String
     let windowMatchPreviews: [OverlayWindowMatchPreview]
     let message: String?
@@ -136,6 +139,7 @@ struct OverlayInteractionStatus: Equatable {
         matchCount: Int = 0,
         matchIndex: Int = 0,
         focusedDisplayName: String? = nil,
+        isGazeTargeting: Bool = false,
         enterActionHint: String = "click",
         windowMatchPreviews: [OverlayWindowMatchPreview] = [],
         message: String? = nil,
@@ -149,6 +153,7 @@ struct OverlayInteractionStatus: Equatable {
         self.matchCount = max(0, matchCount)
         self.matchIndex = max(0, matchIndex)
         self.focusedDisplayName = focusedDisplayName
+        self.isGazeTargeting = isGazeTargeting
         self.enterActionHint = enterActionHint
         self.windowMatchPreviews = windowMatchPreviews
         self.message = message

@@ -143,6 +143,12 @@ enum AppContent {
                 : "Matches \(safeCount) · \(safeIndex)/\(safeCount) · \(displayName)"
         }
 
+        /// elements scope에서 gaze로 element를 겨냥 중일 때의 요약 문구.
+        /// 검색 매칭 요약과 달리 개수·인덱스 없이 겨냥 대상 이름만 보인다.
+        func gazeTargetSummary(displayName: String) -> String {
+            language == .korean ? "겨냥 · \(displayName)" : "Aiming · \(displayName)"
+        }
+
         func queryKeyHint(for scope: QueryScope, enterActionHint: String) -> String {
             switch scope {
             case .labels:

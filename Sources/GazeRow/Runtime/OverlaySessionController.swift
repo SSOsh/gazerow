@@ -627,6 +627,8 @@ final class OverlaySessionController {
         // elements scope에서 gaze로 focus를 옮긴 경우(resolution == nil)만
         // 겨냥한 candidate의 element 이름을 status 요약에 주입한다.
         // labels/windows scope와 검색(resolution != nil) 경로는 영향받지 않는다.
+        // 겨냥은 검색 매칭이 아니므로 matchCount를 올리지 않고
+        // isGazeTargeting 플래그로 요약 문구를 분기한다.
         let gazeDisplayName = (resolution == nil && activeScope == .elements)
             ? gazeElementDisplayName(for: session)
             : nil
@@ -637,9 +639,10 @@ final class OverlaySessionController {
             queryBuffer: session.queryInput.buffer,
             activeScope: activeScope,
             pinnedScope: session.queryInput.pinnedScope,
-            matchCount: resolution?.matchCount ?? (gazeDisplayName != nil ? 1 : 0),
-            matchIndex: resolution.map { $0.matchIndex + 1 } ?? (gazeDisplayName != nil ? 1 : 0),
+            matchCount: resolution?.matchCount ?? 0,
+            matchIndex: resolution.map { $0.matchIndex + 1 } ?? 0,
             focusedDisplayName: resolution?.focusedDisplayName ?? gazeDisplayName,
+            isGazeTargeting: gazeDisplayName != nil,
             enterActionHint: enterHint,
             windowMatchPreviews: windowMatchPreviews(for: session, activeScope: activeScope),
             message: message,
@@ -702,32 +705,7 @@ final class OverlaySessionController {
         }
 
         let candidate = session.snapshot.scanResult.candidates[focusedItemID]
-        return candidateDisplayName(candidate, index: focusedItemID)
-    }
-
-    /// `ElementSearchIndex.displayName`(node)과 동일 우선순위를
-    /// candidate에 맞춰 재현한다(title→role→subrole→"Element {id}").
-    /// candidate에는 value 필드가 없어 title 다음 role로 이어진다.
-    private func candidateDisplayName(_ candidate: ClickableCandidate, index: Int) -> String {
-        if let title = nonEmptyTrimmed(candidate.title) {
-            return title
-        }
-        if let role = nonEmptyTrimmed(candidate.role) {
-            return role
-        }
-        if let subrole = nonEmptyTrimmed(candidate.subrole) {
-            return subrole
-        }
-        return "Element \(index)"
-    }
-
-    private func nonEmptyTrimmed(_ value: String?) -> String? {
-        guard let value else {
-            return nil
-        }
-
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        return candidate.displayName(index: focusedItemID)
     }
 
     private func focusedMessage(for session: OverlaySessionState) -> String? {

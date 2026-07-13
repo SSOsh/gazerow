@@ -425,6 +425,10 @@ private struct OverlayStatusView: View {
     }
 
     private var summaryText: String {
+        if status.isGazeTargeting, let displayName = status.focusedDisplayName {
+            return content.gazeTargetSummary(displayName: displayName)
+        }
+
         if status.matchCount > 0 {
             let displayIndex = max(1, status.matchIndex)
             return content.queryMatchSummary(
