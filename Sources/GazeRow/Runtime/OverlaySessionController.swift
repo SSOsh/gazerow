@@ -10,6 +10,7 @@ import Foundation
 @MainActor
 final class OverlaySessionController {
     private static let secondConfirmTimeout: TimeInterval = 3
+    private static let maxWindowMatchPreviewCount = 6
 
     private let targetResolver: any OverlaySessionTargetResolving
     private let scanner: any OverlaySessionScanning
@@ -640,9 +641,53 @@ final class OverlaySessionController {
             matchIndex: resolution.map { $0.matchIndex + 1 } ?? (gazeDisplayName != nil ? 1 : 0),
             focusedDisplayName: resolution?.focusedDisplayName ?? gazeDisplayName,
             enterActionHint: enterHint,
+            windowMatchPreviews: windowMatchPreviews(for: session, activeScope: activeScope),
             message: message,
             tone: tone
         )
+    }
+
+    private func windowMatchPreviews(
+        for session: OverlaySessionState,
+        activeScope: QueryScope
+    ) -> [OverlayWindowMatchPreview] {
+        guard activeScope == .windows, !session.windowMatches.isEmpty else {
+            return []
+        }
+
+        let indices = windowMatchPreviewIndices(
+            selectedIndex: session.windowMatchIndex,
+            matchCount: session.windowMatches.count
+        )
+        return indices.compactMap { index in
+            guard session.windowMatches.indices.contains(index),
+                  let entry = session.windowIndex.entry(id: session.windowMatches[index].entryID) else {
+                return nil
+            }
+
+            return OverlayWindowMatchPreview(
+                id: entry.id,
+                appName: entry.appName,
+                displayName: session.windowMatches[index].displayLine,
+                ordinal: index + 1,
+                isFocused: index == session.windowMatchIndex,
+                appIcon: entry.appIcon
+            )
+        }
+    }
+
+    private func windowMatchPreviewIndices(selectedIndex: Int, matchCount: Int) -> Range<Int> {
+        guard matchCount > Self.maxWindowMatchPreviewCount else {
+            return 0..<matchCount
+        }
+
+        let halfWindow = Self.maxWindowMatchPreviewCount / 2
+        let clampedSelectedIndex = min(max(0, selectedIndex), matchCount - 1)
+        let lowerBound = min(
+            max(0, clampedSelectedIndex - halfWindow),
+            matchCount - Self.maxWindowMatchPreviewCount
+        )
+        return lowerBound..<(lowerBound + Self.maxWindowMatchPreviewCount)
     }
 
     /// elements scope gaze 겨냥 시 focus된 candidate의 element 이름.

@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 
 /// overlay label 배치 설정.
@@ -122,6 +123,7 @@ struct OverlayInteractionStatus: Equatable {
     let matchIndex: Int
     let focusedDisplayName: String?
     let enterActionHint: String
+    let windowMatchPreviews: [OverlayWindowMatchPreview]
     let message: String?
     let tone: Tone
 
@@ -135,6 +137,7 @@ struct OverlayInteractionStatus: Equatable {
         matchIndex: Int = 0,
         focusedDisplayName: String? = nil,
         enterActionHint: String = "click",
+        windowMatchPreviews: [OverlayWindowMatchPreview] = [],
         message: String? = nil,
         tone: Tone = .neutral
     ) {
@@ -147,6 +150,7 @@ struct OverlayInteractionStatus: Equatable {
         self.matchIndex = max(0, matchIndex)
         self.focusedDisplayName = focusedDisplayName
         self.enterActionHint = enterActionHint
+        self.windowMatchPreviews = windowMatchPreviews
         self.message = message
         self.tone = tone
     }
@@ -163,6 +167,56 @@ struct OverlayInteractionStatus: Equatable {
     }
 }
 
+/// windows scope 매칭 후보를 overlay에 표시하기 위한 preview.
+///
+/// @author suho.do
+/// @since 2026-07-13
+struct OverlayWindowMatchPreview: Equatable, Identifiable {
+    let id: Int
+    let appName: String
+    let displayName: String
+    let ordinal: Int
+    let isFocused: Bool
+    let appIcon: NSImage?
+
+    init(
+        id: Int,
+        appName: String,
+        displayName: String,
+        ordinal: Int,
+        isFocused: Bool,
+        appIcon: NSImage? = nil
+    ) {
+        self.id = id
+        self.appName = appName
+        self.displayName = displayName
+        self.ordinal = max(1, ordinal)
+        self.isFocused = isFocused
+        self.appIcon = appIcon
+    }
+
+    static func == (lhs: OverlayWindowMatchPreview, rhs: OverlayWindowMatchPreview) -> Bool {
+        lhs.id == rhs.id
+            && lhs.appName == rhs.appName
+            && lhs.displayName == rhs.displayName
+            && lhs.ordinal == rhs.ordinal
+            && lhs.isFocused == rhs.isFocused
+    }
+
+    var hasAppIcon: Bool {
+        appIcon != nil
+    }
+
+    var detailText: String {
+        let prefix = "\(appName) — "
+        if displayName.hasPrefix(prefix) {
+            return String(displayName.dropFirst(prefix.count))
+        }
+
+        return displayName == appName ? "" : displayName
+    }
+}
+
 /// overlay 상태 바의 표시 문구와 배치 계산.
 ///
 /// @author suho.do
@@ -172,6 +226,7 @@ struct OverlayStatusPresentation: Equatable {
     static let horizontalInset: CGFloat = 8
     static let bottomMargin: CGFloat = 32
     static let minimumCenterPadding: CGFloat = 18
+    static let matchStripVerticalOffset: CGFloat = 54
 
     let primaryText: String
     let helperText: String
@@ -194,6 +249,12 @@ struct OverlayStatusPresentation: Equatable {
         let y = maxY < minY ? bounds.midY : min(max(preferredY, minY), maxY)
 
         return CGPoint(x: bounds.midX, y: y)
+    }
+
+    static func matchStripCenter(in bounds: CGRect) -> CGPoint {
+        let statusCenter = center(in: bounds)
+        let y = max(bounds.minY + minimumCenterPadding, statusCenter.y - matchStripVerticalOffset)
+        return CGPoint(x: statusCenter.x, y: y)
     }
 
     private static func primaryText(for status: OverlayInteractionStatus) -> String {

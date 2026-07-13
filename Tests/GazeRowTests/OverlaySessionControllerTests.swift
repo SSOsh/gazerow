@@ -438,6 +438,56 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.windowMatchIndex, 1)
         XCTAssertEqual(presenter.statusUpdates.last?.matchIndex, 2)
         XCTAssertEqual(presenter.statusUpdates.last?.focusedDisplayName, "Slack — Beta")
+        XCTAssertEqual(
+            presenter.statusUpdates.last?.windowMatchPreviews,
+            [
+                OverlayWindowMatchPreview(
+                    id: 0,
+                    appName: "Slack",
+                    displayName: "Slack — Alpha",
+                    ordinal: 1,
+                    isFocused: false
+                ),
+                OverlayWindowMatchPreview(
+                    id: 1,
+                    appName: "Slack",
+                    displayName: "Slack — Beta",
+                    ordinal: 2,
+                    isFocused: true
+                )
+            ]
+        )
+    }
+
+    func test_handleKeyboardCommand_windowsScope_매칭이_많으면_선택후보_주변_preview만_표시한다() {
+        // given
+        let entries = (0..<8).map { index in
+            makeWindowEntry(
+                id: index,
+                appName: "Slack",
+                bundleID: "com.tinyspeck.slackmacgap",
+                title: "Window \(index)"
+            )
+        }
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: entries) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+
+        // then
+        let previews = presenter.statusUpdates.last?.windowMatchPreviews ?? []
+        XCTAssertEqual(previews.map(\.ordinal), [3, 4, 5, 6, 7, 8])
+        XCTAssertEqual(previews.filter(\.isFocused).map(\.ordinal), [6])
     }
 
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {

@@ -28,6 +28,7 @@ struct OverlayView: View {
     var body: some View {
         let statusWidth = OverlayStatusPresentation.width(in: layout.localBounds)
         let statusCenter = OverlayStatusPresentation.center(in: layout.localBounds)
+        let matchStripCenter = OverlayStatusPresentation.matchStripCenter(in: layout.localBounds)
         let focusStyle = QueryFocusStyle(scope: status.activeScope)
         let labelOpacity = status.activeScope == .windows ? 0.25 : 1.0
 
@@ -66,9 +67,197 @@ struct OverlayView: View {
                     x: statusCenter.x,
                     y: statusCenter.y
                 )
+
+            if status.activeScope == .windows && !status.windowMatchPreviews.isEmpty {
+                WindowMatchStripView(previews: status.windowMatchPreviews)
+                    .frame(width: statusWidth, alignment: .leading)
+                    .position(
+                        x: matchStripCenter.x,
+                        y: matchStripCenter.y
+                    )
+            }
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
         .background(Color.clear)
+    }
+}
+
+private struct WindowMatchStripView: View {
+    let previews: [OverlayWindowMatchPreview]
+
+    var body: some View {
+        content
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(Color.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 6))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.white.opacity(0.68), lineWidth: 1)
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if usesIconStrip {
+            iconStrip
+        } else {
+            matchList
+        }
+    }
+
+    private var iconStrip: some View {
+        HStack(spacing: 8) {
+            ForEach(previews) { preview in
+                WindowMatchIconView(preview: preview)
+            }
+        }
+    }
+
+    private var matchList: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(previews.prefix(4)) { preview in
+                WindowMatchListRowView(preview: preview)
+            }
+        }
+    }
+
+    private var usesIconStrip: Bool {
+        previews.allSatisfy(\.hasAppIcon)
+    }
+}
+
+private struct WindowMatchIconView: View {
+    let preview: OverlayWindowMatchPreview
+
+    var body: some View {
+        VStack(spacing: 3) {
+            ZStack(alignment: .topTrailing) {
+                icon
+                    .frame(width: 24, height: 24)
+                    .padding(3)
+                    .background(
+                        preview.isFocused ? Color.white.opacity(0.25) : Color.white.opacity(0.10),
+                        in: RoundedRectangle(cornerRadius: 5)
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(
+                                preview.isFocused ? Color.white.opacity(0.95) : Color.white.opacity(0.36),
+                                lineWidth: preview.isFocused ? 2 : 1
+                            )
+                    }
+
+                Text("\(preview.ordinal)")
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.black.opacity(0.78))
+                    .frame(minWidth: 12, minHeight: 12)
+                    .background(Color.white.opacity(0.92), in: Circle())
+                    .offset(x: 4, y: -4)
+            }
+
+            Text(preview.appName)
+                .font(.system(size: 9, weight: preview.isFocused ? .bold : .medium, design: .rounded))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(width: 38)
+                .foregroundStyle(Color.white.opacity(preview.isFocused ? 1 : 0.76))
+        }
+        .help(preview.displayName)
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        if let appIcon = preview.appIcon {
+            Image(nsImage: appIcon)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Text(initials)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(red: 0.30, green: 0.43, blue: 0.96), in: RoundedRectangle(cornerRadius: 4))
+        }
+    }
+
+    private var initials: String {
+        let words = preview.appName
+            .split(separator: " ")
+            .prefix(2)
+            .compactMap(\.first)
+        let value = String(words).uppercased()
+        return value.isEmpty ? "?" : value
+    }
+}
+
+private struct WindowMatchListRowView: View {
+    let preview: OverlayWindowMatchPreview
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Text("\(preview.ordinal)")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.black.opacity(0.82))
+                .frame(width: 15, height: 15)
+                .background(Color.white.opacity(preview.isFocused ? 0.96 : 0.78), in: Circle())
+
+            icon
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(preview.appName)
+                    .font(.system(size: 10, weight: preview.isFocused ? .bold : .semibold, design: .rounded))
+                    .lineLimit(1)
+
+                if !preview.detailText.isEmpty {
+                    Text(preview.detailText)
+                        .font(.system(size: 9, weight: .regular, design: .rounded))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .foregroundStyle(Color.white.opacity(0.72))
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .foregroundStyle(Color.white.opacity(preview.isFocused ? 1 : 0.82))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(
+            preview.isFocused ? Color.white.opacity(0.18) : Color.white.opacity(0.06),
+            in: RoundedRectangle(cornerRadius: 5)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(
+                    preview.isFocused ? Color.white.opacity(0.88) : Color.white.opacity(0.22),
+                    lineWidth: preview.isFocused ? 1.5 : 1
+                )
+        }
+        .help(preview.displayName)
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        if let appIcon = preview.appIcon {
+            Image(nsImage: appIcon)
+                .resizable()
+                .scaledToFit()
+        } else {
+            Text(initials)
+                .font(.system(size: 8, weight: .bold, design: .rounded))
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(red: 0.30, green: 0.43, blue: 0.96), in: RoundedRectangle(cornerRadius: 4))
+        }
+    }
+
+    private var initials: String {
+        let words = preview.appName
+            .split(separator: " ")
+            .prefix(2)
+            .compactMap(\.first)
+        let value = String(words).uppercased()
+        return value.isEmpty ? "?" : value
     }
 }
 
