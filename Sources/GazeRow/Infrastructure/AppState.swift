@@ -10,7 +10,7 @@ import Foundation
 enum AppState {
 
     /// 앱 표시 이름.
-    static let appName = "GazeRow"
+    static let appName = "keyCursor"
 
     /// Bundle identifier. 외부 배포 전 변경 가능.
     static let bundleIdentifier = "dev.local.gazerow"
@@ -26,9 +26,9 @@ enum AppState {
 
     /// Settings에 노출하는 개인정보/데이터 접근 안내 문구.
     static let privacyNotice = """
-    GazeRow is a local macOS keyboard-click utility.
+    keyCursor is a local macOS keyboard-click utility.
     Camera gaze focus is experimental and only runs after explicit opt-in.
-    GazeRow does not use screen recording or external telemetry.
+    keyCursor does not use screen recording or external telemetry.
     """
 
     /// Camera gaze focus 권한/데이터 처리 안내 문구.
@@ -41,7 +41,7 @@ enum AppState {
     ///
     /// PR-006에 따라 데이터 접근 범위를 기능 가치보다 먼저 설명한다.
     static let accessibilityRationale = """
-    GazeRow reads the accessibility tree of the frontmost app to find \
+    keyCursor reads the accessibility tree of the frontmost app to find \
     clickable elements and to click them on your behalf. Without Accessibility \
     permission, overlay activation is unavailable.
     """
@@ -73,16 +73,16 @@ enum AppState {
                 mvpMode: "기본 모드 + 실험 기능 선택 사용",
                 gazeStatus: "기본 꺼짐 / 실험 기능 선택 사용",
                 privacyNotice: """
-                GazeRow는 로컬 macOS 키보드 클릭 유틸리티입니다.
+                keyCursor는 로컬 macOS 키보드 클릭 유틸리티입니다.
                 카메라 gaze focus는 실험 기능이며 명시적으로 켠 뒤에만 동작합니다.
-                GazeRow는 화면 녹화나 외부 텔레메트리를 사용하지 않습니다.
+                keyCursor는 화면 녹화나 외부 텔레메트리를 사용하지 않습니다.
                 """,
                 cameraRationale: """
                 Camera gaze focus는 로컬 웹캠 프레임으로 눈 landmark를 추정해 focus 이동에만 사용합니다.
                 프레임과 원본 얼굴/눈 데이터는 저장하지 않으며, 클릭은 계속 키보드 확인이 필요합니다.
                 """,
                 accessibilityRationale: """
-                GazeRow는 맨 앞 앱의 접근성 트리를 읽어 클릭 가능한 요소를 찾고, 사용자의 명시 입력 후 해당 요소를 클릭합니다.
+                keyCursor는 맨 앞 앱의 접근성 트리를 읽어 클릭 가능한 요소를 찾고, 사용자의 명시 입력 후 해당 요소를 클릭합니다.
                 Accessibility 권한이 없으면 overlay 활성화를 사용할 수 없습니다.
                 """
             )

@@ -11,7 +11,7 @@ final class AppIconConfigurationTests: XCTestCase {
         // then
         XCTAssertEqual(AppIconConfiguration.appIconFileName, "AppIcon.icns")
         XCTAssertEqual(AppIconConfiguration.bundleIconName, "AppIcon")
-        XCTAssertEqual(AppIconConfiguration.accessibilityDescription, "GazeRow")
+        XCTAssertEqual(AppIconConfiguration.accessibilityDescription, "keyCursor")
     }
 
     @MainActor
@@ -22,7 +22,7 @@ final class AppIconConfigurationTests: XCTestCase {
         // then
         XCTAssertEqual(icon.size, StatusItemIconFactory.iconSize)
         XCTAssertTrue(icon.isTemplate)
-        XCTAssertEqual(icon.accessibilityDescription, "GazeRow")
+        XCTAssertEqual(icon.accessibilityDescription, "keyCursor")
         XCTAssertNotNil(icon.tiffRepresentation)
     }
 

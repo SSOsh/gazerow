@@ -7,6 +7,10 @@ import XCTest
 /// @since 2026-07-02
 final class AppContentTests: XCTestCase {
 
+    func test_사용자표시이름은_keyCursor다() {
+        XCTAssertEqual(AppState.appName, "keyCursor")
+    }
+
     func test_appSupport_Ticket010통과앱을_supported로_표시한다() {
         // given
         let supportByName = Dictionary(
@@ -44,7 +48,9 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(joined.contains("label"))
         XCTAssertTrue(joined.contains("Return"))
         XCTAssertTrue(joined.contains("Esc"))
-        XCTAssertTrue(joined.contains("physical key"))
+        XCTAssertTrue(joined.contains("Keyboard layout is handled automatically"))
+        XCTAssertTrue(joined.contains("/ to search elements"))
+        XCTAssertTrue(joined.contains("; to switch windows"))
     }
 
     func test_windowControlShortcutsNotice_frontmost창과_권한조건을_안내한다() {
@@ -61,8 +67,8 @@ final class AppContentTests: XCTestCase {
         let message = AppContent.supportDonationMessage
 
         // when & then
-        XCTAssertEqual(AppContent.supportDonationMenuTitle, "Support GazeRow")
-        XCTAssertEqual(AppContent.supportDonationTitle, "Support GazeRow")
+        XCTAssertEqual(AppContent.supportDonationMenuTitle, "Support keyCursor")
+        XCTAssertEqual(AppContent.supportDonationTitle, "Support keyCursor")
         XCTAssertTrue(message.contains("커피값 후원"))
         XCTAssertTrue(message.contains("계좌번호는 추후 추가 예정"))
     }
@@ -74,7 +80,7 @@ final class AppContentTests: XCTestCase {
         // when & then
         XCTAssertEqual(content.languageLabel, "Language")
         XCTAssertEqual(content.permissionsTitle, "Permissions")
-        XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("physical key"))
+        XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("Keyboard layout is handled automatically"))
     }
 
     func test_localized_korean은_한국어설정콘텐츠를_제공한다() {
@@ -85,8 +91,23 @@ final class AppContentTests: XCTestCase {
         // when & then
         XCTAssertEqual(content.languageLabel, "언어")
         XCTAssertEqual(content.permissionsTitle, "권한")
-        XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("한글 키보드"))
+        XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("자동으로 처리"))
+        XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains(";를 누르면 창을 전환"))
         XCTAssertTrue(appText.privacyNotice.contains("화면 녹화"))
+    }
+
+    func test_tutorialContent는_한영모두동일한키정책을제공한다() {
+        // given
+        let english = AppContent.localized(for: .english)
+        let korean = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertTrue(english.tutorialDescription(for: .modePractice).contains("/"))
+        XCTAssertTrue(english.tutorialDescription(for: .modePractice).contains(";"))
+        XCTAssertTrue(korean.tutorialDescription(for: .modePractice).contains("/"))
+        XCTAssertTrue(korean.tutorialDescription(for: .modePractice).contains(";"))
+        XCTAssertEqual(english.replayTutorialButton, "Replay tutorial")
+        XCTAssertEqual(korean.replayTutorialButton, "튜토리얼 다시 보기")
     }
 
     func test_queryOverlayContent는_한영_scope와_hint를_제공한다() {

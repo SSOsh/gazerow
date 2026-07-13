@@ -289,11 +289,7 @@ final class OverlaySessionController {
             clickResultObserver(result)
             activeSession = session
             overlayPresenter.updateStatus(
-                OverlayInteractionStatus(
-                    typedLabelBuffer: session.focusEngine.labelBuffer,
-                    message: result.statusMessage,
-                    tone: .failure
-                )
+                status(for: session, resolution: nil, message: result.statusMessage, tone: .failure)
             )
             return
         }
@@ -310,7 +306,6 @@ final class OverlaySessionController {
         AppLogger.interaction.info(
             "confirm click executed index=\(focusedItemID, privacy: .public) result=\(String(describing: result), privacy: .public)"
         )
-        let focusedLabel = labelText(for: focusedItemID, in: session)
         lastClickResult = result
         clickResultObserver(result)
         recordClick(result: result, context: session.snapshot.context)
@@ -318,10 +313,12 @@ final class OverlaySessionController {
         switch result {
         case .success:
             overlayPresenter.updateStatus(
-                OverlayInteractionStatus(
-                    focusedLabel: focusedLabel,
+                status(
+                    for: session,
+                    resolution: nil,
                     message: "Clicked",
-                    tone: .success
+                    tone: .success,
+                    phase: .success
                 )
             )
             // 클릭 성공은 target UI를 바꿀 수 있어 다음 activation에서 stale
@@ -336,23 +333,20 @@ final class OverlaySessionController {
             )
             activeSession = session
             overlayPresenter.updateStatus(
-                OverlayInteractionStatus(
-                    focusedLabel: focusedLabel,
-                    typedLabelBuffer: session.focusEngine.labelBuffer,
+                status(
+                    for: session,
+                    resolution: nil,
                     message: OverlayClickFailureGuidance(riskClass: riskClass).message,
-                    tone: .warning
+                    tone: .warning,
+                    phase: .awaitingRiskConfirmation,
+                    requiresSecondConfirm: true
                 )
             )
         case .failure:
             session.pendingSecondConfirm = nil
             activeSession = session
             overlayPresenter.updateStatus(
-                OverlayInteractionStatus(
-                    focusedLabel: focusedLabel,
-                    typedLabelBuffer: session.focusEngine.labelBuffer,
-                    message: result.statusMessage,
-                    tone: .failure
-                )
+                status(for: session, resolution: nil, message: result.statusMessage, tone: .failure)
             )
         }
     }
@@ -617,7 +611,9 @@ final class OverlaySessionController {
         for session: OverlaySessionState,
         resolution: QueryResolution?,
         message: String?,
-        tone: OverlayInteractionStatus.Tone
+        tone: OverlayInteractionStatus.Tone,
+        phase: OverlayInteractionPhase? = nil,
+        requiresSecondConfirm: Bool = false
     ) -> OverlayInteractionStatus {
         let activeScope = resolution?.scope ?? session.queryInput.pinnedScope ?? session.queryInput.lastScope
         let enterHint = activeScope == .windows
@@ -646,8 +642,44 @@ final class OverlaySessionController {
             enterActionHint: enterHint,
             windowMatchPreviews: windowMatchPreviews(for: session, activeScope: activeScope),
             message: message,
-            tone: tone
+            tone: tone,
+            phase: phase ?? interactionPhase(
+                for: session,
+                resolution: resolution,
+                tone: tone,
+                message: message
+            ),
+            requiresSecondConfirm: requiresSecondConfirm
         )
+    }
+
+    private func interactionPhase(
+        for session: OverlaySessionState,
+        resolution: QueryResolution?,
+        tone: OverlayInteractionStatus.Tone,
+        message: String?
+    ) -> OverlayInteractionPhase {
+        if tone == .failure {
+            return .failure
+        }
+
+        if let resolution {
+            guard !session.queryInput.buffer.isEmpty else {
+                return .idle
+            }
+
+            return resolution.matchCount > 0 ? .matching : .noMatches
+        }
+
+        if !session.focusEngine.labelBuffer.isEmpty {
+            return session.focusEngine.focusedItemID == nil ? .typing : .matching
+        }
+
+        if message == "Focused" {
+            return .matching
+        }
+
+        return .idle
     }
 
     private func windowMatchPreviews(

@@ -583,6 +583,11 @@ struct SettingsView: View {
                 }
                 .font(.caption)
             }
+
+            Button(content.replayTutorialButton) {
+                onboarding.replayTutorial()
+            }
+            .controlSize(.small)
         }
     }
 

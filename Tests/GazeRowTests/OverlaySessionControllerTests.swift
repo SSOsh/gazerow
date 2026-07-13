@@ -167,7 +167,12 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "S", message: "Focused", tone: .success)
+            OverlayInteractionStatus(
+                focusedLabel: "S",
+                message: "Focused",
+                tone: .success,
+                phase: .matching
+            )
         )
     }
 
@@ -183,7 +188,12 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(event, .labelJump(typedLabel: "J", matched: false, to: nil))
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "A", message: "No label J", tone: .failure)
+            OverlayInteractionStatus(
+                focusedLabel: "A",
+                message: "No label J",
+                tone: .failure,
+                phase: .failure
+            )
         )
     }
 
@@ -237,9 +247,25 @@ final class OverlaySessionControllerTests: XCTestCase {
                 matchIndex: 1,
                 focusedDisplayName: "Delete",
                 enterActionHint: AppContent.localized(for: .english).enterActionClick,
-                tone: .neutral
+                tone: .neutral,
+                phase: .matching
             )
         )
+    }
+
+    func test_handleKeyboardCommand_query결과가없으면_noMatches상태를표시한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            searchableNodeCollector: StubSearchableNodeCollector(index: ElementSearchIndex(nodes: []))
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("missing"))
+
+        // then
+        XCTAssertEqual(presenter.statusUpdates.last?.phase, .noMatches)
     }
 
     func test_handleKeyboardCommand_deleteQueryCharacter는_queryBuffer_마지막글자를_삭제한다() {
@@ -499,7 +525,8 @@ final class OverlaySessionControllerTests: XCTestCase {
             presenter.statusUpdates.last,
             OverlayInteractionStatus(
                 message: "Click failed: no focused target. Type a label or press Tab first.",
-                tone: .failure
+                tone: .failure,
+                phase: .failure
             )
         )
         XCTAssertNotNil(sut.activeSession)
@@ -629,7 +656,12 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.focusUpdates, [0, 1, 1])
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "S", message: "Clicked", tone: .success)
+            OverlayInteractionStatus(
+                focusedLabel: "S",
+                message: "Clicked",
+                tone: .success,
+                phase: .success
+            )
         )
         XCTAssertNil(sut.activeSession)
     }
@@ -725,7 +757,8 @@ final class OverlaySessionControllerTests: XCTestCase {
             OverlayInteractionStatus(
                 focusedLabel: "A",
                 message: "Click failed: no supported action. Try another label.",
-                tone: .failure
+                tone: .failure,
+                phase: .failure
             )
         )
     }
@@ -794,6 +827,25 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
         XCTAssertEqual(sut.activeSession, nil)
         XCTAssertEqual(presenter.closeCallCount, 1)
+    }
+
+    func test_handleKeyboardCommand_위험click은_명시적인재확인상태를표시한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive)))
+        )
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(presenter.statusUpdates.last?.phase, .awaitingRiskConfirmation)
+        XCTAssertEqual(presenter.statusUpdates.last?.requiresSecondConfirm, true)
     }
 
     func test_handleKeyboardCommand_focus가_바뀌면_secondConfirm대기를_초기화() {

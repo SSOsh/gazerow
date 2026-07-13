@@ -123,6 +123,8 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertEqual(activateCallCount, 0)
         XCTAssertEqual(keyboardEventTap.startCallCount, 1)
         XCTAssertTrue(sut.isVisible)
+        XCTAssertTrue(sut.isTargetPanelVisible)
+        XCTAssertTrue(sut.isCommandBarPanelVisible)
 
         sut.close()
         XCTAssertEqual(keyboardEventTap.stopCallCount, 1)
@@ -201,6 +203,36 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_show는_target교차면적이큰화면의_visibleFrame에_commandPanel을배치한다() {
+        // given
+        let leftScreen = OverlayScreenDescriptor(
+            frame: CGRect(x: 0, y: 0, width: 1_000, height: 800),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1_000, height: 760),
+            scaleFactor: 2
+        )
+        let rightScreen = OverlayScreenDescriptor(
+            frame: CGRect(x: 1_000, y: 0, width: 1_000, height: 800),
+            visibleFrame: CGRect(x: 1_000, y: 40, width: 1_000, height: 760),
+            scaleFactor: 1
+        )
+        let sut = OverlayWindowController(
+            screenFrameProvider: { [leftScreen.frame, rightScreen.frame] },
+            screenDescriptorProvider: { [leftScreen, rightScreen] },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        let layout = makeLayout(targetFrame: CGRect(x: 850, y: 100, width: 500, height: 400))
+
+        // when
+        sut.show(layout: layout)
+
+        // then
+        XCTAssertEqual(sut.commandBarPanelFrame, CGRect(x: 1_160, y: 56, width: 680, height: 72))
+
+        sut.close()
+    }
+
     func test_OverlayKeyboardEventTapContext_매핑되지_않는_keyDown은_통과시킨다() {
         // given
         let sut = OverlayKeyboardEventTapContext { _ in }
@@ -263,9 +295,11 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertFalse(result)
     }
 
-    private func makeLayout() -> OverlayLayout {
+    private func makeLayout(
+        targetFrame: CGRect = CGRect(x: 0, y: 0, width: 200, height: 120)
+    ) -> OverlayLayout {
         OverlayLayout(
-            targetFrame: CGRect(x: 0, y: 0, width: 200, height: 120),
+            targetFrame: targetFrame,
             localBounds: CGRect(x: 0, y: 0, width: 200, height: 120),
             labels: [
                 OverlayLabel(

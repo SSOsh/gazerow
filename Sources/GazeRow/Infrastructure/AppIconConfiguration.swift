@@ -7,5 +7,5 @@ import Foundation
 enum AppIconConfiguration {
     static let appIconFileName = "AppIcon.icns"
     static let bundleIconName = "AppIcon"
-    static let accessibilityDescription = "GazeRow"
+    static let accessibilityDescription = AppState.appName
 }

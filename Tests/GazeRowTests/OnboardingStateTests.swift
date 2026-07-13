@@ -63,4 +63,64 @@ final class OnboardingStateTests: XCTestCase {
         XCTAssertTrue(second.hasCompleted)
         XCTAssertFalse(second.isPresenting)
     }
+
+    func test_replayTutorial_완료사용자도시트를열고진행상태를초기화한다() {
+        // given
+        let sut = OnboardingState(defaults: makeDefaults())
+        sut.complete()
+
+        // when
+        sut.replayTutorial()
+
+        // then
+        XCTAssertTrue(sut.hasCompleted)
+        XCTAssertTrue(sut.isPresenting)
+        XCTAssertTrue(sut.isReplayingTutorial)
+        XCTAssertEqual(sut.tutorialProgress.step, .introduction)
+    }
+
+    func test_completeTutorial_기존완료키와버전을함께저장한다() {
+        // given
+        let sut = OnboardingState(defaults: makeDefaults())
+        sut.presentIfNeeded()
+
+        // when
+        sut.completeTutorial()
+
+        // then
+        XCTAssertTrue(sut.hasCompleted)
+        XCTAssertEqual(sut.completedTutorialVersion, OnboardingState.currentTutorialVersion)
+        XCTAssertFalse(sut.isPresenting)
+    }
+
+    func test_startTutorial과입력은모의진행상태만갱신한다() {
+        // given
+        let sut = OnboardingState(defaults: makeDefaults())
+        sut.presentIfNeeded()
+
+        // when
+        sut.startTutorial()
+        sut.handleTutorialCommand(.typeLabel("F"))
+
+        // then
+        XCTAssertEqual(sut.tutorialProgress.step, .labelPractice)
+        XCTAssertEqual(sut.tutorialProgress.focusedDemoLabel, "F")
+    }
+
+    func test_replayTutorial을닫아도기존완료상태는유지한다() {
+        // given
+        let sut = OnboardingState(defaults: makeDefaults())
+        sut.complete()
+        sut.replayTutorial()
+
+        // when
+        sut.requestExitConfirmation()
+        sut.dismissTutorial()
+
+        // then
+        XCTAssertTrue(sut.hasCompleted)
+        XCTAssertFalse(sut.isPresenting)
+        XCTAssertFalse(sut.isExitConfirmationPresented)
+        XCTAssertFalse(sut.isReplayingTutorial)
+    }
 }

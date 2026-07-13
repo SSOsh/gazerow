@@ -8,12 +8,16 @@ import SwiftUI
 /// @since 2026-07-02
 @MainActor
 final class OverlayWindowController {
-    private var panel: OverlayPanel?
+    private var targetPanel: OverlayPanel?
+    private var commandBarPanel: OverlayPanel?
     private var currentLayout: OverlayLayout?
+    private var currentCommandBarVisibleFrame: CGRect?
     private var currentStatus = OverlayInteractionStatus()
     private let layoutEngine: OverlayLayoutEngine
+    private let commandBarLayoutEngine: OverlayCommandBarLayoutEngine
     private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
     private let screenFrameProvider: @MainActor () -> [CGRect]
+    private let screenDescriptorProvider: @MainActor () -> [OverlayScreenDescriptor]
     private let applicationActivator: @MainActor () -> Void
     private let keyboardEventTapFactory: @MainActor (
         @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
@@ -24,10 +28,12 @@ final class OverlayWindowController {
 
     init(
         layoutEngine: OverlayLayoutEngine = OverlayLayoutEngine(),
+        commandBarLayoutEngine: OverlayCommandBarLayoutEngine = OverlayCommandBarLayoutEngine(),
         displayInfoProvider: @escaping @MainActor (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo,
         screenFrameProvider: @escaping @MainActor () -> [CGRect] = {
             NSScreen.screens.map(\.frame)
         },
+        screenDescriptorProvider: @escaping @MainActor () -> [OverlayScreenDescriptor] = OverlayWindowController.defaultScreenDescriptors,
         applicationActivator: @escaping @MainActor () -> Void = {
             NSApp.activate(ignoringOtherApps: true)
         },
@@ -41,15 +47,29 @@ final class OverlayWindowController {
         }
     ) {
         self.layoutEngine = layoutEngine
+        self.commandBarLayoutEngine = commandBarLayoutEngine
         self.displayInfoProvider = displayInfoProvider
         self.screenFrameProvider = screenFrameProvider
+        self.screenDescriptorProvider = screenDescriptorProvider
         self.applicationActivator = applicationActivator
         self.keyboardEventTapFactory = keyboardEventTapFactory
         self.appearanceProvider = appearanceProvider
     }
 
     var isVisible: Bool {
-        panel?.isVisible == true
+        targetPanel?.isVisible == true && commandBarPanel?.isVisible == true
+    }
+
+    var isTargetPanelVisible: Bool {
+        targetPanel?.isVisible == true
+    }
+
+    var isCommandBarPanelVisible: Bool {
+        commandBarPanel?.isVisible == true
+    }
+
+    var commandBarPanelFrame: CGRect? {
+        commandBarPanel?.frame
     }
 
     /// 표시 중인 overlay panel이 앱 비활성 상태에서도 유지되는지 여부.
@@ -57,7 +77,7 @@ final class OverlayWindowController {
     /// LSUIElement 앱은 overlay 표시 시 자기 앱을 활성화하지 않으므로, panel이
     /// `hidesOnDeactivate`로 자동 숨김되면 화면에 나타나지 않는다.
     var persistsWhileAppInactive: Bool {
-        panel?.hidesOnDeactivate == false
+        targetPanel?.hidesOnDeactivate == false && commandBarPanel?.hidesOnDeactivate == false
     }
 
     func show(
@@ -88,39 +108,33 @@ final class OverlayWindowController {
         onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) {
         close()
-        let panelFrame = OverlayScreenFrameMapper(
-            screenFrames: screenFrameProvider()
-        ).appKitFrame(fromAXFrame: layout.targetFrame)
-
-        let panel = OverlayPanel(
-            contentRect: panelFrame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
+        let mapper = OverlayScreenFrameMapper(screenFrames: screenFrameProvider())
+        let targetPanelFrame = mapper.appKitFrame(fromAXFrame: layout.targetFrame)
+        let targetScreen = commandBarLayoutEngine.screen(
+            containing: targetPanelFrame,
+            in: screenDescriptorProvider()
         )
-        panel.onEscape = { [weak self] in
+        let commandLayout = commandBarLayout(for: currentStatus, visibleFrame: targetScreen.visibleFrame)
+        let targetPanel = makePanel(frame: targetPanelFrame)
+        let commandBarPanel = makePanel(frame: commandLayout.panelFrame)
+
+        targetPanel.onEscape = { [weak self] in
             self?.close()
             onEscape()
         }
-        panel.onKeyboardCommand = onKeyboardCommand
-        panel.level = .statusBar
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.hasShadow = false
-        panel.ignoresMouseEvents = true
-        // NSPanel은 hidesOnDeactivate 기본값이 true라 앱 비활성 시 자동 숨김된다.
-        // overlay는 앱을 활성화하지 않고(사용자 앱 포커스 유지) 표시해야 하므로 끈다.
-        panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        targetPanel.onKeyboardCommand = onKeyboardCommand
 
-        self.panel = panel
+        self.targetPanel = targetPanel
+        self.commandBarPanel = commandBarPanel
+        currentCommandBarVisibleFrame = targetScreen.visibleFrame
         currentLayout = layout
         currentStatus = OverlayInteractionStatus()
         render(layout: layout, status: currentStatus)
-        panel.orderFrontRegardless()
+        targetPanel.orderFrontRegardless()
+        commandBarPanel.orderFrontRegardless()
         prepareKeyboardCapture(
             onKeyboardCommand: onKeyboardCommand,
-            panel: panel
+            panel: targetPanel
         )
     }
 
@@ -135,9 +149,13 @@ final class OverlayWindowController {
                 matchCount: currentStatus.matchCount,
                 matchIndex: currentStatus.matchIndex,
                 focusedDisplayName: currentStatus.focusedDisplayName,
+                isGazeTargeting: currentStatus.isGazeTargeting,
                 enterActionHint: currentStatus.enterActionHint,
+                windowMatchPreviews: currentStatus.windowMatchPreviews,
                 message: currentStatus.message,
-                tone: currentStatus.tone
+                tone: currentStatus.tone,
+                phase: currentStatus.phase,
+                requiresSecondConfirm: currentStatus.requiresSecondConfirm
             )
         )
     }
@@ -154,9 +172,12 @@ final class OverlayWindowController {
     func close() {
         keyboardEventTap?.stop()
         keyboardEventTap = nil
-        panel?.orderOut(nil)
-        panel = nil
+        targetPanel?.orderOut(nil)
+        commandBarPanel?.orderOut(nil)
+        targetPanel = nil
+        commandBarPanel = nil
         currentLayout = nil
+        currentCommandBarVisibleFrame = nil
         currentStatus = OverlayInteractionStatus()
     }
 
@@ -185,12 +206,29 @@ final class OverlayWindowController {
     }
 
     private func render(layout: OverlayLayout, status: OverlayInteractionStatus) {
-        panel?.contentView = NSHostingView(
+        targetPanel?.contentView = NSHostingView(
             rootView: OverlayView(
                 layout: layout,
                 focusedLabelID: focusedLabelID(for: status.focusedLabel),
                 status: status,
                 appearance: appearanceProvider()
+            )
+        )
+
+        guard let commandBarPanel, let currentCommandBarVisibleFrame else {
+            return
+        }
+
+        let commandLayout = commandBarLayout(
+            for: status,
+            visibleFrame: currentCommandBarVisibleFrame
+        )
+        commandBarPanel.setFrame(commandLayout.panelFrame, display: false)
+        commandBarPanel.contentView = NSHostingView(
+            rootView: OverlayCommandBarPanelView(
+                layout: commandLayout,
+                status: status,
+                language: AppLanguageSettings().selectedLanguage
             )
         )
     }
@@ -212,16 +250,55 @@ final class OverlayWindowController {
     }
 
     static func defaultDisplayInfo(for targetFrame: CGRect) -> OverlayDisplayInfo {
-        let screens = NSScreen.screens
+        let screens = defaultScreenDescriptors()
         let mapper = OverlayScreenFrameMapper(screenFrames: screens.map(\.frame))
-        let screen = screens.first { screen in
-            mapper.axFrame(fromAppKitFrame: screen.frame).intersects(targetFrame)
-        } ?? NSScreen.main
+        let screen = OverlayCommandBarLayoutEngine().screen(
+            containing: mapper.appKitFrame(fromAXFrame: targetFrame),
+            in: screens
+        )
 
         return OverlayDisplayInfo(
-            scaleFactor: screen?.backingScaleFactor ?? 1,
-            visibleFrame: screen.map { mapper.axFrame(fromAppKitFrame: $0.visibleFrame) }
+            scaleFactor: screen.scaleFactor,
+            visibleFrame: mapper.axFrame(fromAppKitFrame: screen.visibleFrame)
         )
+    }
+
+    private func makePanel(frame: CGRect) -> OverlayPanel {
+        let panel = OverlayPanel(
+            contentRect: frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        panel.level = .statusBar
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        return panel
+    }
+
+    private func commandBarLayout(
+        for status: OverlayInteractionStatus,
+        visibleFrame: CGRect
+    ) -> OverlayCommandBarLayout {
+        commandBarLayoutEngine.makeLayout(
+            visibleFrame: visibleFrame,
+            showsWindowPreviews: !status.windowMatchPreviews.isEmpty,
+            showsMessage: status.phase == .awaitingRiskConfirmation || status.phase == .failure
+        )
+    }
+
+    private static func defaultScreenDescriptors() -> [OverlayScreenDescriptor] {
+        NSScreen.screens.map {
+            OverlayScreenDescriptor(
+                frame: $0.frame,
+                visibleFrame: $0.visibleFrame,
+                scaleFactor: $0.backingScaleFactor
+            )
+        }
     }
 
 }

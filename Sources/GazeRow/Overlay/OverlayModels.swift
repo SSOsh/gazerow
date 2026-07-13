@@ -113,6 +113,20 @@ struct OverlayLayoutMetrics: Equatable {
 ///
 /// @author suho.do
 /// @since 2026-07-03
+enum OverlayInteractionPhase: Equatable {
+    case idle
+    case typing
+    case matching
+    case noMatches
+    case awaitingRiskConfirmation
+    case success
+    case failure
+}
+
+/// overlay의 현재 입력/실행 상태.
+///
+/// @author suho.do
+/// @since 2026-07-13
 struct OverlayInteractionStatus: Equatable {
     let focusedLabel: String?
     let typedLabelBuffer: String
@@ -129,6 +143,8 @@ struct OverlayInteractionStatus: Equatable {
     let windowMatchPreviews: [OverlayWindowMatchPreview]
     let message: String?
     let tone: Tone
+    let phase: OverlayInteractionPhase
+    let requiresSecondConfirm: Bool
 
     init(
         focusedLabel: String? = nil,
@@ -143,7 +159,9 @@ struct OverlayInteractionStatus: Equatable {
         enterActionHint: String = "click",
         windowMatchPreviews: [OverlayWindowMatchPreview] = [],
         message: String? = nil,
-        tone: Tone = .neutral
+        tone: Tone = .neutral,
+        phase: OverlayInteractionPhase = .idle,
+        requiresSecondConfirm: Bool = false
     ) {
         self.focusedLabel = focusedLabel
         self.typedLabelBuffer = typedLabelBuffer
@@ -158,6 +176,8 @@ struct OverlayInteractionStatus: Equatable {
         self.windowMatchPreviews = windowMatchPreviews
         self.message = message
         self.tone = tone
+        self.phase = phase
+        self.requiresSecondConfirm = requiresSecondConfirm
     }
 
     var displayBuffer: String {
@@ -219,59 +239,6 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
         }
 
         return displayName == appName ? "" : displayName
-    }
-}
-
-/// overlay 상태 바의 표시 문구와 배치 계산.
-///
-/// @author suho.do
-/// @since 2026-07-10
-struct OverlayStatusPresentation: Equatable {
-    static let maxWidth: CGFloat = 300
-    static let horizontalInset: CGFloat = 8
-    static let bottomMargin: CGFloat = 32
-    static let minimumCenterPadding: CGFloat = 18
-    static let matchStripVerticalOffset: CGFloat = 54
-
-    let primaryText: String
-    let helperText: String
-    let focusedLabel: String?
-
-    init(status: OverlayInteractionStatus) {
-        self.primaryText = Self.primaryText(for: status)
-        self.helperText = "Return: click / Esc: close"
-        self.focusedLabel = status.focusedLabel
-    }
-
-    static func width(in bounds: CGRect) -> CGFloat {
-        max(0, min(bounds.width - horizontalInset * 2, maxWidth))
-    }
-
-    static func center(in bounds: CGRect) -> CGPoint {
-        let minY = bounds.minY + minimumCenterPadding
-        let maxY = bounds.maxY - minimumCenterPadding
-        let preferredY = bounds.maxY - bottomMargin
-        let y = maxY < minY ? bounds.midY : min(max(preferredY, minY), maxY)
-
-        return CGPoint(x: bounds.midX, y: y)
-    }
-
-    static func matchStripCenter(in bounds: CGRect) -> CGPoint {
-        let statusCenter = center(in: bounds)
-        let y = max(bounds.minY + minimumCenterPadding, statusCenter.y - matchStripVerticalOffset)
-        return CGPoint(x: statusCenter.x, y: y)
-    }
-
-    private static func primaryText(for status: OverlayInteractionStatus) -> String {
-        if let message = status.message {
-            return message
-        }
-
-        if !status.typedLabelBuffer.isEmpty {
-            return "Typing \(status.typedLabelBuffer)"
-        }
-
-        return "Ready"
     }
 }
 

@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         let quit = NSMenuItem(
-            title: "Quit GazeRow",
+            title: "Quit \(AppState.appName)",
             action: #selector(quit),
             keyEquivalent: "q"
         )
@@ -208,7 +208,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hostingController = NSHostingController(rootView: SettingsView())
         let window = NSWindow(contentViewController: hostingController)
 
-        window.title = "GazeRow Settings"
+        window.title = "\(AppState.appName) Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
         window.center()
@@ -735,7 +735,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.overlay.error("global hotkey registration guidance=\(message, privacy: .public)")
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "GazeRow shortcut registration failed"
+        alert.messageText = "\(AppState.appName) shortcut registration failed"
         alert.informativeText = message
         alert.addButton(withTitle: "OK")
         alert.runModal()
@@ -760,7 +760,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.
     private func sessionMenuTitle() -> String {
-        SessionController.shared.isEnabled ? "Disable GazeRow" : "Enable GazeRow"
+        SessionController.shared.isEnabled ? "Disable \(AppState.appName)" : "Enable \(AppState.appName)"
     }
 
     /// 앱을 종료한다.
