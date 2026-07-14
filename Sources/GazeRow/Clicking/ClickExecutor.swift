@@ -149,6 +149,10 @@ struct ClickExecutor<Client: ClickExecutionClient> {
     ) -> Result<ClickExecutionSuccess, ClickExecutionFailure> {
         switch client.performSetFocus(on: target.element) {
         case .success:
+            if shouldConfirmTextInputFocusWithCoordinateClick {
+                return executeCoordinateClick(target: target, riskClass: riskClass)
+            }
+
             return .success(
                 ClickExecutionSuccess(
                     method: .axFocus,
@@ -163,6 +167,11 @@ struct ClickExecutor<Client: ClickExecutionClient> {
 
             return executeCoordinateClick(target: target, riskClass: riskClass)
         }
+    }
+
+    private var shouldConfirmTextInputFocusWithCoordinateClick: Bool {
+        configuration.isCoordinateFallbackEnabled
+            && configuration.prefersCoordinateClickForAllTargets
     }
 
     private func executeCoordinateClick(
