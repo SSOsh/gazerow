@@ -236,6 +236,7 @@ final class OverlaySessionControllerTests: XCTestCase {
                 matchCount: 1,
                 matchIndex: 1,
                 focusedDisplayName: "Delete",
+                highlightFrame: candidate.frame,
                 enterActionHint: AppContent.localized(for: .english).enterActionClick,
                 tone: .neutral
             )
@@ -280,6 +281,37 @@ final class OverlaySessionControllerTests: XCTestCase {
         // then
         XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
         XCTAssertEqual(presenter.statusUpdates.last?.pinnedScope, .windows)
+    }
+
+    func test_scopeSelectionHandler는_selectScope_command로_session을_갱신한다() throws {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
+
+        // when
+        try XCTUnwrap(presenter.scopeSelectionHandler)(.windows)
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.pinnedScope, .windows)
+    }
+
+    func test_handleKeyboardCommand_selectScope_labels는_query와_pin을_초기화한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(presenter: presenter)
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.selectScope(.labels))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput, QueryInputState(lastScope: .labels))
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .labels)
+        XCTAssertNil(presenter.statusUpdates.last?.pinnedScope)
+        XCTAssertEqual(presenter.statusUpdates.last?.queryBuffer, "")
     }
 
     func test_handleKeyboardCommand_appendQuery는_promotion된_candidate로_focus를_동기화한다() {
@@ -419,6 +451,26 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
     }
 
+    func test_handleKeyboardCommand_windowsScope_match가_없으면_기존_label_focus를_비운다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: []) }
+        )
+        _ = sut.handleKeyboardCommand(.move(.next))
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("missing"))
+
+        // then
+        XCTAssertNil(sut.activeSession?.focusEngine.focusedItemID)
+        XCTAssertNil(presenter.statusUpdates.last?.focusedLabel)
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.matchCount, 0)
+    }
+
     func test_handleKeyboardCommand_windowsScope_cycleMatch는_windowMatchIndex를_순환한다() {
         // given
         let first = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Alpha")
@@ -533,6 +585,48 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.lastClickResult, clickExecutor.result)
         XCTAssertNil(sut.activeSession)
         XCTAssertEqual(presenter.closeCallCount, 1)
+    }
+
+    func test_handleKeyboardCommand_dryRunConfirm은_click동안_overlay_mouseInput을_끈다() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .success(
+                ClickExecutionSuccess(
+                    method: .coordinateFallback,
+                    riskClass: .safeNavigation,
+                    fallbackUsed: true
+                )
+            )
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(presenter.mouseInputUpdates, [false])
+    }
+
+    func test_handleKeyboardCommand_dryRunConfirm_실패시_overlay_mouseInput을_복구한다() {
+        // given
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.executionFailed(.axPressFailed(reason: "test")))
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(presenter.mouseInputUpdates, [false, true])
     }
 
     func test_handleKeyboardCommand_click성공은_attempt와_completed를_기록() {
@@ -935,6 +1029,27 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
     }
 
+    func test_focusNearestLabel_windows_scope에서는_gaze를_무시한다() {
+        // given: windows scope를 pin하면 공간 겨냥 대상이 없다(원인 4)
+        let presenter = StubOverlayPresenter()
+        let recorder = StubInteractionRecorder()
+        let sut = makeStartedSessionController(presenter: presenter, recorder: recorder)
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        let focusedItemIDBefore = sut.activeSession?.focusEngine.focusedItemID
+        let focusUpdatesBefore = presenter.focusUpdates.count
+        let eventsBefore = recorder.events.count
+
+        // when
+        let event = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then: gaze는 no-op — focus·기록을 바꾸지 않고 windows scope를 유지한다
+        XCTAssertNil(event)
+        XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, focusedItemIDBefore)
+        XCTAssertEqual(presenter.focusUpdates.count, focusUpdatesBefore)
+        XCTAssertEqual(recorder.events.count, eventsBefore)
+    }
+
     func test_handleKeyboardCommand_closeOverlay는_session을_정리() {
         // given
         let presenter = StubOverlayPresenter()
@@ -978,17 +1093,23 @@ final class OverlaySessionControllerTests: XCTestCase {
     }
 
     private func makeStartedSessionController(
-        presenter: StubOverlayPresenter = StubOverlayPresenter(),
-        recorder: StubInteractionRecorder = StubInteractionRecorder(),
-        clickExecutor: StubOverlayClickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+        presenter: StubOverlayPresenter? = nil,
+        recorder: StubInteractionRecorder? = nil,
+        clickExecutor: StubOverlayClickExecutor? = nil,
         candidates: [ClickableCandidate]? = nil,
         searchableNodeCollector: (any SearchableNodeCollecting)? = nil,
         windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
-        windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning)),
+        windowActivator: (any WindowActivating)? = nil,
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt(value: "default-test-salt")),
         dateProvider: @escaping () -> Date = Date.init,
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) -> OverlaySessionController {
+        let presenter = presenter ?? StubOverlayPresenter()
+        let recorder = recorder ?? StubInteractionRecorder()
+        let clickExecutor = clickExecutor ?? StubOverlayClickExecutor(
+            result: .failure(.missingFocusedTarget(index: 0))
+        )
+        let windowActivator = windowActivator ?? StubWindowActivator(result: .failure(.appNotRunning))
         let context = makeContext()
         let resolver = StubOverlayTargetResolver(result: .success(context))
         let scanner = StubOverlayScanner(
@@ -1034,11 +1155,13 @@ final class OverlaySessionControllerTests: XCTestCase {
     private func makeSessionController(
         scanner: StubOverlayScanner,
         clickExecutor: StubOverlayClickExecutor,
-        presenter: StubOverlayPresenter = StubOverlayPresenter(),
+        presenter: StubOverlayPresenter? = nil,
         windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
-        windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning))
+        windowActivator: (any WindowActivating)? = nil
     ) -> OverlaySessionController {
-        OverlaySessionController(
+        let presenter = presenter ?? StubOverlayPresenter()
+        let windowActivator = windowActivator ?? StubWindowActivator(result: .failure(.appNotRunning))
+        return OverlaySessionController(
             targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
             scanner: scanner,
             overlayPresenter: presenter,
@@ -1166,8 +1289,10 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
     private(set) var showRequests: [ShowRequest] = []
     private(set) var closeCallCount = 0
     private(set) var keyboardCommandHandler: ((FocusKeyboardCommand) -> Void)?
+    private(set) var scopeSelectionHandler: ((QueryScope) -> Void)?
     private(set) var focusUpdates: [Int?] = []
     private(set) var statusUpdates: [OverlayInteractionStatus] = []
+    private(set) var mouseInputUpdates: [Bool] = []
     private var lastLayout: OverlayLayout?
 
     init(forcedLayout: OverlayLayout? = nil) {
@@ -1179,7 +1304,8 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
         candidates: [ClickableCandidate],
         labels: [String],
         onEscape: @escaping () -> Void,
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void,
+        onScopeSelection: @MainActor @escaping (QueryScope) -> Void
     ) -> OverlayLayout {
         showRequests.append(
             ShowRequest(
@@ -1189,6 +1315,7 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
             )
         )
         keyboardCommandHandler = onKeyboardCommand
+        scopeSelectionHandler = onScopeSelection
 
         if let forcedLayout {
             lastLayout = forcedLayout
@@ -1215,6 +1342,10 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
     func updateStatus(_ status: OverlayInteractionStatus) {
         statusUpdates.append(status)
         focusUpdates.append(focusedLabelID(for: status.focusedLabel))
+    }
+
+    func setMouseInputEnabled(_ isEnabled: Bool) {
+        mouseInputUpdates.append(isEnabled)
     }
 
     private func focusedLabelID(for label: String?) -> Int? {

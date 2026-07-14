@@ -27,7 +27,7 @@ struct AXWindowControlButtonClient: WindowControlButtonPressing {
     /// frontmost 앱을 제공하는 클로저(테스트 주입 가능).
     private let frontmostApplication: () -> NSRunningApplication?
 
-    init(frontmostApplication: @escaping () -> NSRunningApplication? = {
+    nonisolated init(frontmostApplication: @escaping () -> NSRunningApplication? = {
         NSWorkspace.shared.frontmostApplication
     }) {
         self.frontmostApplication = frontmostApplication

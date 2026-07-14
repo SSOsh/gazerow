@@ -9,6 +9,10 @@ import Foundation
 /// @since 2026-07-02
 @MainActor
 final class OverlaySessionController {
+    /// gaze focus 흔들림 완화용 히스테리시스 margin(pt).
+    /// 새 후보가 현재 focus보다 이 값 이상 더 가까워야 focus를 옮긴다.
+    private static let gazeHysteresisMargin: CGFloat = 16
+
     private let targetResolver: any OverlaySessionTargetResolving
     private let scanner: any OverlaySessionScanning
     private let overlayPresenter: any OverlaySessionPresenting
@@ -20,8 +24,9 @@ final class OverlaySessionController {
     private let windowActivator: any WindowActivating
     private let windowTitleHasher: WindowTitleHasher
     private let dateProvider: () -> Date
-    private let isSessionEnabled: () -> Bool
+    private let isSessionEnabled: @MainActor () -> Bool
     private let clickResultObserver: @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void
+    private let content: AppContent.Localized
     private(set) var activeSession: OverlaySessionState?
     private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
 
@@ -39,8 +44,9 @@ final class OverlaySessionController {
         windowActivator: any WindowActivating = WindowActivator(),
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         dateProvider: @escaping () -> Date = Date.init,
-        isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled },
-        clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
+        isSessionEnabled: @escaping @MainActor () -> Bool = { SessionController.shared.isEnabled },
+        clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in },
+        content: AppContent.Localized = AppContent.localized(for: AppLanguageSettings().selectedLanguage)
     ) {
         self.targetResolver = targetResolver
         self.scanner = scanner
@@ -55,6 +61,7 @@ final class OverlaySessionController {
         self.dateProvider = dateProvider
         self.isSessionEnabled = isSessionEnabled
         self.clickResultObserver = clickResultObserver
+        self.content = content
     }
 
     func start() -> OverlaySessionStartResult {
@@ -91,16 +98,9 @@ final class OverlaySessionController {
             return .failure(.noCandidates(context: context, scanResult: scanResult))
         }
 
-        let layout = overlayPresenter.show(
+        let layout = presentOverlay(
             targetFrame: context.window.frame,
-            candidates: scanResult.candidates,
-            labels: [],
-            onEscape: { [weak self] in
-                self?.close()
-            },
-            onKeyboardCommand: { [weak self] command in
-                _ = self?.handleKeyboardCommand(command)
-            }
+            candidates: scanResult.candidates
         )
         let shownAt = dateProvider()
 
@@ -127,7 +127,7 @@ final class OverlaySessionController {
             "overlay start timing targetMs=\(Self.milliseconds(from: startedAt, to: targetResolvedAt), privacy: .public) scanMs=\(Self.milliseconds(from: targetResolvedAt, to: scannedAt), privacy: .public) showMs=\(Self.milliseconds(from: scannedAt, to: shownAt), privacy: .public) totalMs=\(Self.milliseconds(from: startedAt, to: shownAt), privacy: .public) nodes=\(scanResult.nodesVisited, privacy: .public) candidates=\(scanResult.candidateCount, privacy: .public) timeout=\(scanResult.didTimeout, privacy: .public)"
         )
         if let activeSession {
-            updateOverlayStatus(for: activeSession, message: "Ready", tone: .neutral)
+            updateOverlayStatus(for: activeSession, message: content.overlayReadyText, tone: .neutral)
         }
 
         return .success(snapshot)
@@ -159,9 +159,7 @@ final class OverlaySessionController {
             session.pendingSecondConfirm = nil
             appendQuery(grapheme, to: &session)
             session.queryInput.lastScope = session.queryInput.pinnedScope ?? .elements
-            let resolution = applyQueryResolution(to: &session)
-            activeSession = session
-            overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
+            resolveQueryAndPresent(&session)
             return nil
         case .deleteQueryCharacter:
             session.pendingSecondConfirm = nil
@@ -171,13 +169,11 @@ final class OverlaySessionController {
                 session.focusEngine.clearLabelBuffer()
             }
             if !session.queryInput.buffer.isEmpty {
-                let resolution = applyQueryResolution(to: &session)
-                activeSession = session
-                overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
+                resolveQueryAndPresent(&session)
                 return nil
             }
             event = nil
-            statusMessage = "Input cleared"
+            statusMessage = content.overlayInputClearedText
         case .clearQueryBuffer:
             session.pendingSecondConfirm = nil
             session.queryInput = QueryInputState(lastScope: session.queryInput.lastScope)
@@ -185,34 +181,40 @@ final class OverlaySessionController {
             session.elementMatches = []
             session.elementMatchIndex = 0
             event = nil
-            statusMessage = "Input cleared"
+            statusMessage = content.overlayInputClearedText
         case .clearLabelBuffer:
             session.pendingSecondConfirm = nil
             session.focusEngine.clearLabelBuffer()
             session.queryInput.buffer = ""
             session.queryInput.pinnedScope = nil
             event = nil
-            statusMessage = "Input cleared"
+            statusMessage = content.overlayInputClearedText
         case .pinScope(let scope):
             session.pendingSecondConfirm = nil
             session.queryInput.pinnedScope = scope
             session.queryInput.lastScope = scope
             refreshWindowIndexIfNeeded(session: &session)
             event = nil
-            statusMessage = "Pinned \(scope.rawValue)"
+            statusMessage = content.overlayPinnedText(scope)
+        case .selectScope(let scope):
+            session.pendingSecondConfirm = nil
+            selectScope(scope, session: &session)
+            if session.queryInput.buffer.isEmpty {
+                event = nil
+                statusMessage = scope == .labels ? content.overlayLabelsSelectedText : content.overlayPinnedText(scope)
+            } else {
+                resolveQueryAndPresent(&session)
+                return nil
+            }
         case .cycleMatch(let forward):
             session.pendingSecondConfirm = nil
             if shouldCycleQueryMatches(session, scope: .elements) {
                 cycleElementMatch(forward: forward, session: &session)
-                let resolution = applyQueryResolution(to: &session)
-                activeSession = session
-                overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
+                resolveQueryAndPresent(&session)
                 return nil
             } else if shouldCycleQueryMatches(session, scope: .windows) {
                 cycleWindowMatch(forward: forward, session: &session)
-                let resolution = applyQueryResolution(to: &session)
-                activeSession = session
-                overlayPresenter.updateStatus(status(for: session, resolution: resolution, message: nil, tone: .neutral))
+                resolveQueryAndPresent(&session)
                 return nil
             } else {
                 event = session.focusEngine.move(forward ? .next : .previous)
@@ -266,7 +268,17 @@ final class OverlaySessionController {
             return nil
         }
 
-        let event = session.focusEngine.focusNearest(to: gazePoint)
+        // gaze는 공간 겨냥 scope(labels·elements)에서만 focus를 옮긴다.
+        // windows처럼 공간 대상이 없는 scope에서는 gaze가 label focus를 가로채
+        // 상태바(windows)와 어긋나는 모달리티 불일치(원인 4)를 만들지 않도록 무시한다.
+        guard activeScope(for: session).isSpatial else {
+            return nil
+        }
+
+        let event = session.focusEngine.focusNearest(
+            to: gazePoint,
+            hysteresisMargin: Self.gazeHysteresisMargin
+        )
         activeSession = session
         updateOverlayStatus(for: session, message: focusedMessage(for: session), tone: .neutral)
         record(event, context: session.snapshot.context)
@@ -288,7 +300,7 @@ final class OverlaySessionController {
             overlayPresenter.updateStatus(
                 OverlayInteractionStatus(
                     typedLabelBuffer: session.focusEngine.labelBuffer,
-                    message: result.statusText,
+                    message: content.clickResultText(result),
                     tone: .failure
                 )
             )
@@ -296,6 +308,7 @@ final class OverlaySessionController {
         }
 
         let isSecondConfirmProvided = session.pendingSecondConfirm?.focusedItemID == focusedItemID
+        overlayPresenter.setMouseInputEnabled(false)
         let result = clickExecutor.execute(
             focusedIndex: focusedItemID,
             context: session.snapshot.context,
@@ -314,7 +327,7 @@ final class OverlaySessionController {
             overlayPresenter.updateStatus(
                 OverlayInteractionStatus(
                     focusedLabel: focusedLabel,
-                    message: "Clicked",
+                    message: content.overlayClickedText,
                     tone: .success
                 )
             )
@@ -323,6 +336,7 @@ final class OverlaySessionController {
             scanner.invalidate()
             close()
         case .failure(.executionFailed(.secondConfirmRequired(let riskClass))):
+            overlayPresenter.setMouseInputEnabled(true)
             session.pendingSecondConfirm = PendingSecondConfirm(
                 focusedItemID: focusedItemID,
                 riskClass: riskClass
@@ -332,18 +346,19 @@ final class OverlaySessionController {
                 OverlayInteractionStatus(
                     focusedLabel: focusedLabel,
                     typedLabelBuffer: session.focusEngine.labelBuffer,
-                    message: "Press Return again for \(riskClass.statusText)",
+                    message: content.overlaySecondConfirmText(riskClass),
                     tone: .warning
                 )
             )
         case .failure:
+            overlayPresenter.setMouseInputEnabled(true)
             session.pendingSecondConfirm = nil
             activeSession = session
             overlayPresenter.updateStatus(
                 OverlayInteractionStatus(
                     focusedLabel: focusedLabel,
                     typedLabelBuffer: session.focusEngine.labelBuffer,
-                    message: result.statusText,
+                    message: content.clickResultText(result),
                     tone: .failure
                 )
             )
@@ -353,6 +368,30 @@ final class OverlaySessionController {
     func close() {
         overlayPresenter.close()
         activeSession = nil
+    }
+
+    /// overlay 표시 요청을 공통 콜백과 함께 실행한다.
+    ///
+    /// start/rescan 경로가 동일한 escape/keyboard/scope 콜백을 공유하도록 한곳에서 구성한다.
+    @discardableResult
+    private func presentOverlay(
+        targetFrame: CGRect,
+        candidates: [ClickableCandidate]
+    ) -> OverlayLayout {
+        overlayPresenter.show(
+            targetFrame: targetFrame,
+            candidates: candidates,
+            labels: [],
+            onEscape: { [weak self] in
+                self?.close()
+            },
+            onKeyboardCommand: { [weak self] command in
+                _ = self?.handleKeyboardCommand(command)
+            },
+            onScopeSelection: { [weak self] scope in
+                _ = self?.handleKeyboardCommand(.selectScope(scope))
+            }
+        )
     }
 
     private func record(_ event: FocusEngineEvent?, context: TargetContext) {
@@ -450,6 +489,17 @@ final class OverlaySessionController {
         }
     }
 
+    /// query buffer 재해석 결과를 세션에 반영하고 overlay 상태를 즉시 갱신한다.
+    ///
+    /// appendQuery/delete/selectScope/cycleMatch 경로가 공유하던 동일 패턴을 한곳으로 모은다.
+    private func resolveQueryAndPresent(_ session: inout OverlaySessionState) {
+        let resolution = applyQueryResolution(to: &session)
+        activeSession = session
+        overlayPresenter.updateStatus(
+            status(for: session, resolution: resolution, message: nil, tone: .neutral)
+        )
+    }
+
     @discardableResult
     private func applyQueryResolution(to session: inout OverlaySessionState) -> QueryResolution {
         session.elementMatches = session.elementIndex.search(session.queryInput.buffer)
@@ -477,7 +527,7 @@ final class OverlaySessionController {
         session.queryInput.lastScope = resolution.scope
         if let focusTargetCandidateIndex = resolution.focusTargetCandidateIndex {
             _ = session.focusEngine.focusItem(id: focusTargetCandidateIndex)
-        } else if resolution.scope == .elements {
+        } else if resolution.scope == .elements || resolution.scope == .windows {
             _ = session.focusEngine.focusItem(id: -1)
         }
         return resolution
@@ -520,24 +570,40 @@ final class OverlaySessionController {
         }
     }
 
+    private func selectScope(_ scope: QueryScope, session: inout OverlaySessionState) {
+        switch scope {
+        case .labels:
+            session.queryInput = QueryInputState(lastScope: .labels)
+            session.elementMatches = []
+            session.elementMatchIndex = 0
+            session.windowMatches = []
+            session.windowMatchIndex = 0
+            session.focusEngine.clearLabelBuffer()
+        case .elements, .windows:
+            session.queryInput.pinnedScope = scope
+            session.queryInput.lastScope = scope
+            refreshWindowIndexIfNeeded(session: &session)
+        }
+    }
+
     private func activateFocusedWindow(session: inout OverlaySessionState) {
         let resolution = applyQueryResolution(to: &session)
         guard let entryID = resolution.windowEntryID,
               let entry = session.windowIndex.entry(id: entryID) else {
             activeSession = session
             overlayPresenter.updateStatus(
-                status(for: session, resolution: resolution, message: "Window not found", tone: .failure)
+                status(for: session, resolution: resolution, message: content.overlayWindowNotFoundText, tone: .failure)
             )
             return
         }
 
         switch windowActivator.activate(entry) {
         case .success:
-            rescanFrontmost(message: "\(entry.appName) activated")
+            rescanFrontmost(message: content.overlayWindowActivatedText(appName: entry.appName))
         case .failure:
             activeSession = session
             overlayPresenter.updateStatus(
-                status(for: session, resolution: resolution, message: "Window activation failed", tone: .failure)
+                status(for: session, resolution: resolution, message: content.overlayWindowActivationFailedText, tone: .failure)
             )
         }
     }
@@ -550,7 +616,7 @@ final class OverlaySessionController {
         case .success(let resolvedContext):
             context = resolvedContext
         case .failure:
-            overlayPresenter.updateStatus(OverlayInteractionStatus(message: "Rescan failed", tone: .failure))
+            overlayPresenter.updateStatus(OverlayInteractionStatus(message: content.overlayRescanFailedText, tone: .failure))
             return
         }
 
@@ -559,20 +625,13 @@ final class OverlaySessionController {
         case .success(let result):
             scanResult = result
         case .failure:
-            overlayPresenter.updateStatus(OverlayInteractionStatus(message: "Rescan failed", tone: .failure))
+            overlayPresenter.updateStatus(OverlayInteractionStatus(message: content.overlayRescanFailedText, tone: .failure))
             return
         }
 
-        let layout = overlayPresenter.show(
+        let layout = presentOverlay(
             targetFrame: context.window.frame,
-            candidates: scanResult.candidates,
-            labels: [],
-            onEscape: { [weak self] in
-                self?.close()
-            },
-            onKeyboardCommand: { [weak self] command in
-                _ = self?.handleKeyboardCommand(command)
-            }
+            candidates: scanResult.candidates
         )
         let snapshot = OverlaySessionSnapshot(context: context, scanResult: scanResult, layout: layout)
         let session = OverlaySessionState(
@@ -592,10 +651,10 @@ final class OverlaySessionController {
         message: String?,
         tone: OverlayInteractionStatus.Tone
     ) -> OverlayInteractionStatus {
-        let activeScope = resolution?.scope ?? session.queryInput.pinnedScope ?? session.queryInput.lastScope
+        let activeScope = resolution?.scope ?? activeScope(for: session)
         let enterHint = activeScope == .windows
-            ? AppContent.localized(for: .english).enterActionSwitchWindow
-            : AppContent.localized(for: .english).enterActionClick
+            ? content.enterActionSwitchWindow
+            : content.enterActionClick
 
         return OverlayInteractionStatus(
             focusedLabel: labelText(for: session.focusEngine.focusedItemID, in: session),
@@ -606,10 +665,17 @@ final class OverlaySessionController {
             matchCount: resolution?.matchCount ?? 0,
             matchIndex: resolution.map { $0.matchIndex + 1 } ?? 0,
             focusedDisplayName: resolution?.focusedDisplayName,
+            highlightFrame: resolution?.highlightFrame,
             enterActionHint: enterHint,
             message: message,
             tone: tone
         )
+    }
+
+    /// 새 resolution이 없을 때(예: gaze)의 현재 활성 scope.
+    /// pin이 있으면 pin을, 없으면 마지막으로 해석된 scope를 쓴다.
+    private func activeScope(for session: OverlaySessionState) -> QueryScope {
+        session.queryInput.pinnedScope ?? session.queryInput.lastScope
     }
 
     private func focusedMessage(for session: OverlaySessionState) -> String? {
@@ -617,7 +683,7 @@ final class OverlaySessionController {
             return nil
         }
 
-        return "Focused"
+        return content.overlayFocusedText
     }
 
     private func feedback(
@@ -627,15 +693,15 @@ final class OverlaySessionController {
     ) -> (message: String?, tone: OverlayInteractionStatus.Tone) {
         if typingResult.isExactMatch,
            labelText(for: typingResult.matchedItemID, in: session) != nil {
-            return ("Focused", .success)
+            return (content.overlayFocusedText, .success)
         }
 
         if !typingResult.buffer.isEmpty {
-            return ("Typing \(typingResult.buffer)", .neutral)
+            return (content.overlayTypingText(typingResult.buffer), .neutral)
         }
 
         let typedLabel = String(typedCharacter).uppercased()
-        return ("No label \(typedLabel)", .failure)
+        return (content.overlayNoLabelText(typedLabel), .failure)
     }
 
     private func labelText(for focusedItemID: Int?, in session: OverlaySessionState) -> String? {
@@ -719,7 +785,8 @@ protocol OverlaySessionPresenting {
         candidates: [ClickableCandidate],
         labels: [String],
         onEscape: @escaping () -> Void,
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void,
+        onScopeSelection: @MainActor @escaping (QueryScope) -> Void
     ) -> OverlayLayout
 
     func close()
@@ -727,6 +794,8 @@ protocol OverlaySessionPresenting {
     func updateFocus(focusedLabelID: Int?)
 
     func updateStatus(_ status: OverlayInteractionStatus)
+
+    func setMouseInputEnabled(_ isEnabled: Bool)
 }
 
 extension OverlayWindowController: OverlaySessionPresenting {}
@@ -860,21 +929,6 @@ private extension ClickRiskClass {
             "unknownRisk"
         }
     }
-
-    var statusText: String {
-        switch self {
-        case .safeNavigation:
-            "safe action"
-        case .stateChange:
-            "state change"
-        case .destructive:
-            "destructive action"
-        case .externalEffect:
-            "external action"
-        case .unknownRisk:
-            "unknown action"
-        }
-    }
 }
 
 private extension Result {
@@ -883,47 +937,6 @@ private extension Result {
             return true
         }
         return false
-    }
-}
-
-private extension Result where Success == ClickExecutionSuccess, Failure == OverlaySessionClickFailure {
-    var statusText: String {
-        switch self {
-        case .success:
-            "Click succeeded"
-        case .failure(let failure):
-            failure.statusText
-        }
-    }
-}
-
-private extension OverlaySessionClickFailure {
-    var statusText: String {
-        switch self {
-        case .scanFailed:
-            "Click failed: target changed"
-        case .missingFocusedTarget:
-            "Click failed: no focused target"
-        case .executionFailed(let failure):
-            failure.statusText
-        }
-    }
-}
-
-private extension ClickExecutionFailure {
-    var statusText: String {
-        switch self {
-        case .missingPressAction:
-            "Click failed: no supported action"
-        case .secondConfirmRequired(let riskClass):
-            "Press Return again for \(riskClass.statusText)"
-        case .axPressFailed:
-            "Click failed: accessibility action failed"
-        case .coordinateFallbackDisabled:
-            "Click failed: coordinate fallback is off"
-        case .coordinateFallbackFailed:
-            "Click failed: coordinate fallback failed"
-        }
     }
 }
 

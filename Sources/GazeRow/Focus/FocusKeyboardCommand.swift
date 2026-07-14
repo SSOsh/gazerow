@@ -10,6 +10,7 @@ enum FocusKeyboardCommand: Equatable {
     case clearQueryBuffer
     case clearLabelBuffer
     case pinScope(QueryScope)
+    case selectScope(QueryScope)
     case cycleMatch(forward: Bool)
     case dryRunConfirm
     case closeOverlay

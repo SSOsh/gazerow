@@ -34,7 +34,7 @@ struct WindowActivator: WindowActivating {
     private let maxPollDuration: TimeInterval
     private let pollInterval: TimeInterval
 
-    init(
+    nonisolated init(
         runningApplicationProvider: @escaping (pid_t) -> NSRunningApplication? = {
             NSRunningApplication(processIdentifier: $0)
         },

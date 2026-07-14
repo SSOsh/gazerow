@@ -10,26 +10,32 @@ struct OverlayView: View {
     let focusedLabelID: Int?
     let status: OverlayInteractionStatus
     let appearance: OverlayAppearance
+    let content: AppContent.Localized
+    let onScopeSelection: (QueryScope) -> Void
 
     init(
         layout: OverlayLayout,
         showsBoundary: Bool = true,
         focusedLabelID: Int? = nil,
         status: OverlayInteractionStatus = OverlayInteractionStatus(),
-        appearance: OverlayAppearance = OverlayAppearance()
+        appearance: OverlayAppearance = OverlayAppearance(),
+        content: AppContent.Localized = AppContent.localized(for: .english),
+        onScopeSelection: @escaping (QueryScope) -> Void = { _ in }
     ) {
         self.layout = layout
         self.showsBoundary = showsBoundary
         self.focusedLabelID = focusedLabelID
         self.status = status
         self.appearance = appearance
+        self.content = content
+        self.onScopeSelection = onScopeSelection
     }
 
     var body: some View {
-        let statusWidth = OverlayStatusPresentation.width(in: layout.localBounds)
-        let statusCenter = OverlayStatusPresentation.center(in: layout.localBounds)
+        let statusBarLayout = OverlayStatusBarLayout(bounds: layout.localBounds)
         let focusStyle = QueryFocusStyle(scope: status.activeScope)
         let labelOpacity = status.activeScope == .windows ? 0.25 : 1.0
+        let highlightFrame = localHighlightFrame
 
         ZStack(alignment: .topLeading) {
             if showsBoundary {
@@ -48,6 +54,12 @@ struct OverlayView: View {
                 .frame(width: layout.localBounds.width, height: layout.localBounds.height)
             }
 
+            if let highlightFrame {
+                SearchHitHighlightView(scope: status.activeScope)
+                    .frame(width: highlightFrame.width, height: highlightFrame.height)
+                    .position(x: highlightFrame.midX, y: highlightFrame.midY)
+            }
+
             ForEach(layout.labels) { label in
                 OverlayLabelView(
                     label: label,
@@ -60,15 +72,46 @@ struct OverlayView: View {
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
             }
 
-            OverlayStatusView(status: status)
-                .frame(width: statusWidth, alignment: .leading)
+            OverlayStatusView(
+                status: status,
+                content: content,
+                onScopeSelection: onScopeSelection
+            )
+                .frame(width: statusBarLayout.width, alignment: .leading)
                 .position(
-                    x: statusCenter.x,
-                    y: statusCenter.y
+                    x: statusBarLayout.centerX,
+                    y: statusBarLayout.centerY
                 )
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
         .background(Color.clear)
+    }
+
+    private var localHighlightFrame: CGRect? {
+        guard let highlightFrame = status.highlightFrame,
+              highlightFrame.width > 0,
+              highlightFrame.height > 0 else {
+            return nil
+        }
+
+        let localFrame = OverlayCoordinateMapper(targetFrame: layout.targetFrame)
+            .mapScreenFrameToLocal(highlightFrame)
+        return localFrame.intersection(layout.localBounds).isNull ? nil : localFrame
+    }
+}
+
+private struct SearchHitHighlightView: View {
+    let scope: QueryScope
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 5)
+            .stroke(color.opacity(0.92), lineWidth: 2)
+            .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 5))
+            .allowsHitTesting(false)
+    }
+
+    private var color: Color {
+        QueryFocusStyle(scope: scope).markerColor
     }
 }
 
@@ -190,7 +233,8 @@ private struct QueryFocusStyle: Equatable {
 
 private struct OverlayStatusView: View {
     let status: OverlayInteractionStatus
-    private let content = AppContent.localized(for: .english)
+    let content: AppContent.Localized
+    let onScopeSelection: (QueryScope) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -198,8 +242,12 @@ private struct OverlayStatusView: View {
                 ForEach(QueryScope.allCases, id: \.self) { scope in
                     ScopeChip(
                         title: content.queryScopeTitle(scope),
+                        accentColor: QueryFocusStyle(scope: scope).markerColor,
                         isActive: status.activeScope == scope,
-                        isPinned: status.pinnedScope == scope
+                        isPinned: status.pinnedScope == scope,
+                        action: {
+                            onScopeSelection(scope)
+                        }
                     )
                 }
 
@@ -247,6 +295,7 @@ private struct OverlayStatusView: View {
             Color.red.opacity(0.86)
         }
     }
+
     private var bufferText: String {
         let buffer = status.displayBuffer
         guard !buffer.isEmpty else {
@@ -274,7 +323,9 @@ private struct OverlayStatusView: View {
             return message
         }
 
-        return content.readyBadge
+        // idle 상태에서는 현재 활성 scope의 역할을 노출해
+        // "지금 무엇을 하는 scope인지"를 항상 읽을 수 있게 한다.
+        return content.queryScopeRole(status.activeScope)
     }
 
     private var keyHintText: String {
@@ -284,23 +335,32 @@ private struct OverlayStatusView: View {
 
 private struct ScopeChip: View {
     let title: String
+    let accentColor: Color
     let isActive: Bool
     let isPinned: Bool
+    let action: () -> Void
 
     var body: some View {
-        Text(isPinned ? "\(title)*" : title)
-            .font(.system(size: 11, weight: .semibold, design: .rounded))
-            .foregroundStyle(Color.white.opacity(isActive ? 1 : 0.74))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(
-                isActive ? Color.white.opacity(0.28) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 5)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(Color.white.opacity(isActive ? 0.84 : 0.45), lineWidth: 1)
-            }
+        Button(action: action) {
+            Text(isPinned ? "\(title)*" : title)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(Color.white.opacity(isActive ? 1 : 0.74))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(
+                    isActive ? accentColor.opacity(0.42) : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 5)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(
+                            isActive ? accentColor.opacity(0.95) : Color.white.opacity(0.45),
+                            lineWidth: 1
+                        )
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 }
 

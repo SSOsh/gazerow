@@ -402,6 +402,77 @@ final class ClickExecutorTests: XCTestCase {
         XCTAssertFalse(client.didCoordinateClick)
     }
 
+    func test_execute_overlayConfirm설정은_AXSetValue_customInput을_AX_focus후_좌표클릭으로_확인한다() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: "AXGroup",
+            title: "Message editor",
+            frame: CGRect(x: 10, y: 20, width: 300, height: 44),
+            actions: [AccessibilityAction.setValue]
+        )
+        let client = FakeClickExecutionClient(
+            axPressResult: .failure("should not be used"),
+            coordinateClickResult: .success,
+            setFocusResult: .success
+        )
+        let sut = ClickExecutor(
+            client: client,
+            configuration: .overlayConfirmedClick
+        )
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .coordinateFallback,
+            riskClass: .unknownRisk,
+            fallbackUsed: true
+        )
+        XCTAssertEqual(client.setFocusCount, 1)
+        XCTAssertEqual(client.performedActions, [])
+        XCTAssertTrue(client.didCoordinateClick)
+        XCTAssertEqual(client.clickedPoint, target.centerPoint)
+    }
+
+    func test_execute_overlayConfirm설정은_textInput_subrole을_AX_focus후_좌표클릭으로_확인한다() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: "AXGroup",
+            subrole: "AXTextInput",
+            title: "Chat input",
+            frame: CGRect(x: 10, y: 20, width: 300, height: 44),
+            actions: []
+        )
+        let client = FakeClickExecutionClient(
+            axPressResult: .failure("should not be used"),
+            coordinateClickResult: .success,
+            setFocusResult: .success
+        )
+        let sut = ClickExecutor(
+            client: client,
+            configuration: .overlayConfirmedClick
+        )
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .coordinateFallback,
+            riskClass: .unknownRisk,
+            fallbackUsed: true
+        )
+        XCTAssertEqual(client.setFocusCount, 1)
+        XCTAssertEqual(client.performedActions, [])
+        XCTAssertTrue(client.didCoordinateClick)
+        XCTAssertEqual(client.clickedPoint, target.centerPoint)
+    }
+
     func test_execute_overlayConfirm설정은_텍스트입력role을_AX_focus후_좌표클릭으로_확인한다() {
         // given
         let target = ClickTarget(

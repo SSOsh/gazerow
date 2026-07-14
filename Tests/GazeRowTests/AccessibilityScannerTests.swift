@@ -108,6 +108,57 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.searchField)
     }
 
+    func test_scan_AXSetValue_action이_있는_customInput도_candidate로_수집() {
+        // given
+        let customInput = FakeElement(
+            snapshot: snapshot(
+                role: "AXGroup",
+                title: "Message editor",
+                frame: CGRect(x: 10, y: 20, width: 300, height: 44),
+                actions: [AccessibilityAction.setValue]
+            )
+        )
+        let root = FakeElement(children: [customInput])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidateCount, 1)
+        XCTAssertEqual(scanResult.candidates.first?.role, "AXGroup")
+        XCTAssertEqual(scanResult.candidates.first?.actions, [AccessibilityAction.setValue])
+    }
+
+    func test_scan_textInput_subrole이_있는_customInput도_candidate로_수집() {
+        // given
+        let customInput = FakeElement(
+            snapshot: snapshot(
+                role: "AXGroup",
+                subrole: "AXTextInput",
+                title: "Chat input",
+                frame: CGRect(x: 10, y: 20, width: 300, height: 44)
+            )
+        )
+        let root = FakeElement(children: [customInput])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidateCount, 1)
+        XCTAssertEqual(scanResult.candidates.first?.subrole, "AXTextInput")
+    }
+
     func test_scan_selectableContainerRole은_action이_없어도_candidate로_수집() {
         // given
         let row = FakeElement(
@@ -216,6 +267,30 @@ final class AccessibilityScannerTests: XCTestCase {
         }
         XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.radioButton)
         XCTAssertEqual(scanResult.candidates.first?.subrole, "AXTabButton")
+    }
+
+    func test_scan_defaultDepth는_webArea_깊은_textArea도_candidate로_수집() {
+        // given
+        let chatInput = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.textArea,
+                title: nil,
+                frame: CGRect(x: 750, y: 1143, width: 713, height: 44)
+            )
+        )
+        let root = nestedElement(depth: 28, leaf: chatInput)
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidates.map(\.role), [AccessibilityRole.textArea])
+        XCTAssertFalse(scanResult.didHitDepthLimit)
     }
 
     func test_scan_secureField는_AXPress가_있어도_제외() {
@@ -502,13 +577,14 @@ final class AccessibilityScannerTests: XCTestCase {
 
     private func snapshot(
         role: String?,
+        subrole: String? = nil,
         title: String? = nil,
         frame: CGRect,
         actions: [String] = []
     ) -> AccessibilityElementSnapshot {
         AccessibilityElementSnapshot(
             role: role,
-            subrole: nil,
+            subrole: subrole,
             title: title,
             value: nil,
             help: nil,

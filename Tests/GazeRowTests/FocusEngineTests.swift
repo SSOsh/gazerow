@@ -175,6 +175,18 @@ final class FocusEngineTests: XCTestCase {
         XCTAssertEqual(event, .focusChanged(from: 0, to: 2, method: .gaze))
     }
 
+    func test_focusNearest_같은_item이면_event를_내지_않는다() {
+        // given
+        var sut = FocusEngine(items: items, initialFocusedItemID: 2)
+
+        // when
+        let event = sut.focusNearest(to: CGPoint(x: 4, y: 43))
+
+        // then
+        XCTAssertNil(event)
+        XCTAssertEqual(sut.focusedItemID, 2)
+    }
+
     func test_focusNearest_item이_없으면_focus를_비움() {
         // given
         var sut = FocusEngine(items: [])
@@ -185,6 +197,30 @@ final class FocusEngineTests: XCTestCase {
         // then
         XCTAssertNil(event)
         XCTAssertNil(sut.focusedItemID)
+    }
+
+    func test_focusNearest_hysteresisMargin안이면_현재focus를_유지한다() {
+        // given: B(mid 5,25) focus 상태에서 gaze가 C쪽으로 약간 이동(차이 2pt)
+        var sut = FocusEngine(items: items, initialFocusedItemID: 1)
+
+        // when
+        let event = sut.focusNearest(to: CGPoint(x: 5, y: 36), hysteresisMargin: 10)
+
+        // then: margin(10) 안이라 focus 유지, event 없음
+        XCTAssertNil(event)
+        XCTAssertEqual(sut.focusedItemID, 1)
+    }
+
+    func test_focusNearest_hysteresisMargin밖이면_새후보로_전환한다() {
+        // given
+        var sut = FocusEngine(items: items, initialFocusedItemID: 1)
+
+        // when: gaze가 C 중심에 붙어 차이가 margin(10)을 넘음
+        let event = sut.focusNearest(to: CGPoint(x: 5, y: 45), hysteresisMargin: 10)
+
+        // then
+        XCTAssertEqual(sut.focusedItemID, 2)
+        XCTAssertEqual(event, .focusChanged(from: 1, to: 2, method: .gaze))
     }
 
     func test_focusItem은_지정한_id로_focus를_동기화한다() {

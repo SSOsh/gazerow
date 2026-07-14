@@ -176,6 +176,26 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_show는_scopeChip_click을_위해_mouseInput을_허용한다() {
+        // given
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+
+        // when
+        sut.show(layout: makeLayout())
+
+        // then
+        XCTAssertTrue(sut.acceptsMouseInput)
+
+        sut.close()
+    }
+
     func test_show는_render시_appearanceProvider를_조회한다() {
         // given: appearanceProvider는 렌더 시점마다 최신 설정을 읽어야 한다.
         var appearanceCallCount = 0
@@ -261,6 +281,54 @@ final class OverlayWindowControllerTests: XCTestCase {
 
         // then
         XCTAssertFalse(result)
+    }
+
+    func test_OverlayKeyboardCommandRouter_syncKeyboardState는_scopeChip선택후_문자를_query로_입력한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        sut.syncKeyboardState(QueryInputState(pinnedScope: .windows, lastScope: .windows))
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 1, charactersIgnoringModifiers: "s")
+        )
+
+        // then
+        XCTAssertEqual(command, .appendQuery("s"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_syncKeyboardState는_pendingLabelPrimer를_초기화한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+        _ = sut.command(
+            for: FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "a")
+        )
+
+        // when
+        sut.syncKeyboardState(QueryInputState(pinnedScope: .elements, lastScope: .elements))
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 1, charactersIgnoringModifiers: "s")
+        )
+
+        // then
+        XCTAssertEqual(command, .appendQuery("s"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_첫_label입력후_두번째_ascii는_두글자_query로_승격한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        let first = sut.command(
+            for: FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "a")
+        )
+        let second = sut.command(
+            for: FocusKeyboardInput(keyCode: 11, charactersIgnoringModifiers: "b")
+        )
+
+        // then
+        XCTAssertEqual(first, .typeLabel("a"))
+        XCTAssertEqual(second, .appendQuery("ab"))
     }
 
     private func makeLayout() -> OverlayLayout {

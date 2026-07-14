@@ -100,20 +100,60 @@ final class GazeFocusRuntimeControllerTests: XCTestCase {
         XCTAssertEqual(focusedPoints, [CGPoint(x: 50, y: 50)])
     }
 
+    func test_frameCallback은_minimumFrameInterval보다_빠른_frame을_건너뛴다() throws {
+        // given
+        let frameProvider = StubGazeFrameProvider()
+        let detector = StubGazeLandmarkDetector(detections: [makeDetection(x: 0.5, y: 0.5)])
+        var now = Date(timeIntervalSince1970: 10)
+        var focusedPoints: [CGPoint] = []
+        let sut = makeSUT(
+            frameProvider: frameProvider,
+            landmarkDetector: detector,
+            pointEstimator: makeReadyEstimator(),
+            focusOverlay: { point in
+                focusedPoints.append(point)
+            },
+            minimumFrameInterval: 0.1,
+            dateProvider: { now }
+        )
+        XCTAssertEqual(sut.start(), .success)
+        let pixelBuffer = try makePixelBuffer()
+
+        // when
+        frameProvider.onFrame?(pixelBuffer)
+        now = Date(timeIntervalSince1970: 10.05)
+        frameProvider.onFrame?(pixelBuffer)
+        now = Date(timeIntervalSince1970: 10.11)
+        frameProvider.onFrame?(pixelBuffer)
+
+        // then
+        XCTAssertEqual(detector.detectCallCount, 2)
+        XCTAssertEqual(focusedPoints.count, 2)
+        XCTAssertEqual(focusedPoints[0].x, 50, accuracy: 0.000_001)
+        XCTAssertEqual(focusedPoints[0].y, 50, accuracy: 0.000_001)
+        XCTAssertEqual(focusedPoints[1].x, 50, accuracy: 0.000_001)
+        XCTAssertEqual(focusedPoints[1].y, 50, accuracy: 0.000_001)
+    }
+
     private func makeSUT(
         frameProvider: StubGazeFrameProvider = StubGazeFrameProvider(),
+        landmarkDetector: StubGazeLandmarkDetector = StubGazeLandmarkDetector(),
         isCameraGazeEnabled: @escaping () -> Bool = { true },
         isCameraAuthorized: @escaping () -> Bool = { true },
         pointEstimator: GazePointEstimator,
-        focusOverlay: @escaping (CGPoint) -> Void = { _ in }
+        focusOverlay: @escaping (CGPoint) -> Void = { _ in },
+        minimumFrameInterval: TimeInterval = 1.0 / 15.0,
+        dateProvider: @escaping () -> Date = Date.init
     ) -> GazeFocusRuntimeController {
         GazeFocusRuntimeController(
             frameProvider: frameProvider,
-            landmarkDetector: StubGazeLandmarkDetector(),
+            landmarkDetector: landmarkDetector,
             pointEstimator: pointEstimator,
             isCameraGazeEnabled: isCameraGazeEnabled,
             isCameraAuthorized: isCameraAuthorized,
-            focusOverlay: focusOverlay
+            focusOverlay: focusOverlay,
+            minimumFrameInterval: minimumFrameInterval,
+            dateProvider: dateProvider
         )
     }
 
@@ -153,6 +193,31 @@ final class GazeFocusRuntimeControllerTests: XCTestCase {
             faceCenter: CGPoint(x: x, y: y)
         )
     }
+
+    private func makeDetection(x: CGFloat, y: CGFloat) -> FaceLandmarkDetection {
+        FaceLandmarkDetection(
+            boundingBox: CGRect(x: x - 0.2, y: y - 0.2, width: 0.4, height: 0.4),
+            confidence: 1,
+            leftEye: [CGPoint(x: x - 0.1, y: y)],
+            rightEye: [CGPoint(x: x + 0.1, y: y)],
+            faceContour: [],
+            nose: []
+        )
+    }
+
+    private func makePixelBuffer() throws -> CVPixelBuffer {
+        var pixelBuffer: CVPixelBuffer?
+        let status = CVPixelBufferCreate(
+            kCFAllocatorDefault,
+            1,
+            1,
+            kCVPixelFormatType_32BGRA,
+            nil,
+            &pixelBuffer
+        )
+        XCTAssertEqual(status, kCVReturnSuccess)
+        return try XCTUnwrap(pixelBuffer)
+    }
 }
 
 private final class StubGazeFrameProvider: GazeFrameProviding {
@@ -169,8 +234,16 @@ private final class StubGazeFrameProvider: GazeFrameProviding {
     }
 }
 
-private struct StubGazeLandmarkDetector: GazeFaceLandmarkDetecting {
+private final class StubGazeLandmarkDetector: GazeFaceLandmarkDetecting {
+    private let detections: [FaceLandmarkDetection]
+    private(set) var detectCallCount = 0
+
+    init(detections: [FaceLandmarkDetection] = []) {
+        self.detections = detections
+    }
+
     func detect(in pixelBuffer: CVPixelBuffer) throws -> [FaceLandmarkDetection] {
-        []
+        detectCallCount += 1
+        return detections
     }
 }

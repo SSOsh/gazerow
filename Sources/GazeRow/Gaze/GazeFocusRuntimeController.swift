@@ -18,6 +18,11 @@ final class GazeFocusRuntimeController {
     private let isCameraGazeEnabled: () -> Bool
     private let isCameraAuthorized: () -> Bool
     private let focusOverlay: (CGPoint) -> Void
+    private let minimumFrameInterval: TimeInterval
+    private let dateProvider: () -> Date
+    private let frameProcessingLock = NSLock()
+    private var isProcessingFrame = false
+    private var lastProcessedFrameAt: Date?
 
     init(
         frameProvider: any GazeFrameProviding = CameraFrameProvider(),
@@ -28,7 +33,9 @@ final class GazeFocusRuntimeController {
             CameraGazeSettings().isOptInEnabled
         },
         isCameraAuthorized: @escaping () -> Bool,
-        focusOverlay: @escaping (CGPoint) -> Void
+        focusOverlay: @escaping (CGPoint) -> Void,
+        minimumFrameInterval: TimeInterval = 1.0 / 15.0,
+        dateProvider: @escaping () -> Date = Date.init
     ) {
         self.frameProvider = frameProvider
         self.landmarkDetector = landmarkDetector
@@ -37,6 +44,8 @@ final class GazeFocusRuntimeController {
         self.isCameraGazeEnabled = isCameraGazeEnabled
         self.isCameraAuthorized = isCameraAuthorized
         self.focusOverlay = focusOverlay
+        self.minimumFrameInterval = max(0, minimumFrameInterval)
+        self.dateProvider = dateProvider
     }
 
     func start() -> GazeFocusRuntimeStartResult {
@@ -81,6 +90,13 @@ final class GazeFocusRuntimeController {
     }
 
     private func handleFrame(_ pixelBuffer: CVPixelBuffer) {
+        guard beginFrameProcessing(at: dateProvider()) else {
+            return
+        }
+        defer {
+            endFrameProcessing()
+        }
+
         let detections: [FaceLandmarkDetection]
         do {
             detections = try landmarkDetector.detect(in: pixelBuffer)
@@ -93,6 +109,32 @@ final class GazeFocusRuntimeController {
         }
 
         _ = focus(feature: feature)
+    }
+
+    private func beginFrameProcessing(at now: Date) -> Bool {
+        frameProcessingLock.lock()
+        defer {
+            frameProcessingLock.unlock()
+        }
+
+        guard !isProcessingFrame else {
+            return false
+        }
+
+        if let lastProcessedFrameAt,
+           now.timeIntervalSince(lastProcessedFrameAt) < minimumFrameInterval {
+            return false
+        }
+
+        isProcessingFrame = true
+        lastProcessedFrameAt = now
+        return true
+    }
+
+    private func endFrameProcessing() {
+        frameProcessingLock.lock()
+        isProcessingFrame = false
+        frameProcessingLock.unlock()
     }
 }
 

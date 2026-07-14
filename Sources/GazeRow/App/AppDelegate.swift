@@ -39,6 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 고정키로 표준 윈도우 컨트롤(닫기/최소화/줌)을 실행하는 dispatcher.
     private let windowControlDispatcher = WindowControlCommandDispatcher()
 
+    /// event tap fallback 경로에서도 query primer/query buffer 상태를 유지하는 router.
+    private var overlayKeyboardRouter = OverlayKeyboardCommandRouter()
+
     /// Accessibility 권한 요청/설정 이동을 담당한다.
     private let permissionManager = PermissionManager()
 
@@ -231,6 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.overlay.info("overlay shortcut fired (no camera)")
         switch overlaySessionController.start() {
         case .success(let snapshot):
+            syncOverlayKeyboardRouterWithActiveSession()
             AppLogger.overlay.info(
                 "overlay shown bundle=\(snapshot.context.application.bundleIdentifier, privacy: .public) labels=\(snapshot.layout.metrics.labelCount, privacy: .public)"
             )
@@ -269,6 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        syncOverlayKeyboardRouterWithActiveSession()
         startGazeOneShotCapture()
     }
 
@@ -397,12 +402,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         printHotKeyRegistrationIfNeeded(registrationStatuses)
 
         globalShortcutMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let overlayCommand = Self.focusKeyboardCommand(from: event)
+            let overlayInput = Self.focusKeyboardInput(from: event)
             let input = OverlayActivationShortcutInput(event: event)
 
-            if let overlayCommand {
+            if let overlayInput {
                 Task { @MainActor in
-                    _ = self?.handleOverlayKeyboardCommand(overlayCommand)
+                    guard let command = self?.overlayKeyboardCommand(from: overlayInput) else {
+                        return
+                    }
+
+                    _ = self?.handleOverlayKeyboardCommand(command)
                 }
             }
 
@@ -423,7 +432,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         localShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if let overlayCommand = Self.focusKeyboardCommand(from: event),
+            if let input = Self.focusKeyboardInput(from: event),
+               let overlayCommand = MainActor.assumeIsolated({ self?.overlayKeyboardCommand(from: input) }),
                MainActor.assumeIsolated({ self?.handleOverlayKeyboardCommand(overlayCommand) == true }) {
                 return nil
             }
@@ -448,13 +458,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private static func focusKeyboardCommand(from event: NSEvent) -> FocusKeyboardCommand? {
-        FocusKeyboardCommandMapper().command(
-            for: FocusKeyboardInput(
-                keyCode: event.keyCode,
-                charactersIgnoringModifiers: event.charactersIgnoringModifiers,
-                isShiftPressed: event.modifierFlags.contains(.shift)
-            )
+    private static func focusKeyboardInput(from event: NSEvent) -> FocusKeyboardInput? {
+        FocusKeyboardInput(
+            keyCode: event.keyCode,
+            charactersIgnoringModifiers: event.charactersIgnoringModifiers,
+            isShiftPressed: event.modifierFlags.contains(.shift)
+        )
+    }
+
+    private func overlayKeyboardCommand(from input: FocusKeyboardInput) -> FocusKeyboardCommand? {
+        guard overlaySessionController.activeSession != nil else {
+            overlayKeyboardRouter.syncKeyboardState(QueryInputState())
+            return nil
+        }
+
+        return overlayKeyboardRouter.command(for: input)
+    }
+
+    private func syncOverlayKeyboardRouterWithActiveSession() {
+        overlayKeyboardRouter.syncKeyboardState(
+            overlaySessionController.activeSession?.queryInput ?? QueryInputState()
         )
     }
 

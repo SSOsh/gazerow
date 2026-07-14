@@ -111,6 +111,7 @@ struct OverlayInteractionStatus: Equatable {
     let matchCount: Int
     let matchIndex: Int
     let focusedDisplayName: String?
+    let highlightFrame: CGRect?
     let enterActionHint: String
     let message: String?
     let tone: Tone
@@ -124,6 +125,7 @@ struct OverlayInteractionStatus: Equatable {
         matchCount: Int = 0,
         matchIndex: Int = 0,
         focusedDisplayName: String? = nil,
+        highlightFrame: CGRect? = nil,
         enterActionHint: String = "click",
         message: String? = nil,
         tone: Tone = .neutral
@@ -136,6 +138,7 @@ struct OverlayInteractionStatus: Equatable {
         self.matchCount = max(0, matchCount)
         self.matchIndex = max(0, matchIndex)
         self.focusedDisplayName = focusedDisplayName
+        self.highlightFrame = highlightFrame
         self.enterActionHint = enterActionHint
         self.message = message
         self.tone = tone
@@ -153,49 +156,32 @@ struct OverlayInteractionStatus: Equatable {
     }
 }
 
-/// overlay 상태 바의 표시 문구와 배치 계산.
+/// overlay 하단 상태바의 폭·위치를 창 크기에 맞춰 계산한다.
+///
+/// 큰 창에서는 기존과 동일하게 하단에 고정하되, 상태바(2줄)를 담기 어려운 작은 창에서는
+/// 세로 중앙에 배치해 상태바가 창 밖으로 이탈하거나 후보 위로 밀려나는 것을 막는다.
 ///
 /// @author suho.do
 /// @since 2026-07-10
-struct OverlayStatusPresentation: Equatable {
-    static let maxWidth: CGFloat = 300
-    static let horizontalInset: CGFloat = 8
-    static let bottomMargin: CGFloat = 32
-    static let minimumCenterPadding: CGFloat = 18
+struct OverlayStatusBarLayout: Equatable {
+    let width: CGFloat
+    let centerX: CGFloat
+    let centerY: CGFloat
 
-    let primaryText: String
-    let helperText: String
-    let focusedLabel: String?
-
-    init(status: OverlayInteractionStatus) {
-        self.primaryText = Self.primaryText(for: status)
-        self.helperText = "Return: click / Esc: close"
-        self.focusedLabel = status.focusedLabel
-    }
-
-    static func width(in bounds: CGRect) -> CGFloat {
-        max(0, min(bounds.width - horizontalInset * 2, maxWidth))
-    }
-
-    static func center(in bounds: CGRect) -> CGPoint {
-        let minY = bounds.minY + minimumCenterPadding
-        let maxY = bounds.maxY - minimumCenterPadding
-        let preferredY = bounds.maxY - bottomMargin
-        let y = maxY < minY ? bounds.midY : min(max(preferredY, minY), maxY)
-
-        return CGPoint(x: bounds.midX, y: y)
-    }
-
-    private static func primaryText(for status: OverlayInteractionStatus) -> String {
-        if let message = status.message {
-            return message
-        }
-
-        if !status.typedLabelBuffer.isEmpty {
-            return "Typing \(status.typedLabelBuffer)"
-        }
-
-        return "Ready"
+    init(
+        bounds: CGRect,
+        estimatedHeight: CGFloat = 44,
+        horizontalInset: CGFloat = 8,
+        bottomInset: CGFloat = 34,
+        maxWidth: CGFloat = 420
+    ) {
+        let available = max(0, bounds.width - horizontalInset * 2)
+        let resolvedWidth = min(available, maxWidth)
+        self.width = resolvedWidth
+        self.centerX = horizontalInset + resolvedWidth / 2
+        self.centerY = bounds.height >= estimatedHeight + bottomInset
+            ? bounds.height - bottomInset
+            : bounds.height / 2
     }
 }
 

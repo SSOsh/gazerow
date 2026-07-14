@@ -17,7 +17,7 @@ final class CachingScanner: OverlaySessionScanning {
     private let dateProvider: () -> Date
     private var cachedScan: CachedScan?
 
-    init(
+    nonisolated init(
         wrapped: any OverlaySessionScanning,
         timeToLive: TimeInterval = 0.5,
         dateProvider: @escaping () -> Date = Date.init

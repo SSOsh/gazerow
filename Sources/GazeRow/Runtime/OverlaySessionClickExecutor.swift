@@ -36,7 +36,7 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
     private let clickExecutor: ClickExecutor<AXClickExecutionClient>
     private let clickPreparer: TargetApplicationClickPreparer
 
-    init(
+    nonisolated init(
         targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient> = OverlaySessionClickTargetResolver(client: AXAccessibilityElementClient()),
         clickExecutor: ClickExecutor<AXClickExecutionClient> = ClickExecutor(
             client: AXClickExecutionClient(),
@@ -126,7 +126,7 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
     private let clickabilityPolicy: AccessibilityClickabilityPolicy
     private let dateProvider: () -> Date
 
-    init(
+    nonisolated init(
         client: Client,
         configuration: AccessibilityScanConfiguration = AccessibilityScanConfiguration(),
         clickabilityPolicy: AccessibilityClickabilityPolicy = AccessibilityClickabilityPolicy(),
@@ -165,7 +165,7 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
 
             nodesVisited += 1
 
-            if let target = makeTarget(element: item.element),
+            if let target = makeTarget(element: item.element, depth: item.depth),
                targetKeys.insert(ClickTargetKey(target)).inserted {
                 targets.append(target)
             }
@@ -182,22 +182,41 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
         return targets
     }
 
-    private func makeTarget(element: Client.Element) -> ClickTarget<Client.Element>? {
+    private func makeTarget(element: Client.Element, depth: Int) -> ClickTarget<Client.Element>? {
         guard let role = client.role(of: element),
               role != AccessibilityRole.secureTextField else {
             return nil
         }
 
         let actions = client.actions(of: element)
+        let subrole: String?
         let title: String?
         if clickabilityPolicy.hasClickAction(actions)
+            || clickabilityPolicy.isFocusableInput(
+                role: role,
+                subrole: nil,
+                actions: actions
+            )
             || (role != AccessibilityRole.image && clickabilityPolicy.isClickableRole(role)) {
+            subrole = nil
             title = client.title(of: element)
         } else if role == AccessibilityRole.image {
+            subrole = nil
             title = client.title(of: element)
             guard hasSemanticText(in: element, title: title) else {
                 return nil
             }
+        } else if depth > 0 {
+            let inspectedSubrole = client.subrole(of: element)
+            guard clickabilityPolicy.isFocusableInput(
+                role: role,
+                subrole: inspectedSubrole,
+                actions: actions
+            ) else {
+                return nil
+            }
+            subrole = inspectedSubrole
+            title = client.title(of: element)
         } else {
             return nil
         }
@@ -211,7 +230,7 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
         return ClickTarget(
             element: element,
             role: role,
-            subrole: client.subrole(of: element),
+            subrole: subrole ?? client.subrole(of: element),
             title: title,
             frame: frame,
             actions: actions

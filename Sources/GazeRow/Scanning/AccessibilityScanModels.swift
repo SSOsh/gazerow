@@ -11,7 +11,7 @@ struct AccessibilityScanConfiguration: Equatable {
     let timeout: TimeInterval
 
     init(
-        maxDepth: Int = 18,
+        maxDepth: Int = 32,
         maxNodes: Int = 2_000,
         timeout: TimeInterval = 1.0
     ) {
@@ -115,6 +115,7 @@ enum AccessibilityAction {
     static let confirm = "AXConfirm"
     static let open = "AXOpen"
     static let showDefaultUI = "AXShowDefaultUI"
+    static let setValue = "AXSetValue"
     static let increment = "AXIncrement"
     static let decrement = "AXDecrement"
 }

@@ -103,6 +103,97 @@ final class AppContentTests: XCTestCase {
         XCTAssertEqual(korean.queryScopeTitle(.labels), "라벨")
         XCTAssertEqual(korean.queryNoMatch, "매칭 없음")
         XCTAssertTrue(korean.queryKeyHint(for: .windows, enterActionHint: korean.enterActionSwitchWindow).contains("창 전환"))
+        XCTAssertTrue(korean.queryKeyHint(for: .labels, enterActionHint: korean.enterActionClick).contains("/ 요소"))
+        XCTAssertTrue(korean.queryKeyHint(for: .labels, enterActionHint: korean.enterActionClick).contains("; 창"))
         XCTAssertTrue(english.queryMatchSummary(count: 2, index: 1, displayName: "Delete").contains("Delete"))
+    }
+
+    func test_queryScopeRole는_각scope의_역할을_한영으로_설명한다() {
+        // given
+        let english = AppContent.localized(for: .english)
+        let korean = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(english.queryScopeRole(.labels), "Aim a label to click")
+        XCTAssertEqual(english.queryScopeRole(.elements), "Search elements by name")
+        XCTAssertEqual(english.queryScopeRole(.windows), "Search windows to switch")
+        XCTAssertEqual(korean.queryScopeRole(.labels), "라벨을 겨냥해 클릭")
+        XCTAssertEqual(korean.queryScopeRole(.elements), "요소를 이름으로 검색")
+        XCTAssertEqual(korean.queryScopeRole(.windows), "창을 이름으로 검색·전환")
+    }
+
+    func test_overlayStatusText_english는_기존영문문구를_유지한다() {
+        // given
+        let content = AppContent.localized(for: .english)
+
+        // when & then
+        XCTAssertEqual(content.overlayReadyText, "Ready")
+        XCTAssertEqual(content.overlayInputClearedText, "Input cleared")
+        XCTAssertEqual(content.overlayFocusedText, "Focused")
+        XCTAssertEqual(content.overlayLabelsSelectedText, "Labels")
+        XCTAssertEqual(content.overlayClickedText, "Clicked")
+        XCTAssertEqual(content.overlayTypingText("AB"), "Typing AB")
+        XCTAssertEqual(content.overlayNoLabelText("J"), "No label J")
+        XCTAssertEqual(content.overlayPinnedText(.elements), "Pinned elements")
+        XCTAssertEqual(content.overlayWindowActivatedText(appName: "Safari"), "Safari activated")
+    }
+
+    func test_overlayStatusText_korean은_한국어문구를_제공한다() {
+        // given
+        let content = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(content.overlayReadyText, "준비됨")
+        XCTAssertEqual(content.overlayInputClearedText, "입력을 지웠습니다")
+        XCTAssertEqual(content.overlayFocusedText, "포커스됨")
+        XCTAssertEqual(content.overlayLabelsSelectedText, "라벨")
+        XCTAssertEqual(content.overlayClickedText, "클릭함")
+        XCTAssertEqual(content.overlayTypingText("AB"), "입력 중 AB")
+        XCTAssertEqual(content.overlayNoLabelText("J"), "라벨 J 없음")
+        XCTAssertEqual(content.overlayPinnedText(.elements), "요소 고정")
+        XCTAssertEqual(content.overlayWindowActivatedText(appName: "Safari"), "Safari 활성화됨")
+    }
+
+    func test_clickFailureText_english는_기존영문문구를_유지한다() {
+        // given
+        let content = AppContent.localized(for: .english)
+
+        // when & then
+        XCTAssertEqual(content.clickSucceededText, "Click succeeded")
+        XCTAssertEqual(
+            content.clickResultText(.failure(.missingFocusedTarget(index: -1))),
+            "Click failed: no focused target"
+        )
+        XCTAssertEqual(
+            content.clickFailureText(.missingFocusedTarget(index: -1)),
+            "Click failed: no focused target"
+        )
+        XCTAssertEqual(
+            content.clickExecutionFailureText(.missingPressAction),
+            "Click failed: no supported action"
+        )
+        XCTAssertEqual(
+            content.overlaySecondConfirmText(.destructive),
+            "Press Return again for destructive action"
+        )
+    }
+
+    func test_clickFailureText_korean은_한국어문구를_제공한다() {
+        // given
+        let content = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(
+            content.clickFailureText(.missingFocusedTarget(index: -1)),
+            "클릭 실패: focus된 대상 없음"
+        )
+        XCTAssertEqual(
+            content.clickExecutionFailureText(.missingPressAction),
+            "클릭 실패: 지원되는 action 없음"
+        )
+        XCTAssertEqual(
+            content.overlaySecondConfirmText(.destructive),
+            "파괴적 동작을(를) 실행하려면 Return을 다시 누르세요"
+        )
     }
 }

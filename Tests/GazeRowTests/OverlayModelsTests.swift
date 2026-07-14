@@ -99,6 +99,7 @@ final class OverlayModelsTests: XCTestCase {
             matchCount: 2,
             matchIndex: 1,
             focusedDisplayName: "Delete Item",
+            highlightFrame: CGRect(x: 10, y: 20, width: 30, height: 40),
             enterActionHint: "click"
         )
 
@@ -108,67 +109,56 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.matchCount, 2)
         XCTAssertEqual(sut.matchIndex, 1)
         XCTAssertEqual(sut.focusedDisplayName, "Delete Item")
+        XCTAssertEqual(sut.highlightFrame, CGRect(x: 10, y: 20, width: 30, height: 40))
     }
 
-    func test_StatusPresentation_width는_최대폭과_좌우여백을_적용() {
+    func test_StatusBarLayout_큰_창은_하단에_고정하고_기존_위치를_유지한다() {
         // given
-        let wideBounds = CGRect(x: 0, y: 0, width: 800, height: 600)
-        let narrowBounds = CGRect(x: 0, y: 0, width: 240, height: 600)
-
-        // when & then
-        XCTAssertEqual(OverlayStatusPresentation.width(in: wideBounds), 300)
-        XCTAssertEqual(OverlayStatusPresentation.width(in: narrowBounds), 224)
-    }
-
-    func test_StatusPresentation_center는_화면_중간_아래에_배치() {
-        // given
-        let bounds = CGRect(x: 0, y: 0, width: 800, height: 600)
+        let bounds = CGRect(x: 0, y: 0, width: 360, height: 220)
 
         // when
-        let center = OverlayStatusPresentation.center(in: bounds)
+        let sut = OverlayStatusBarLayout(bounds: bounds)
 
         // then
-        XCTAssertEqual(center.x, 400)
-        XCTAssertEqual(center.y, 568)
+        XCTAssertEqual(sut.width, 344)          // min(360 - 16, 420)
+        XCTAssertEqual(sut.centerX, 180)        // 8 + 344 / 2
+        XCTAssertEqual(sut.centerY, 186)        // 220 - 34 (하단 고정)
     }
 
-    func test_StatusPresentation_center는_작은높이에서_bounds안으로_clamp() {
+    func test_StatusBarLayout_넓은_창은_최대_폭을_넘지_않는다() {
         // given
-        let bounds = CGRect(x: 0, y: 0, width: 320, height: 30)
+        let bounds = CGRect(x: 0, y: 0, width: 1000, height: 600)
 
         // when
-        let center = OverlayStatusPresentation.center(in: bounds)
+        let sut = OverlayStatusBarLayout(bounds: bounds)
 
         // then
-        XCTAssertEqual(center, CGPoint(x: 160, y: 15))
+        XCTAssertEqual(sut.width, 420)          // maxWidth clamp
+        XCTAssertEqual(sut.centerX, 218)        // 8 + 420 / 2
+        XCTAssertEqual(sut.centerY, 566)        // 600 - 34
     }
 
-    func test_StatusPresentation_확인방법을_짧은_문구로_제공() {
-        // given
-        let status = OverlayInteractionStatus(
-            focusedLabel: "A",
-            typedLabelBuffer: "",
-            message: "Ready",
-            tone: .neutral
-        )
+    func test_StatusBarLayout_작은_창은_상태바를_세로_중앙에_두어_이탈을_막는다() {
+        // given: height(40)가 estimatedHeight(44) + bottomInset(34)보다 작다
+        let bounds = CGRect(x: 0, y: 0, width: 200, height: 40)
 
         // when
-        let presentation = OverlayStatusPresentation(status: status)
+        let sut = OverlayStatusBarLayout(bounds: bounds)
 
         // then
-        XCTAssertEqual(presentation.primaryText, "Ready")
-        XCTAssertEqual(presentation.helperText, "Return: click / Esc: close")
-        XCTAssertEqual(presentation.focusedLabel, "A")
+        XCTAssertEqual(sut.centerY, 20)         // height / 2 (하단 고정 대신 중앙)
+        XCTAssertEqual(sut.width, 184)          // min(200 - 16, 420)
     }
 
-    func test_StatusPresentation_message가_없고_buffer가_있으면_typing문구를_표시() {
+    func test_StatusBarLayout_아주_좁은_창은_폭이_음수가_되지_않는다() {
         // given
-        let status = OverlayInteractionStatus(typedLabelBuffer: "AR")
+        let bounds = CGRect(x: 0, y: 0, width: 10, height: 200)
 
         // when
-        let presentation = OverlayStatusPresentation(status: status)
+        let sut = OverlayStatusBarLayout(bounds: bounds)
 
         // then
-        XCTAssertEqual(presentation.primaryText, "Typing AR")
+        XCTAssertEqual(sut.width, 0)            // max(0, 10 - 16)
+        XCTAssertEqual(sut.centerX, 8)          // 8 + 0 / 2
     }
 }
