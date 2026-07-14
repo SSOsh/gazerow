@@ -29,7 +29,11 @@ enum OverlaySessionClickFailure: Error, Equatable {
     case executionFailed(ClickExecutionFailure)
 }
 
-/// production AXPress click executor adapter.
+/// production overlay click executor adapter.
+///
+/// AXUIElement와 AppKit event posting은 모두 non-Sendable API이며, 선택 검증과 click을
+/// 같은 순서로 처리해야 한다. 따라서 이 경계는 @MainActor에서 직렬 실행한다. 별도 actor로
+/// 옮기려면 AX 호출을 소유하는 Sendable wrapper와 snapshot-only 결과 계약이 먼저 필요하다.
 ///
 /// @author suho.do
 /// @since 2026-07-02
@@ -39,6 +43,8 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
     private let clickExecutor: ClickExecutor<AXClickExecutionClient>
     private let clickPreparer: TargetApplicationClickPreparer
     private let targetMatcher: OverlayClickTargetMatcher
+    private let performanceRecorder: any OverlayClickPerformanceRecording
+    private let dateProvider: () -> Date
 
     init(
         targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient> = OverlaySessionClickTargetResolver(client: AXAccessibilityElementClient()),
@@ -47,12 +53,16 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
             configuration: .overlayConfirmedClick
         ),
         clickPreparer: TargetApplicationClickPreparer = TargetApplicationClickPreparer(),
-        targetMatcher: OverlayClickTargetMatcher = OverlayClickTargetMatcher()
+        targetMatcher: OverlayClickTargetMatcher = OverlayClickTargetMatcher(),
+        performanceRecorder: any OverlayClickPerformanceRecording = OverlayClickPerformanceRecorder(),
+        dateProvider: @escaping () -> Date = Date.init
     ) {
         self.targetResolver = targetResolver
         self.clickExecutor = clickExecutor
         self.clickPreparer = clickPreparer
         self.targetMatcher = targetMatcher
+        self.performanceRecorder = performanceRecorder
+        self.dateProvider = dateProvider
     }
 
     func execute(
@@ -60,7 +70,11 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
         context: TargetContext,
         isSecondConfirmProvided: Bool
     ) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure> {
-        switch targetResolver.resolveTargets(context: context) {
+        let startedAt = dateProvider()
+        let resolvedTargets = targetResolver.resolveTargets(context: context)
+        let resolvedAt = dateProvider()
+        let result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+        switch resolvedTargets {
         case .success(let targets):
             switch targetMatcher.match(selection: selection, currentTargets: targets) {
             case .matched(let target, let metadata):
@@ -77,17 +91,30 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
                     target: target,
                     isSecondConfirmProvided: isSecondConfirmProvided
                 )
-                return clickExecutor.execute(request).mapError(OverlaySessionClickFailure.executionFailed)
+                result = clickExecutor.execute(request).mapError(OverlaySessionClickFailure.executionFailed)
             case .unavailable:
-                return .failure(.selectedTargetUnavailable(labelID: selection.labelID))
+                result = .failure(.selectedTargetUnavailable(labelID: selection.labelID))
             case .changed:
-                return .failure(.selectedTargetChanged(labelID: selection.labelID))
+                result = .failure(.selectedTargetChanged(labelID: selection.labelID))
             case .ambiguous:
-                return .failure(.selectedTargetAmbiguous(labelID: selection.labelID))
+                result = .failure(.selectedTargetAmbiguous(labelID: selection.labelID))
             }
         case .failure(let failure):
-            return .failure(.scanFailed(failure))
+            result = .failure(.scanFailed(failure))
         }
+
+        performanceRecorder.record(
+            OverlayClickPerformanceSample(
+                rescanMilliseconds: Self.milliseconds(from: startedAt, to: resolvedAt),
+                totalMilliseconds: Self.milliseconds(from: startedAt, to: dateProvider()),
+                outcome: OverlayClickPerformanceOutcome.code(for: result)
+            )
+        )
+        return result
+    }
+
+    private static func milliseconds(from start: Date, to end: Date) -> Int {
+        max(0, Int((end.timeIntervalSince(start) * 1_000).rounded()))
     }
 }
 
@@ -96,23 +123,15 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
 /// @author suho.do
 /// @since 2026-07-04
 struct TargetApplicationClickPreparer {
-    private let activationDelay: TimeInterval
     private let activateApplication: (pid_t) -> Bool
-    private let sleep: (TimeInterval) -> Void
 
     init(
-        activationDelay: TimeInterval = 0.06,
         activateApplication: @escaping (pid_t) -> Bool = { processIdentifier in
             NSRunningApplication(processIdentifier: processIdentifier)?
                 .activate(options: []) ?? false
-        },
-        sleep: @escaping (TimeInterval) -> Void = { interval in
-            Thread.sleep(forTimeInterval: interval)
         }
     ) {
-        self.activationDelay = activationDelay
         self.activateApplication = activateApplication
-        self.sleep = sleep
     }
 
     func prepareForClick(application: TargetApplication) {
@@ -126,7 +145,6 @@ struct TargetApplicationClickPreparer {
         AppLogger.interaction.info(
             "target app activated pid=\(application.processIdentifier, privacy: .public)"
         )
-        sleep(activationDelay)
     }
 }
 

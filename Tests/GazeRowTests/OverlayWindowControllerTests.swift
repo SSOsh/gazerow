@@ -235,6 +235,35 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_updateStatus는_기존HostingView를_재사용한다() {
+        // given
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        sut.show(layout: makeLayout())
+        let targetIdentifier = sut.targetHostingViewIdentifier
+        let commandIdentifier = sut.commandBarHostingViewIdentifier
+
+        // when
+        sut.updateStatus(
+            OverlayInteractionStatus(
+                focusedLabel: "AA",
+                hasExplicitFocus: true
+            )
+        )
+
+        // then
+        XCTAssertEqual(sut.targetHostingViewIdentifier, targetIdentifier)
+        XCTAssertEqual(sut.commandBarHostingViewIdentifier, commandIdentifier)
+
+        sut.close()
+    }
+
     func test_show는_target교차면적이큰화면의_visibleFrame에_commandPanel을배치한다() {
         // given
         let leftScreen = OverlayScreenDescriptor(

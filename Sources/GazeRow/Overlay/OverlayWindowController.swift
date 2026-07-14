@@ -10,6 +10,8 @@ import SwiftUI
 final class OverlayWindowController {
     private var targetPanel: OverlayPanel?
     private var commandBarPanel: OverlayPanel?
+    private var targetHostingView: NSHostingView<OverlayView>?
+    private var commandBarHostingView: NSHostingView<OverlayCommandBarPanelView>?
     private var currentLayout: OverlayLayout?
     private var currentCommandBarVisibleFrame: CGRect?
     private var currentStatus = OverlayInteractionStatus()
@@ -70,6 +72,14 @@ final class OverlayWindowController {
 
     var commandBarPanelFrame: CGRect? {
         commandBarPanel?.frame
+    }
+
+    var targetHostingViewIdentifier: ObjectIdentifier? {
+        targetHostingView.map(ObjectIdentifier.init)
+    }
+
+    var commandBarHostingViewIdentifier: ObjectIdentifier? {
+        commandBarHostingView.map(ObjectIdentifier.init)
     }
 
     /// 표시 중인 overlay panel이 앱 비활성 상태에서도 유지되는지 여부.
@@ -225,6 +235,8 @@ final class OverlayWindowController {
         commandBarPanel?.orderOut(nil)
         targetPanel = nil
         commandBarPanel = nil
+        targetHostingView = nil
+        commandBarHostingView = nil
         currentLayout = nil
         currentCommandBarVisibleFrame = nil
         currentStatus = OverlayInteractionStatus()
@@ -260,14 +272,19 @@ final class OverlayWindowController {
     }
 
     private func render(layout: OverlayLayout, status: OverlayInteractionStatus) {
-        targetPanel?.contentView = NSHostingView(
-            rootView: OverlayView(
-                layout: layout,
-                focusedLabelID: focusedLabelID(for: status.focusedLabel),
-                status: status,
-                appearance: appearanceProvider()
-            )
+        let overlayView = OverlayView(
+            layout: layout,
+            focusedLabelID: focusedLabelID(for: status.focusedLabel),
+            status: status,
+            appearance: appearanceProvider()
         )
+        if let targetHostingView {
+            targetHostingView.rootView = overlayView
+        } else {
+            let hostingView = NSHostingView(rootView: overlayView)
+            targetHostingView = hostingView
+            targetPanel?.contentView = hostingView
+        }
 
         guard let commandBarPanel, let currentCommandBarVisibleFrame else {
             return
@@ -278,13 +295,18 @@ final class OverlayWindowController {
             visibleFrame: currentCommandBarVisibleFrame
         )
         commandBarPanel.setFrame(commandLayout.panelFrame, display: false)
-        commandBarPanel.contentView = NSHostingView(
-            rootView: OverlayCommandBarPanelView(
-                layout: commandLayout,
-                status: status,
-                language: AppLanguageSettings().selectedLanguage
-            )
+        let commandBarView = OverlayCommandBarPanelView(
+            layout: commandLayout,
+            status: status,
+            language: AppLanguageSettings().selectedLanguage
         )
+        if let commandBarHostingView {
+            commandBarHostingView.rootView = commandBarView
+        } else {
+            let hostingView = NSHostingView(rootView: commandBarView)
+            commandBarHostingView = hostingView
+            commandBarPanel.contentView = hostingView
+        }
     }
 
     private func labelText(for focusedLabelID: Int?) -> String? {

@@ -688,11 +688,11 @@ open -n .build/local-app/GazeRow.app
 
 ### Phase 5: 성능 후속
 
-- [ ] confirm 재스캔 시간과 UI blocking 측정
-- [ ] AX serial executor/actor 타당성 검토
-- [ ] sync sleep 제거
-- [ ] stable `NSHostingView` 상태 업데이트 전환
-- [ ] 전후 p50/p95 비교
+- [x] confirm 재스캔 시간과 UI blocking 측정 (재스캔/전체 confirm ms와 최근 100건 rolling p50/p95를 원문 없이 OSLog 기록)
+- [x] AX serial executor/actor 타당성 검토 (`AXUIElement`/AppKit event의 non-Sendable 제약으로 @MainActor 직렬 경계를 유지; snapshot-only wrapper 선행 전 actor 이동 보류)
+- [x] sync sleep 제거 (확정 click 경로의 60ms app activation 대기와 35ms mouse down/up 대기 제거)
+- [x] stable `NSHostingView` 상태 업데이트 전환
+- [x] 전후 p50/p95 비교 (변경 전 고정 blocking 하한 95ms, 변경 후 고정 대기 0ms; 실제 p50/p95는 실행 중 rolling OSLog로 수집, `2026-07-14`: 629 tests, 0 failures)
 
 ## 구현 시 금지 사항
 
