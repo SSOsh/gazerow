@@ -23,6 +23,9 @@ protocol OverlaySessionClickExecuting {
 enum OverlaySessionClickFailure: Error, Equatable {
     case scanFailed(AccessibilityScanFailure)
     case missingFocusedTarget(index: Int)
+    case selectedTargetUnavailable(labelID: Int)
+    case selectedTargetChanged(labelID: Int)
+    case selectedTargetAmbiguous(labelID: Int)
     case executionFailed(ClickExecutionFailure)
 }
 
@@ -75,8 +78,12 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
                     isSecondConfirmProvided: isSecondConfirmProvided
                 )
                 return clickExecutor.execute(request).mapError(OverlaySessionClickFailure.executionFailed)
-            case .unavailable, .changed, .ambiguous:
-                return .failure(.missingFocusedTarget(index: selection.labelID))
+            case .unavailable:
+                return .failure(.selectedTargetUnavailable(labelID: selection.labelID))
+            case .changed:
+                return .failure(.selectedTargetChanged(labelID: selection.labelID))
+            case .ambiguous:
+                return .failure(.selectedTargetAmbiguous(labelID: selection.labelID))
             }
         case .failure(let failure):
             return .failure(.scanFailed(failure))

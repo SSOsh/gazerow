@@ -24,6 +24,7 @@ final class OverlaySessionController {
     private let windowTitleHasher: WindowTitleHasher
     private let dateProvider: () -> Date
     private let isSessionEnabled: () -> Bool
+    private let languageProvider: () -> AppLanguage
     private let activationTracer: any OverlayActivationTracing
     private let clickResultObserver: @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void
     private(set) var activeSession: OverlaySessionState?
@@ -45,6 +46,7 @@ final class OverlaySessionController {
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         dateProvider: @escaping () -> Date = Date.init,
         isSessionEnabled: @escaping () -> Bool = { SessionController.shared.isEnabled },
+        languageProvider: @escaping () -> AppLanguage = { AppLanguageSettings().selectedLanguage },
         activationTracer: any OverlayActivationTracing = OverlayActivationTracer(),
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) {
@@ -60,6 +62,7 @@ final class OverlaySessionController {
         self.windowTitleHasher = windowTitleHasher
         self.dateProvider = dateProvider
         self.isSessionEnabled = isSessionEnabled
+        self.languageProvider = languageProvider
         self.activationTracer = activationTracer
         self.clickResultObserver = clickResultObserver
     }
@@ -410,6 +413,8 @@ final class OverlaySessionController {
             // candidate가 재사용되지 않도록 scan cache를 무효화한다.
             scanner.invalidate()
             close()
+        case .failure(let failure) where failure.isTargetMismatch:
+            refreshAfterTargetMismatch(failure, session: &session)
         case .failure(.executionFailed(.secondConfirmRequired(let riskClass))):
             session.pendingSecondConfirm = PendingSecondConfirm(
                 focusedItemID: focusedItemID,
@@ -434,6 +439,63 @@ final class OverlaySessionController {
                 status(for: session, resolution: nil, message: result.statusMessage, tone: .failure)
             )
         }
+    }
+
+    private func refreshAfterTargetMismatch(
+        _ failure: OverlaySessionClickFailure,
+        session: inout OverlaySessionState
+    ) {
+        session.pendingSecondConfirm = nil
+        scanner.invalidate()
+
+        let scanResult: AccessibilityScanResult
+        switch scanner.scan(context: session.snapshot.context) {
+        case .success(let result) where !result.candidates.isEmpty:
+            scanResult = result
+        case .success, .failure:
+            activeSession = session
+            overlayPresenter.updateStatus(
+                status(
+                    for: session,
+                    resolution: nil,
+                    message: OverlayClickFailureGuidance.rescanFailureMessage(language: languageProvider()),
+                    tone: .failure
+                )
+            )
+            return
+        }
+
+        let layout = overlayPresenter.makeLayout(
+            targetFrame: session.snapshot.context.window.frame,
+            candidates: scanResult.candidates,
+            labels: []
+        )
+        let refreshedSession = OverlaySessionState(
+            snapshot: OverlaySessionSnapshot(
+                context: session.snapshot.context,
+                scanResult: scanResult,
+                layout: layout
+            ),
+            focusEngine: FocusEngine(layout: layout),
+            elementIndex: makeFallbackElementIndex(scanResult: scanResult)
+        )
+        activeSession = refreshedSession
+        _ = overlayPresenter.show(
+            layout: layout,
+            initialStatus: status(
+                for: refreshedSession,
+                resolution: nil,
+                message: OverlayClickFailureGuidance(failure: failure, language: languageProvider()).message,
+                tone: .failure
+            ),
+            onEscape: { [weak self] in
+                self?.close()
+            },
+            onKeyboardCommand: { [weak self] capturedCommand in
+                _ = self?.handleCapturedKeyboardCommand(capturedCommand)
+            },
+            onPresentationEvent: { _ in }
+        )
     }
 
     private func isPendingSecondConfirmValid(
@@ -1254,6 +1316,17 @@ private extension Result where Success == ClickExecutionSuccess, Failure == Over
             "Click succeeded"
         case .failure(let failure):
             OverlayClickFailureGuidance(failure: failure).message
+        }
+    }
+}
+
+private extension OverlaySessionClickFailure {
+    var isTargetMismatch: Bool {
+        switch self {
+        case .selectedTargetUnavailable, .selectedTargetChanged, .selectedTargetAmbiguous:
+            true
+        case .scanFailed, .missingFocusedTarget, .executionFailed:
+            false
         }
     }
 }

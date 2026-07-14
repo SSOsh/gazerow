@@ -667,11 +667,11 @@ open -n .build/local-app/GazeRow.app
 
 ### Phase 2: Fail-safe refresh
 
-- [ ] mismatch failure case 추가
-- [ ] mismatch에서 click 미발행 보장
-- [ ] cache invalidation 및 단발 rescan 연결
-- [ ] 한국어/영어 안내 문구 추가
-- [ ] second confirm selection 정합성 테스트 추가
+- [x] mismatch failure case 추가
+- [x] mismatch에서 click 미발행 보장
+- [x] cache invalidation 및 단발 rescan 연결
+- [x] 한국어/영어 안내 문구 추가
+- [x] second confirm selection 정합성 테스트 추가
 
 ### Phase 3: Overlay declutter
 

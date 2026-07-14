@@ -56,4 +56,27 @@ final class OverlayClickFailureGuidanceTests: XCTestCase {
         // then
         XCTAssertEqual(sut.message, "Press Return again to confirm destructive action.")
     }
+
+    func test_selectedTargetChanged는_언어별로_새선택을_안내한다() {
+        // given
+        let failure = OverlaySessionClickFailure.selectedTargetChanged(labelID: 2)
+
+        // when
+        let english = OverlayClickFailureGuidance(failure: failure, language: .english)
+        let korean = OverlayClickFailureGuidance(failure: failure, language: .korean)
+
+        // then
+        XCTAssertEqual(english.message, "The screen changed, so labels were refreshed. Select again.")
+        XCTAssertEqual(korean.message, "화면이 변경되어 라벨을 갱신했습니다. 다시 선택하세요.")
+    }
+
+    func test_rescanFailureMessage는_언어별로_안내한다() {
+        // when
+        let english = OverlayClickFailureGuidance.rescanFailureMessage(language: .english)
+        let korean = OverlayClickFailureGuidance.rescanFailureMessage(language: .korean)
+
+        // then
+        XCTAssertEqual(english, "The screen could not be rescanned. Try again shortly.")
+        XCTAssertEqual(korean, "화면을 다시 읽지 못했습니다. 잠시 후 다시 시도하세요.")
+    }
 }

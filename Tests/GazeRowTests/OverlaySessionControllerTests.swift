@@ -940,6 +940,75 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
     }
 
+    func test_handleKeyboardCommand_targetMismatch는_cache를무효화하고_새라벨을표시한다() {
+        // given
+        let scanner = StubOverlayScanner(
+            results: [
+                .success(makeScanResult(candidates: [makeCandidate(title: "Open")])),
+                .success(makeScanResult(candidates: [makeCandidate(title: "Reload")]))
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.selectedTargetChanged(labelID: 0))
+        )
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: clickExecutor,
+            presenter: presenter
+        )
+        _ = sut.start()
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(sut.lastClickResult, .failure(.selectedTargetChanged(labelID: 0)))
+        XCTAssertEqual(clickExecutor.requests.count, 1)
+        XCTAssertEqual(scanner.invalidateCallCount, 1)
+        XCTAssertEqual(scanner.scanCallCount, 2)
+        XCTAssertEqual(presenter.showRequests.count, 2)
+        XCTAssertEqual(presenter.showRequests.last?.candidates.map(\.title), ["Reload"])
+        XCTAssertEqual(
+            presenter.statusUpdates.last?.message,
+            "The screen changed, so labels were refreshed. Select again."
+        )
+    }
+
+    func test_handleKeyboardCommand_targetMismatch재스캔실패는_기존overlay에_안내를표시한다() {
+        // given
+        let scanner = StubOverlayScanner(
+            results: [
+                .success(makeScanResult(candidates: [makeCandidate(title: "Open")])),
+                .failure(.childrenUnavailable("test"))
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.selectedTargetUnavailable(labelID: 0))
+        )
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: clickExecutor,
+            presenter: presenter
+        )
+        _ = sut.start()
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(clickExecutor.requests.count, 1)
+        XCTAssertEqual(scanner.invalidateCallCount, 1)
+        XCTAssertEqual(scanner.scanCallCount, 2)
+        XCTAssertEqual(presenter.showRequests.count, 1)
+        XCTAssertEqual(
+            presenter.statusUpdates.last?.message,
+            "The screen could not be rescanned. Try again shortly."
+        )
+        XCTAssertEqual(sut.activeSession?.snapshot.scanResult.candidates.map(\.title), ["Open"])
+    }
+
     func test_handleKeyboardCommand_click실패는_attempt와_completed_false를_기록() {
         // given
         let recorder = StubInteractionRecorder()

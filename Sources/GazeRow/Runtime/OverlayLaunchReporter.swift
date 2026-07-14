@@ -144,6 +144,12 @@ enum OverlayLaunchReporter {
             "scan_failed.\(scanFailureCode(scanFailure))"
         case .missingFocusedTarget:
             "missing_focused_target"
+        case .selectedTargetUnavailable:
+            "selected_target_unavailable"
+        case .selectedTargetChanged:
+            "selected_target_changed"
+        case .selectedTargetAmbiguous:
+            "selected_target_ambiguous"
         case .executionFailed(let executionFailure):
             "execution_failed.\(executionFailureCode(executionFailure))"
         }
