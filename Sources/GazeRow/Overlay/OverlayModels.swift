@@ -37,7 +37,7 @@ struct OverlayLayoutConfiguration: Equatable {
         rowBandHeight: CGFloat = 24,
         labelPlacement: LabelPlacement = .centered,
         labelStrategy: LabelStrategy = .prefixFree,
-        usesAdaptivePlacementForDenseLayouts: Bool = true,
+        usesAdaptivePlacementForDenseLayouts: Bool = false,
         denseCandidateThreshold: Int = 24
     ) {
         self.labelSize = labelSize

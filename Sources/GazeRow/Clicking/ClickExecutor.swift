@@ -28,7 +28,7 @@ struct ClickExecutor<Client: ClickExecutionClient> {
         let riskClass = riskClassifier.classify(target)
 
         if isTextInputRole(target.role) {
-            return executeFocus(target: target, riskClass: riskClass)
+            return executeTextInput(target: target, riskClass: riskClass)
         }
 
         guard let action = preferredAccessibilityAction(for: target) else {
@@ -122,6 +122,17 @@ struct ClickExecutor<Client: ClickExecutionClient> {
         role == AccessibilityRole.textField
             || role == AccessibilityRole.textArea
             || role == AccessibilityRole.searchField
+    }
+
+    private func executeTextInput(
+        target: ClickTarget<Client.Element>,
+        riskClass: ClickRiskClass
+    ) -> Result<ClickExecutionSuccess, ClickExecutionFailure> {
+        if shouldPreferCoordinateClick(for: target) {
+            return executeCoordinateClick(target: target, riskClass: riskClass)
+        }
+
+        return executeFocus(target: target, riskClass: riskClass)
     }
 
     private func executeFocus(

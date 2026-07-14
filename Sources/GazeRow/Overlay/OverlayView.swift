@@ -89,7 +89,7 @@ private struct OverlayLabelView: View {
 
     private var backgroundColor: Color {
         isFocused
-            ? focusStyle.markerColor.opacity(0.96)
+            ? focusStyle.markerColor.opacity(min(1.0, appearance.labelBackgroundOpacity + 0.16))
             : Color.accentColor.opacity(appearance.labelBackgroundOpacity)
     }
 }

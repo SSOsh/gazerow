@@ -17,7 +17,7 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.labelSpacing, 6)
         XCTAssertEqual(sut.edgeInset, 4)
         XCTAssertEqual(sut.collisionShiftLimit, 12)
-        XCTAssertTrue(sut.usesAdaptivePlacementForDenseLayouts)
+        XCTAssertFalse(sut.usesAdaptivePlacementForDenseLayouts)
         XCTAssertEqual(sut.denseCandidateThreshold, 24)
     }
 

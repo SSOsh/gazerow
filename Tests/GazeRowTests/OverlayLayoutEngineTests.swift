@@ -256,7 +256,7 @@ final class OverlayLayoutEngineTests: XCTestCase {
         XCTAssertTrue(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
     }
 
-    func test_makeLayout_denseCandidate는_기본_centered여도_adaptive로_겹침을_완화() {
+    func test_makeLayout_denseCandidate도_기본값은_centered를_유지() {
         // given
         let first = makeCandidate(frame: CGRect(x: 100, y: 120, width: 20, height: 20))
         let second = makeCandidate(frame: CGRect(x: 102, y: 122, width: 20, height: 20))
@@ -264,30 +264,6 @@ final class OverlayLayoutEngineTests: XCTestCase {
             configuration: OverlayLayoutConfiguration(
                 labelSize: CGSize(width: 30, height: 20),
                 labelSpacing: 4,
-                denseCandidateThreshold: 2
-            )
-        )
-
-        // when
-        let layout = sut.makeLayout(
-            targetFrame: CGRect(x: 0, y: 0, width: 300, height: 240),
-            candidates: [first, second]
-        )
-
-        // then
-        XCTAssertEqual(layout.metrics.collisionCount, 0)
-        XCTAssertFalse(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
-    }
-
-    func test_makeLayout_denseCandidate자동adaptive를_끄면_centered를_유지() {
-        // given
-        let first = makeCandidate(frame: CGRect(x: 100, y: 120, width: 20, height: 20))
-        let second = makeCandidate(frame: CGRect(x: 102, y: 122, width: 20, height: 20))
-        let sut = OverlayLayoutEngine(
-            configuration: OverlayLayoutConfiguration(
-                labelSize: CGSize(width: 30, height: 20),
-                labelSpacing: 4,
-                usesAdaptivePlacementForDenseLayouts: false,
                 denseCandidateThreshold: 2
             )
         )
@@ -301,6 +277,30 @@ final class OverlayLayoutEngineTests: XCTestCase {
         // then
         XCTAssertEqual(layout.metrics.collisionCount, 1)
         XCTAssertTrue(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
+    }
+
+    func test_makeLayout_denseCandidate자동adaptive를_명시적으로_켜면_겹침을_완화() {
+        // given
+        let first = makeCandidate(frame: CGRect(x: 100, y: 120, width: 20, height: 20))
+        let second = makeCandidate(frame: CGRect(x: 102, y: 122, width: 20, height: 20))
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(
+                labelSize: CGSize(width: 30, height: 20),
+                labelSpacing: 4,
+                usesAdaptivePlacementForDenseLayouts: true,
+                denseCandidateThreshold: 2
+            )
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 300, height: 240),
+            candidates: [first, second]
+        )
+
+        // then
+        XCTAssertEqual(layout.metrics.collisionCount, 0)
+        XCTAssertFalse(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
     }
 
     func test_makeLayout_긴_label은_frame폭을_확장한다() {

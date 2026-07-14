@@ -10,7 +10,7 @@ import Foundation
 /// @since 2026-07-07
 struct OverlayAppearance: Equatable {
     /// label 배경 투명도의 기본값 겸 허용 범위. 설정 UI와 저장소가 SSOT로 참조한다.
-    static let defaultLabelBackgroundOpacity = 0.92
+    static let defaultLabelBackgroundOpacity = 0.62
     static let labelBackgroundOpacityRange: ClosedRange<Double> = 0.4...1.0
 
     /// unfocused label 배경 투명도. 범위 0.4...1.0.

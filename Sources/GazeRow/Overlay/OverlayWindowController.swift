@@ -606,7 +606,7 @@ struct OverlayKeyboardCommandRouter {
     private mutating func route(_ command: FocusKeyboardCommand) -> FocusKeyboardCommand {
         switch command {
         case .typeLabel(let character):
-            return .typeLabel(character)
+            return .typeLabel(String(character).uppercased().first ?? character)
         case .appendQuery(let grapheme):
             queryInput.buffer.append(grapheme)
             return command
