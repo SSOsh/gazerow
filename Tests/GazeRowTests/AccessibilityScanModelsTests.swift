@@ -13,7 +13,7 @@ final class AccessibilityScanModelsTests: XCTestCase {
         let sut = AccessibilityScanConfiguration()
 
         // then
-        XCTAssertEqual(sut.maxDepth, 28)
+        XCTAssertEqual(sut.maxDepth, 32)
         XCTAssertEqual(sut.maxNodes, 4_000)
         XCTAssertEqual(sut.timeout, 1.5)
     }

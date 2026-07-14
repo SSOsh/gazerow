@@ -129,6 +129,21 @@ enum AppContent {
             }
         }
 
+        /// 각 scope가 담당하는 역할을 한 줄로 설명한다.
+        ///
+        /// labels·elements는 화면 위 대상을 다루고(공간), windows는 이름으로 창을
+        /// 검색·전환한다(의미). 사용자가 지금 어떤 scope로 무엇을 하는지 명확히 한다.
+        func queryScopeRole(_ scope: QueryScope) -> String {
+            switch scope {
+            case .labels:
+                return language == .korean ? "라벨을 겨냥해 클릭" : "Aim a label to click"
+            case .elements:
+                return language == .korean ? "요소를 이름으로 검색" : "Search elements by name"
+            case .windows:
+                return language == .korean ? "창을 이름으로 검색·전환" : "Search windows to switch"
+            }
+        }
+
         func queryMatchSummary(count: Int, index: Int, displayName: String) -> String {
             let safeCount = max(0, count)
             let safeIndex = min(max(1, index), max(1, safeCount))
@@ -153,12 +168,162 @@ enum AppContent {
             switch scope {
             case .labels:
                 return language == .korean
-                    ? "Enter: \(enterActionHint) / Esc"
-                    : "Enter: \(enterActionHint) / Esc"
-            case .elements, .windows:
+                    ? "/ 요소 · ; 창 · Enter \(enterActionHint) · Esc 닫기"
+                    : "/ elements · ; windows · Enter \(enterActionHint) · Esc close"
+            case .elements:
                 return language == .korean
-                    ? "Tab / Enter: \(enterActionHint) / Esc"
-                    : "Tab / Enter: \(enterActionHint) / Esc"
+                    ? "Tab 다음 · / 요소 · ; 창 · Enter \(enterActionHint) · Esc 닫기"
+                    : "Tab next · / elements · ; windows · Enter \(enterActionHint) · Esc close"
+            case .windows:
+                return language == .korean
+                    ? "Tab 다음 · ; 창 · Enter \(enterActionHint) · Esc 닫기"
+                    : "Tab next · ; windows · Enter \(enterActionHint) · Esc close"
+            }
+        }
+
+        // MARK: - Overlay transient status (SSOT)
+
+        /// overlay 준비 상태 문구. `readyBadge`를 재사용한다.
+        var overlayReadyText: String {
+            readyBadge
+        }
+
+        /// 입력 버퍼를 비웠을 때의 문구.
+        var overlayInputClearedText: String {
+            language == .korean ? "입력을 지웠습니다" : "Input cleared"
+        }
+
+        /// 라벨 focus 성공 문구.
+        var overlayFocusedText: String {
+            language == .korean ? "포커스됨" : "Focused"
+        }
+
+        /// 라벨 scope로 전환했을 때의 문구. `queryScopeLabels`를 재사용한다.
+        var overlayLabelsSelectedText: String {
+            queryScopeLabels
+        }
+
+        /// 클릭 성공 문구.
+        var overlayClickedText: String {
+            language == .korean ? "클릭함" : "Clicked"
+        }
+
+        /// 창을 찾지 못했을 때의 문구.
+        var overlayWindowNotFoundText: String {
+            language == .korean ? "창을 찾을 수 없음" : "Window not found"
+        }
+
+        /// 창 활성화 실패 문구.
+        var overlayWindowActivationFailedText: String {
+            language == .korean ? "창 활성화 실패" : "Window activation failed"
+        }
+
+        /// 다시 스캔 실패 문구.
+        var overlayRescanFailedText: String {
+            language == .korean ? "다시 스캔 실패" : "Rescan failed"
+        }
+
+        /// 클릭 성공(결과) 문구.
+        var clickSucceededText: String {
+            language == .korean ? "클릭 성공" : "Click succeeded"
+        }
+
+        func overlayTypingText(_ buffer: String) -> String {
+            language == .korean ? "입력 중 \(buffer)" : "Typing \(buffer)"
+        }
+
+        func overlayNoLabelText(_ label: String) -> String {
+            language == .korean ? "라벨 \(label) 없음" : "No label \(label)"
+        }
+
+        func overlayPinnedText(_ scope: QueryScope) -> String {
+            language == .korean
+                ? "\(queryScopeTitle(scope)) 고정"
+                : "Pinned \(scope.rawValue)"
+        }
+
+        func overlayWindowActivatedText(appName: String) -> String {
+            language == .korean ? "\(appName) 활성화됨" : "\(appName) activated"
+        }
+
+        // MARK: - Click risk / failure text
+
+        /// click 위험 등급별 동작 설명.
+        func riskActionText(_ risk: ClickRiskClass) -> String {
+            switch risk {
+            case .safeNavigation:
+                language == .korean ? "안전한 동작" : "safe action"
+            case .stateChange:
+                language == .korean ? "상태 변경" : "state change"
+            case .destructive:
+                language == .korean ? "파괴적 동작" : "destructive action"
+            case .externalEffect:
+                language == .korean ? "외부 영향 동작" : "external action"
+            case .unknownRisk:
+                language == .korean ? "알 수 없는 동작" : "unknown action"
+            }
+        }
+
+        /// 위험 click의 second confirm 안내 문구.
+        func overlaySecondConfirmText(_ risk: ClickRiskClass) -> String {
+            language == .korean
+                ? "\(riskActionText(risk))을(를) 실행하려면 Return을 다시 누르세요"
+                : "Press Return again for \(riskActionText(risk))"
+        }
+
+        /// click 결과(성공/실패)를 문구로 변환한다.
+        func clickResultText(
+            _ result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+        ) -> String {
+            switch result {
+            case .success:
+                clickSucceededText
+            case .failure(let failure):
+                clickFailureText(failure)
+            }
+        }
+
+        /// overlay session click 실패 문구.
+        func clickFailureText(_ failure: OverlaySessionClickFailure) -> String {
+            switch failure {
+            case .scanFailed:
+                language == .korean ? "클릭 실패: 대상이 변경됨" : "Click failed: target changed"
+            case .missingFocusedTarget:
+                language == .korean
+                    ? "클릭 실패: 포커스된 대상이 없습니다. 라벨을 입력하거나 먼저 Tab을 누르세요."
+                    : "Click failed: no focused target. Type a label or press Tab first."
+            case .selectedTargetUnavailable:
+                language == .korean
+                    ? "선택한 요소가 더 이상 없습니다. 라벨을 갱신했습니다."
+                    : "The selected element is no longer available. Labels were refreshed."
+            case .selectedTargetChanged:
+                language == .korean
+                    ? "화면이 변경되어 라벨을 갱신했습니다. 다시 선택하세요."
+                    : "The screen changed, so labels were refreshed. Select again."
+            case .selectedTargetAmbiguous:
+                language == .korean
+                    ? "대상을 확실히 구분할 수 없어 클릭하지 않았습니다."
+                    : "The target could not be identified safely, so no click was performed."
+            case .executionFailed(let executionFailure):
+                clickExecutionFailureText(executionFailure)
+            }
+        }
+
+        /// click 실행 실패 문구.
+        func clickExecutionFailureText(_ failure: ClickExecutionFailure) -> String {
+            switch failure {
+            case .missingPressAction:
+                language == .korean
+                    ? "클릭 실패: 지원되는 동작이 없습니다. 다른 라벨을 선택하세요."
+                    : "Click failed: no supported action. Try another label."
+            case .secondConfirmRequired(let riskClass):
+                overlaySecondConfirmText(riskClass)
+            case .axPressFailed:
+                language == .korean ? "클릭 실패: 접근성 action 실패" : "Click failed: accessibility action failed"
+            case .coordinateFallbackDisabled:
+                language == .korean ? "클릭 실패: 좌표 fallback 꺼짐" : "Click failed: coordinate fallback is off"
+            case .coordinateFallbackFailed:
+                language == .korean ? "클릭 실패: 좌표 fallback 실패" : "Click failed: coordinate fallback failed"
             }
         }
 

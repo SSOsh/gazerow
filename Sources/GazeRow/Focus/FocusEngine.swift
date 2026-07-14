@@ -122,14 +122,27 @@ struct FocusEngine: Equatable {
         return .focusChanged(from: previousID, to: id, method: method)
     }
 
-    mutating func focusNearest(to point: CGPoint) -> FocusEngineEvent? {
-        guard let nearestItem = GazeFocusController().nearestItem(to: point, in: items) else {
+    mutating func focusNearest(
+        to point: CGPoint,
+        hysteresisMargin: CGFloat = 0
+    ) -> FocusEngineEvent? {
+        let controller = GazeFocusController(hysteresisMargin: hysteresisMargin)
+        guard let nearestItem = controller.nearestItem(
+            to: point,
+            in: items,
+            current: focusedItem
+        ) else {
             focusedItemID = nil
             labelBuffer = ""
             return nil
         }
 
         let previousID = focusedItemID
+        guard previousID != nearestItem.id else {
+            labelBuffer = ""
+            return nil
+        }
+
         focusedItemID = nearestItem.id
         labelBuffer = ""
 

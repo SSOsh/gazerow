@@ -14,6 +14,14 @@ struct AccessibilityClickabilityPolicy {
             return true
         }
 
+        if isFocusableInput(
+            role: snapshot.role,
+            subrole: snapshot.subrole,
+            actions: snapshot.actions
+        ) {
+            return true
+        }
+
         if snapshot.role == AccessibilityRole.image {
             return hasSemanticText(
                 title: snapshot.title,
@@ -32,6 +40,19 @@ struct AccessibilityClickabilityPolicy {
             || actions.contains(AccessibilityAction.showDefaultUI)
     }
 
+    func isFocusableInput(role: String?, subrole: String?, actions: [String]) -> Bool {
+        isTextInputRole(role)
+            || hasTextInputAction(actions)
+            || isTextInputRole(subrole)
+            || containsInputHint(subrole)
+    }
+
+    func isTextInputRole(_ role: String?) -> Bool {
+        role == AccessibilityRole.textField
+            || role == AccessibilityRole.textArea
+            || role == AccessibilityRole.searchField
+    }
+
     func hasSemanticText(title: String?, value: String?, help: String?) -> Bool {
         hasText(title)
             || hasText(value)
@@ -40,6 +61,22 @@ struct AccessibilityClickabilityPolicy {
 
     func isClickableRole(_ role: String?) -> Bool {
         clickableRoles.contains(role ?? "")
+    }
+
+    private func hasTextInputAction(_ actions: [String]) -> Bool {
+        actions.contains(AccessibilityAction.setValue)
+    }
+
+    private func containsInputHint(_ value: String?) -> Bool {
+        guard let normalized = value?.lowercased() else {
+            return false
+        }
+
+        return normalized.contains("textfield")
+            || normalized.contains("textarea")
+            || normalized.contains("searchfield")
+            || normalized.contains("textinput")
+            || normalized.contains("editable")
     }
 
     private func hasText(_ value: String?) -> Bool {

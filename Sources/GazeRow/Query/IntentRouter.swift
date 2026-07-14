@@ -41,6 +41,10 @@ struct QueryResolution: Equatable {
 /// @author suho.do
 /// @since 2026-07-09
 struct IntentRouter {
+    /// element·window score 경합에서 scope가 한 글자 차이로 뒤집히는 진동을 막는 margin.
+    /// 승자가 이 값 이상 앞서야 전환하고, margin 이내면 직전 scope에 관성을 준다.
+    static let scopeScoreMargin = 20
+
     private let promoter: ActionablePromoter
 
     init(promoter: ActionablePromoter = ActionablePromoter()) {
@@ -111,19 +115,64 @@ struct IntentRouter {
             return .labels
         }
 
+        if let scope = bestSearchScope(
+            elementMatches: elementMatches,
+            windowMatches: windowMatches,
+            lastScope: lastScope
+        ) {
+            return scope
+        }
+
         if buffer.count >= 2 || containsHangul(buffer) || buffer.contains(" ") {
             return .elements
         }
 
-        if !elementMatches.isEmpty {
-            return .elements
+        return lastScope == .windows ? .elements : lastScope
+    }
+
+    private func bestSearchScope(
+        elementMatches: [SearchMatch],
+        windowMatches: [WindowMatch],
+        lastScope: QueryScope
+    ) -> QueryScope? {
+        guard !elementMatches.isEmpty || !windowMatches.isEmpty else {
+            return nil
         }
 
-        if !windowMatches.isEmpty {
+        guard !elementMatches.isEmpty else {
             return .windows
         }
 
-        return lastScope == .windows ? .elements : lastScope
+        guard !windowMatches.isEmpty else {
+            return .elements
+        }
+
+        // 둘 다 매치: score 경합. 승자가 margin 이상 앞서야 전환하고,
+        // margin 이내(경합)면 직전 scope에 관성을 준다(양방향 대칭 히스테리시스).
+        let bestElementScore = elementMatches.map(\.score).max() ?? 0
+        let bestWindowScore = windowMatches.map(\.score).max() ?? 0
+        return resolveContestedScope(
+            elementScore: bestElementScore,
+            windowScore: bestWindowScore,
+            lastScope: lastScope
+        )
+    }
+
+    private func resolveContestedScope(
+        elementScore: Int,
+        windowScore: Int,
+        lastScope: QueryScope
+    ) -> QueryScope {
+        let difference = windowScore - elementScore
+        if difference > Self.scopeScoreMargin {
+            return .windows
+        }
+        if difference < -Self.scopeScoreMargin {
+            return .elements
+        }
+
+        // margin 이내 경합: 직전이 windows면 windows를 유지하고, 그 외에는 elements로 안정화한다.
+        return lastScope == .windows ? .windows : .elements
     }
 
     private func elementResolution(

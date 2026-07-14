@@ -453,6 +453,37 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertFalse(result)
     }
 
+    func test_OverlayKeyboardCommandRouter_syncKeyboardState는_scopeChip선택후_문자를_query로_입력한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        sut.syncKeyboardState(QueryInputState(pinnedScope: .windows, lastScope: .windows))
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 1, charactersIgnoringModifiers: "s")
+        )
+
+        // then
+        XCTAssertEqual(command, .appendQuery("s"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_syncKeyboardState는_범위상태를_교체한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+        _ = sut.command(
+            for: FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "a")
+        )
+
+        // when
+        sut.syncKeyboardState(QueryInputState(pinnedScope: .elements, lastScope: .elements))
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 1, charactersIgnoringModifiers: "s")
+        )
+
+        // then
+        XCTAssertEqual(command, .appendQuery("s"))
+    }
+
     private func makeLayout(
         targetFrame: CGRect = CGRect(x: 0, y: 0, width: 200, height: 120)
     ) -> OverlayLayout {

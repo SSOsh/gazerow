@@ -8,12 +8,24 @@ import Foundation
 /// @since 2026-07-02
 @MainActor
 struct AXAccessibilityElementClient: AccessibilityElementClient {
-    private let rootElementSelector = AccessibilityRootElementSelector<AXUIElement>()
-    private let childAttributeCollector = AccessibilityChildAttributeCollector<AXUIElement>()
+    private let rootElementSelector: AccessibilityRootElementSelector<AXUIElement>
+    private let childAttributeCollector: AccessibilityChildAttributeCollector<AXUIElement>
     private let additionalRootElementCollector = AccessibilityAdditionalRootElementCollector<AXUIElement> { element in
         AnyHashable(CFHash(element))
     }
-    private let messagingTimeout: Float = 1.0
+    private let messagingTimeout: Float
+
+    nonisolated init(
+        rootElementSelector: AccessibilityRootElementSelector<AXUIElement> =
+            AccessibilityRootElementSelector<AXUIElement>(),
+        childAttributeCollector: AccessibilityChildAttributeCollector<AXUIElement> =
+            AccessibilityChildAttributeCollector<AXUIElement>(),
+        messagingTimeout: Float = 1.0
+    ) {
+        self.rootElementSelector = rootElementSelector
+        self.childAttributeCollector = childAttributeCollector
+        self.messagingTimeout = messagingTimeout
+    }
 
     func rootElement(for context: TargetContext) -> Result<AXUIElement, AccessibilityScanFailure> {
         guard AXIsProcessTrusted() else {

@@ -28,7 +28,7 @@ final class OverlayWindowController {
     private let appearanceProvider: @MainActor () -> OverlayAppearance
     private var keyboardEventTap: (any OverlayKeyboardEventTapping)?
 
-    init(
+    nonisolated init(
         layoutEngine: OverlayLayoutEngine = OverlayLayoutEngine(),
         commandBarLayoutEngine: OverlayCommandBarLayoutEngine = OverlayCommandBarLayoutEngine(),
         displayInfoProvider: @escaping @MainActor (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo,
@@ -208,6 +208,7 @@ final class OverlayWindowController {
                 matchIndex: currentStatus.matchIndex,
                 focusedDisplayName: currentStatus.focusedDisplayName,
                 isGazeTargeting: currentStatus.isGazeTargeting,
+                highlightFrame: currentStatus.highlightFrame,
                 enterActionHint: currentStatus.enterActionHint,
                 windowMatchPreviews: currentStatus.windowMatchPreviews,
                 message: currentStatus.message,
@@ -225,6 +226,11 @@ final class OverlayWindowController {
         }
 
         currentStatus = status
+        syncKeyboardState(QueryInputState(
+            buffer: status.queryBuffer,
+            pinnedScope: status.pinnedScope,
+            lastScope: status.activeScope
+        ))
         render(layout: currentLayout, status: status)
     }
 
@@ -307,6 +313,11 @@ final class OverlayWindowController {
             commandBarHostingView = hostingView
             commandBarPanel.contentView = hostingView
         }
+    }
+
+    private func syncKeyboardState(_ state: QueryInputState) {
+        targetPanel?.syncKeyboardState(state)
+        keyboardEventTap?.syncKeyboardState(state)
     }
 
     private func labelText(for focusedLabelID: Int?) -> String? {
@@ -447,6 +458,10 @@ private final class OverlayPanel: NSPanel {
 
         onKeyboardCommand(command)
     }
+
+    func syncKeyboardState(_ state: QueryInputState) {
+        keyboardRouter.syncKeyboardState(state)
+    }
 }
 
 /// overlay 표시 중 앱 활성화 없이 keyboard 입력을 가로채는 event tap.
@@ -457,6 +472,11 @@ private final class OverlayPanel: NSPanel {
 protocol OverlayKeyboardEventTapping: AnyObject {
     func start() -> Bool
     func stop()
+    func syncKeyboardState(_ state: QueryInputState)
+}
+
+extension OverlayKeyboardEventTapping {
+    func syncKeyboardState(_ state: QueryInputState) {}
 }
 
 /// CGEvent tap 기반 overlay keyboard capture.
@@ -539,6 +559,10 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
         runLoopSource = nil
     }
 
+    func syncKeyboardState(_ state: QueryInputState) {
+        context.syncKeyboardState(state)
+    }
+
 }
 
 final class OverlayKeyboardEventTapContext: @unchecked Sendable {
@@ -550,6 +574,10 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
 
     init(onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void) {
         self.onKeyboardCommand = onKeyboardCommand
+    }
+
+    func syncKeyboardState(_ state: QueryInputState) {
+        keyboardRouter.syncKeyboardState(state)
     }
 
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -626,6 +654,10 @@ struct OverlayKeyboardCommandRouter {
         return route(command)
     }
 
+    mutating func syncKeyboardState(_ state: QueryInputState) {
+        queryInput = state
+    }
+
     private mutating func route(_ command: FocusKeyboardCommand) -> FocusKeyboardCommand {
         switch command {
         case .typeLabel(let character):
@@ -644,6 +676,15 @@ struct OverlayKeyboardCommandRouter {
             return command
         case .clearQueryBuffer, .clearLabelBuffer, .closeOverlay:
             queryInput = QueryInputState()
+            return command
+        case .selectScope(let scope):
+            queryInput = scope == .labels
+                ? QueryInputState(lastScope: .labels)
+                : QueryInputState(
+                    buffer: queryInput.buffer,
+                    pinnedScope: scope,
+                    lastScope: scope
+                )
             return command
         case .move, .cycleMatch, .dryRunConfirm:
             return command

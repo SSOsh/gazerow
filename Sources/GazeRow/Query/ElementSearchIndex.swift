@@ -15,7 +15,7 @@ enum SearchableField: String, CaseIterable {
 
 /// Query Overlay element search 대상 node.
 ///
-/// value는 생성 시점에 80자로 제한해 status 표시와 검색 입력 모두에서 과도한
+/// value는 생성 시점에 80자로 제한하고 검색에만 사용해 status 표시에서 과도한
 /// 런타임 텍스트 노출을 줄인다.
 ///
 /// @author suho.do
@@ -234,12 +234,12 @@ struct ElementSearchIndex: Equatable {
             return title
         }
 
-        if let value = firstNonEmpty(node.value) {
-            return String(value.prefix(40))
-        }
-
         if let role = firstNonEmpty(node.role) {
             return role
+        }
+
+        if let subrole = firstNonEmpty(node.subrole) {
+            return subrole
         }
 
         return "Element \(node.id)"

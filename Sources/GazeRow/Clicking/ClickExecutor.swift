@@ -27,8 +27,8 @@ struct ClickExecutor<Client: ClickExecutionClient> {
 
         let riskClass = riskClassifier.classify(target)
 
-        if isTextInputRole(target.role) {
-            return executeTextInput(target: target, riskClass: riskClass)
+        if isTextInputTarget(target) {
+            return executeFocus(target: target, riskClass: riskClass)
         }
 
         guard let action = preferredAccessibilityAction(for: target) else {
@@ -118,21 +118,29 @@ struct ClickExecutor<Client: ClickExecutionClient> {
             && target.actions.contains(AccessibilityAction.press)
     }
 
-    private func isTextInputRole(_ role: String) -> Bool {
+    private func isTextInputTarget(_ target: ClickTarget<Client.Element>) -> Bool {
+        isTextInputRole(target.role)
+            || isTextInputRole(target.subrole)
+            || containsInputHint(target.subrole)
+            || target.actions.contains(AccessibilityAction.setValue)
+    }
+
+    private func isTextInputRole(_ role: String?) -> Bool {
         role == AccessibilityRole.textField
             || role == AccessibilityRole.textArea
             || role == AccessibilityRole.searchField
     }
 
-    private func executeTextInput(
-        target: ClickTarget<Client.Element>,
-        riskClass: ClickRiskClass
-    ) -> Result<ClickExecutionSuccess, ClickExecutionFailure> {
-        if shouldPreferCoordinateClick(for: target) {
-            return executeCoordinateClick(target: target, riskClass: riskClass)
+    private func containsInputHint(_ value: String?) -> Bool {
+        guard let normalized = value?.lowercased() else {
+            return false
         }
 
-        return executeFocus(target: target, riskClass: riskClass)
+        return normalized.contains("textfield")
+            || normalized.contains("textarea")
+            || normalized.contains("searchfield")
+            || normalized.contains("textinput")
+            || normalized.contains("editable")
     }
 
     private func executeFocus(

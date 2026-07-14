@@ -346,6 +346,37 @@ final class OverlayLayoutEngineTests: XCTestCase {
         XCTAssertEqual(layout.labels[1].text, "A")
     }
 
+    func test_makeLayout_scan순서가_바뀌어도_동일후보에는_같은_label을_배정() {
+        // given
+        let chatCandidate = makeCandidate(
+            title: "Chat input",
+            frame: CGRect(x: 100, y: 100, width: 80, height: 24)
+        )
+        let searchCandidate = makeCandidate(
+            title: "Search field",
+            frame: CGRect(x: 100, y: 100, width: 80, height: 24)
+        )
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(labelStrategy: .fixedWidth)
+        )
+
+        // when
+        let firstLayout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
+            candidates: [searchCandidate, chatCandidate]
+        )
+        let secondLayout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 400, height: 300),
+            candidates: [chatCandidate, searchCandidate]
+        )
+
+        // then
+        XCTAssertEqual(label(for: "Chat input", candidates: [searchCandidate, chatCandidate], layout: firstLayout), "A")
+        XCTAssertEqual(label(for: "Search field", candidates: [searchCandidate, chatCandidate], layout: firstLayout), "B")
+        XCTAssertEqual(label(for: "Chat input", candidates: [chatCandidate, searchCandidate], layout: secondLayout), "A")
+        XCTAssertEqual(label(for: "Search field", candidates: [chatCandidate, searchCandidate], layout: secondLayout), "B")
+    }
+
     func test_makeLayout_공간정렬_비활성화하면_DFS_스캔순으로_label을_배정() {
         // given
         let rightCandidate = makeCandidate(frame: CGRect(x: 300, y: 100, width: 20, height: 20))
@@ -386,13 +417,28 @@ final class OverlayLayoutEngineTests: XCTestCase {
         XCTAssertEqual(layout.labels[1].text, "Y")
     }
 
-    private func makeCandidate(frame: CGRect) -> ClickableCandidate {
+    private func makeCandidate(
+        title: String = "Button",
+        frame: CGRect
+    ) -> ClickableCandidate {
         ClickableCandidate(
             role: AccessibilityRole.button,
             subrole: nil,
-            title: "Button",
+            title: title,
             frame: frame,
             actions: [AccessibilityAction.press]
         )
+    }
+
+    private func label(
+        for title: String,
+        candidates: [ClickableCandidate],
+        layout: OverlayLayout
+    ) -> String? {
+        guard let index = candidates.firstIndex(where: { $0.title == title }) else {
+            return nil
+        }
+
+        return layout.labels.first { $0.id == index }?.text
     }
 }

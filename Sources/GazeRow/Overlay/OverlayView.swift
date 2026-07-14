@@ -27,6 +27,7 @@ struct OverlayView: View {
 
     var body: some View {
         let focusStyle = QueryFocusStyle(scope: status.activeScope)
+        let highlightFrame = localHighlightFrame
         ZStack(alignment: .topLeading) {
             if showsBoundary {
                 Rectangle()
@@ -42,6 +43,12 @@ struct OverlayView: View {
                     focusStyle: focusStyle
                 )
                 .frame(width: layout.localBounds.width, height: layout.localBounds.height)
+            }
+
+            if let highlightFrame {
+                SearchHitHighlightView(scope: status.activeScope)
+                    .frame(width: highlightFrame.width, height: highlightFrame.height)
+                    .position(x: highlightFrame.midX, y: highlightFrame.midY)
             }
 
             ForEach(layout.labels) { label in
@@ -63,6 +70,33 @@ struct OverlayView: View {
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
         .background(Color.clear)
+    }
+
+    private var localHighlightFrame: CGRect? {
+        guard let highlightFrame = status.highlightFrame,
+              highlightFrame.width > 0,
+              highlightFrame.height > 0 else {
+            return nil
+        }
+
+        let localFrame = OverlayCoordinateMapper(targetFrame: layout.targetFrame)
+            .mapScreenFrameToLocal(highlightFrame)
+        return localFrame.intersection(layout.localBounds).isNull ? nil : localFrame
+    }
+}
+
+private struct SearchHitHighlightView: View {
+    let scope: QueryScope
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 5)
+            .stroke(color.opacity(0.92), lineWidth: 2)
+            .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 5))
+            .allowsHitTesting(false)
+    }
+
+    private var color: Color {
+        QueryFocusStyle(scope: scope).markerColor
     }
 }
 
@@ -160,7 +194,6 @@ private struct QueryFocusStyle: Equatable {
         }
     }
 }
-
 
 #Preview {
     let candidate = ClickableCandidate(

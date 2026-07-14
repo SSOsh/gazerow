@@ -22,7 +22,7 @@ protocol AccessibilityTargetClient {
 struct AXAccessibilityTargetClient: AccessibilityTargetClient {
     private let windowSelector: TargetWindowCandidateSelector
 
-    init(windowSelector: TargetWindowCandidateSelector = TargetWindowCandidateSelector()) {
+    nonisolated init(windowSelector: TargetWindowCandidateSelector = TargetWindowCandidateSelector()) {
         self.windowSelector = windowSelector
     }
 

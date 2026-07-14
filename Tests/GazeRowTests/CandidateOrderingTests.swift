@@ -89,6 +89,36 @@ final class CandidateOrderingTests: XCTestCase {
         XCTAssertEqual(order, [0, 1, 2])
     }
 
+    func test_ordered_같은_band와_x에서는_y로_순서를_안정화한다() {
+        // given
+        let candidates = [
+            makeCandidate(x: 100, y: 106),
+            makeCandidate(x: 100, y: 100)
+        ]
+        let sut = CandidateOrdering(rowBandHeight: 100)
+
+        // when
+        let order = sut.ordered(candidates)
+
+        // then
+        XCTAssertEqual(order, [1, 0])
+    }
+
+    func test_ordered_동일_frame이면_title로_순서를_안정화한다() {
+        // given
+        let candidates = [
+            makeCandidate(x: 100, y: 100, title: "Search"),
+            makeCandidate(x: 100, y: 100, title: "Chat")
+        ]
+        let sut = CandidateOrdering()
+
+        // when
+        let order = sut.ordered(candidates)
+
+        // then
+        XCTAssertEqual(order, [1, 0])
+    }
+
     func test_ordered_빈_배열은_빈_순열을_반환() {
         // given
         let sut = CandidateOrdering()
@@ -112,11 +142,15 @@ final class CandidateOrderingTests: XCTestCase {
         XCTAssertEqual(order, [0])
     }
 
-    private func makeCandidate(x: CGFloat, y: CGFloat) -> ClickableCandidate {
+    private func makeCandidate(
+        x: CGFloat,
+        y: CGFloat,
+        title: String = "Button"
+    ) -> ClickableCandidate {
         ClickableCandidate(
             role: AccessibilityRole.button,
             subrole: nil,
-            title: "Button",
+            title: title,
             frame: CGRect(x: x, y: y, width: 20, height: 20),
             actions: [AccessibilityAction.press]
         )

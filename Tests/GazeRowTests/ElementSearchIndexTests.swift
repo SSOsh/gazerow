@@ -57,7 +57,29 @@ final class ElementSearchIndexTests: XCTestCase {
         XCTAssertEqual(matches.first?.nodeID, 0)
         XCTAssertEqual(matches.first?.score, 80)
         XCTAssertEqual(matches.first?.matchedFields, [.value])
-        XCTAssertEqual(matches.first?.displayName, "general")
+        XCTAssertEqual(matches.first?.displayName, AccessibilityRole.button)
+    }
+
+    func test_search_value_only_node는_value를_displayName에_노출하지_않는다() {
+        // given
+        let sut = ElementSearchIndex(
+            nodes: [
+                node(
+                    id: 0,
+                    role: AccessibilityRole.textField,
+                    value: "private@example.com",
+                    frame: CGRect(x: 10, y: 10, width: 160, height: 24)
+                )
+            ]
+        )
+
+        // when
+        let matches = sut.search("private")
+
+        // then
+        XCTAssertEqual(matches.first?.nodeID, 0)
+        XCTAssertEqual(matches.first?.displayName, AccessibilityRole.textField)
+        XCTAssertFalse(matches.first?.displayName.contains("@") ?? true)
     }
 
     func test_search_title_약어를_낮은점수로_검색한다() {

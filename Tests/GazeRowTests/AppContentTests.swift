@@ -140,6 +140,8 @@ final class AppContentTests: XCTestCase {
         XCTAssertEqual(korean.queryScopeTitle(.labels), "라벨")
         XCTAssertEqual(korean.queryNoMatch, "매칭 없음")
         XCTAssertTrue(korean.queryKeyHint(for: .windows, enterActionHint: korean.enterActionSwitchWindow).contains("창 전환"))
+        XCTAssertTrue(korean.queryKeyHint(for: .labels, enterActionHint: korean.enterActionClick).contains("/ 요소"))
+        XCTAssertTrue(korean.queryKeyHint(for: .labels, enterActionHint: korean.enterActionClick).contains("; 창"))
         XCTAssertTrue(english.queryMatchSummary(count: 2, index: 1, displayName: "Delete").contains("Delete"))
         // 겨냥 요약은 매칭 개수/인덱스 없이 대상 이름만 보여 검색 요약과 구분된다.
         XCTAssertEqual(english.gazeTargetSummary(displayName: "Save Draft"), "Aiming · Save Draft")
@@ -160,5 +162,118 @@ final class AppContentTests: XCTestCase {
         XCTAssertEqual(korean.setupReadinessTitle, "설정 상태")
         XCTAssertTrue(korean.setupReadinessHeadline(for: .permissionRequired).contains("손쉬운 사용"))
         XCTAssertEqual(korean.setupReadinessBadge(for: .ready), korean.readyBadge)
+    }
+
+    func test_queryScopeRole는_각scope의_역할을_한영으로_설명한다() {
+        // given
+        let english = AppContent.localized(for: .english)
+        let korean = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(english.queryScopeRole(.labels), "Aim a label to click")
+        XCTAssertEqual(english.queryScopeRole(.elements), "Search elements by name")
+        XCTAssertEqual(english.queryScopeRole(.windows), "Search windows to switch")
+        XCTAssertEqual(korean.queryScopeRole(.labels), "라벨을 겨냥해 클릭")
+        XCTAssertEqual(korean.queryScopeRole(.elements), "요소를 이름으로 검색")
+        XCTAssertEqual(korean.queryScopeRole(.windows), "창을 이름으로 검색·전환")
+    }
+
+    func test_overlayStatusText_english는_기존영문문구를_유지한다() {
+        // given
+        let content = AppContent.localized(for: .english)
+
+        // when & then
+        XCTAssertEqual(content.overlayReadyText, "Ready")
+        XCTAssertEqual(content.overlayInputClearedText, "Input cleared")
+        XCTAssertEqual(content.overlayFocusedText, "Focused")
+        XCTAssertEqual(content.overlayLabelsSelectedText, "Labels")
+        XCTAssertEqual(content.overlayClickedText, "Clicked")
+        XCTAssertEqual(content.overlayTypingText("AB"), "Typing AB")
+        XCTAssertEqual(content.overlayNoLabelText("J"), "No label J")
+        XCTAssertEqual(content.overlayPinnedText(.elements), "Pinned elements")
+        XCTAssertEqual(content.overlayWindowActivatedText(appName: "Safari"), "Safari activated")
+    }
+
+    func test_overlayStatusText_korean은_한국어문구를_제공한다() {
+        // given
+        let content = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(content.overlayReadyText, "준비됨")
+        XCTAssertEqual(content.overlayInputClearedText, "입력을 지웠습니다")
+        XCTAssertEqual(content.overlayFocusedText, "포커스됨")
+        XCTAssertEqual(content.overlayLabelsSelectedText, "라벨")
+        XCTAssertEqual(content.overlayClickedText, "클릭함")
+        XCTAssertEqual(content.overlayTypingText("AB"), "입력 중 AB")
+        XCTAssertEqual(content.overlayNoLabelText("J"), "라벨 J 없음")
+        XCTAssertEqual(content.overlayPinnedText(.elements), "요소 고정")
+        XCTAssertEqual(content.overlayWindowActivatedText(appName: "Safari"), "Safari 활성화됨")
+    }
+
+    func test_clickFailureText_english는_기존영문문구를_유지한다() {
+        // given
+        let content = AppContent.localized(for: .english)
+
+        // when & then
+        XCTAssertEqual(content.clickSucceededText, "Click succeeded")
+        XCTAssertEqual(
+            content.clickResultText(.failure(.missingFocusedTarget(index: -1))),
+            "Click failed: no focused target. Type a label or press Tab first."
+        )
+        XCTAssertEqual(
+            content.clickFailureText(.missingFocusedTarget(index: -1)),
+            "Click failed: no focused target. Type a label or press Tab first."
+        )
+        XCTAssertEqual(
+            content.clickExecutionFailureText(.missingPressAction),
+            "Click failed: no supported action. Try another label."
+        )
+        XCTAssertEqual(
+            content.overlaySecondConfirmText(.destructive),
+            "Press Return again for destructive action"
+        )
+        XCTAssertEqual(
+            content.clickFailureText(.selectedTargetUnavailable(labelID: 1)),
+            "The selected element is no longer available. Labels were refreshed."
+        )
+        XCTAssertEqual(
+            content.clickFailureText(.selectedTargetChanged(labelID: 1)),
+            "The screen changed, so labels were refreshed. Select again."
+        )
+        XCTAssertEqual(
+            content.clickFailureText(.selectedTargetAmbiguous(labelID: 1)),
+            "The target could not be identified safely, so no click was performed."
+        )
+    }
+
+    func test_clickFailureText_korean은_한국어문구를_제공한다() {
+        // given
+        let content = AppContent.localized(for: .korean)
+
+        // when & then
+        XCTAssertEqual(
+            content.clickFailureText(.missingFocusedTarget(index: -1)),
+            "클릭 실패: 포커스된 대상이 없습니다. 라벨을 입력하거나 먼저 Tab을 누르세요."
+        )
+        XCTAssertEqual(
+            content.clickExecutionFailureText(.missingPressAction),
+            "클릭 실패: 지원되는 동작이 없습니다. 다른 라벨을 선택하세요."
+        )
+        XCTAssertEqual(
+            content.overlaySecondConfirmText(.destructive),
+            "파괴적 동작을(를) 실행하려면 Return을 다시 누르세요"
+        )
+        XCTAssertEqual(
+            content.clickFailureText(.selectedTargetUnavailable(labelID: 1)),
+            "선택한 요소가 더 이상 없습니다. 라벨을 갱신했습니다."
+        )
+        XCTAssertEqual(
+            content.clickFailureText(.selectedTargetChanged(labelID: 1)),
+            "화면이 변경되어 라벨을 갱신했습니다. 다시 선택하세요."
+        )
+        XCTAssertEqual(
+            content.clickFailureText(.selectedTargetAmbiguous(labelID: 1)),
+            "대상을 확실히 구분할 수 없어 클릭하지 않았습니다."
+        )
     }
 }

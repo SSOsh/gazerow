@@ -395,7 +395,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         globalShortcutMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let input = OverlayActivationShortcutInput(event: event)
-
             switch overlayActivationMonitorRoute(for: input) {
             case .gaze:
                 Task { @MainActor in
