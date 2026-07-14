@@ -68,6 +68,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.closeCallCount, 0)
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 0)
         XCTAssertEqual(presenter.focusUpdates, [0])
+        XCTAssertEqual(presenter.statusUpdates.last?.hasExplicitFocus, false)
 
         let request = try XCTUnwrap(presenter.showRequests.first)
         XCTAssertEqual(request.targetFrame, context.window.frame)
@@ -327,6 +328,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(event, .focusChanged(from: 0, to: 1, method: .tab))
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
         XCTAssertEqual(presenter.focusUpdates, [0, 1])
+        XCTAssertEqual(presenter.statusUpdates.last?.hasExplicitFocus, true)
     }
 
     func test_handleKeyboardCommand_typeLabel은_labelJump로_focus를_갱신() {
@@ -346,7 +348,8 @@ final class OverlaySessionControllerTests: XCTestCase {
                 focusedLabel: "S",
                 message: "Focused",
                 tone: .success,
-                phase: .matching
+                phase: .matching,
+                hasExplicitFocus: true
             )
         )
     }
@@ -423,7 +426,8 @@ final class OverlaySessionControllerTests: XCTestCase {
                 focusedDisplayName: "Delete",
                 enterActionHint: AppContent.localized(for: .english).enterActionClick,
                 tone: .neutral,
-                phase: .matching
+                phase: .matching,
+                hasExplicitFocus: true
             )
         )
     }
@@ -837,7 +841,8 @@ final class OverlaySessionControllerTests: XCTestCase {
                 focusedLabel: "S",
                 message: "Clicked",
                 tone: .success,
-                phase: .success
+                phase: .success,
+                hasExplicitFocus: true
             )
         )
         XCTAssertNil(sut.activeSession)

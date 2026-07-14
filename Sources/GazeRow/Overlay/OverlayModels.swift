@@ -123,6 +123,22 @@ enum OverlayInteractionPhase: Equatable {
     case failure
 }
 
+/// overlay focus가 사용자의 명시적 입력에서 비롯됐는지 나타낸다.
+///
+/// @author suho.do
+/// @since 2026-07-14
+enum OverlayFocusOrigin: Equatable {
+    case initial
+    case label
+    case keyboard
+    case gaze
+    case query
+
+    var isExplicit: Bool {
+        self != .initial
+    }
+}
+
 /// overlay의 현재 입력/실행 상태.
 ///
 /// @author suho.do
@@ -145,6 +161,7 @@ struct OverlayInteractionStatus: Equatable {
     let tone: Tone
     let phase: OverlayInteractionPhase
     let requiresSecondConfirm: Bool
+    let hasExplicitFocus: Bool
 
     init(
         focusedLabel: String? = nil,
@@ -161,7 +178,8 @@ struct OverlayInteractionStatus: Equatable {
         message: String? = nil,
         tone: Tone = .neutral,
         phase: OverlayInteractionPhase = .idle,
-        requiresSecondConfirm: Bool = false
+        requiresSecondConfirm: Bool = false,
+        hasExplicitFocus: Bool = false
     ) {
         self.focusedLabel = focusedLabel
         self.typedLabelBuffer = typedLabelBuffer
@@ -178,6 +196,7 @@ struct OverlayInteractionStatus: Equatable {
         self.tone = tone
         self.phase = phase
         self.requiresSecondConfirm = requiresSecondConfirm
+        self.hasExplicitFocus = hasExplicitFocus
     }
 
     var displayBuffer: String {
@@ -189,6 +208,36 @@ struct OverlayInteractionStatus: Equatable {
         case success
         case warning
         case failure
+    }
+}
+
+/// overlay label의 시각적 우선순위를 계산한다.
+///
+/// @author suho.do
+/// @since 2026-07-14
+enum OverlayLabelVisibility {
+    static let dimmedOpacity = 0.16
+
+    static func opacity(
+        for label: OverlayLabel,
+        focusedLabelID: Int?,
+        status: OverlayInteractionStatus
+    ) -> Double {
+        guard status.activeScope != .windows else {
+            return 0.25
+        }
+
+        if !status.typedLabelBuffer.isEmpty,
+           !label.text.hasPrefix(status.typedLabelBuffer.uppercased()) {
+            return dimmedOpacity
+        }
+
+        if status.hasExplicitFocus,
+           label.id != focusedLabelID {
+            return dimmedOpacity
+        }
+
+        return 1
     }
 }
 

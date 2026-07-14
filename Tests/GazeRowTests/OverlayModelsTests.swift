@@ -8,6 +8,83 @@ import XCTest
 /// @since 2026-07-02
 final class OverlayModelsTests: XCTestCase {
 
+    func test_labelVisibility는_초기focus에서_모든라벨을유지한다() {
+        // given
+        let label = OverlayLabel(
+            id: 1,
+            text: "B",
+            candidateFrame: .zero,
+            labelFrame: .zero,
+            anchorPoint: .zero
+        )
+
+        // when
+        let opacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: 0,
+            status: OverlayInteractionStatus()
+        )
+
+        // then
+        XCTAssertEqual(opacity, 1)
+    }
+
+    func test_labelVisibility는_prefix불일치와_명시focus비선택라벨을_dim처리한다() {
+        // given
+        let label = OverlayLabel(
+            id: 1,
+            text: "BC",
+            candidateFrame: .zero,
+            labelFrame: .zero,
+            anchorPoint: .zero
+        )
+
+        // when
+        let prefixOpacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: nil,
+            status: OverlayInteractionStatus(typedLabelBuffer: "A")
+        )
+        let focusOpacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: 0,
+            status: OverlayInteractionStatus(hasExplicitFocus: true)
+        )
+
+        // then
+        XCTAssertEqual(prefixOpacity, OverlayLabelVisibility.dimmedOpacity)
+        XCTAssertEqual(focusOpacity, OverlayLabelVisibility.dimmedOpacity)
+    }
+
+    func test_labelVisibility는_prefix일치와_명시focus선택라벨을_유지한다() {
+        // given
+        let label = OverlayLabel(
+            id: 1,
+            text: "BC",
+            candidateFrame: .zero,
+            labelFrame: CGRect(x: 120, y: 140, width: 44, height: 24),
+            anchorPoint: .zero
+        )
+
+        // when
+        let prefixOpacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: nil,
+            status: OverlayInteractionStatus(typedLabelBuffer: "b")
+        )
+        let focusOpacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: 1,
+            status: OverlayInteractionStatus(hasExplicitFocus: true)
+        )
+
+        // then
+        XCTAssertEqual(prefixOpacity, 1)
+        XCTAssertEqual(focusOpacity, 1)
+        XCTAssertEqual(label.labelFrame.midX, 142)
+        XCTAssertEqual(label.labelFrame.midY, 152)
+    }
+
     func test_LayoutConfiguration_기본값() {
         // given
         let sut = OverlayLayoutConfiguration()

@@ -203,7 +203,8 @@ final class OverlayWindowController {
                 message: currentStatus.message,
                 tone: currentStatus.tone,
                 phase: currentStatus.phase,
-                requiresSecondConfirm: currentStatus.requiresSecondConfirm
+                requiresSecondConfirm: currentStatus.requiresSecondConfirm,
+                hasExplicitFocus: currentStatus.hasExplicitFocus
             )
         )
     }

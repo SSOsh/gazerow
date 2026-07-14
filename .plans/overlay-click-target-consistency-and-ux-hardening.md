@@ -675,10 +675,10 @@ open -n .build/local-app/GazeRow.app
 
 ### Phase 3: Overlay declutter
 
-- [ ] explicit focus 상태 모델 추가
-- [ ] prefix 불일치 라벨 dim 처리
-- [ ] explicit focus 이후 비선택 라벨 dim 처리
-- [ ] centered/opacity 회귀 테스트 추가
+- [x] explicit focus 상태 모델 추가
+- [x] prefix 불일치 라벨 dim 처리
+- [x] explicit focus 이후 비선택 라벨 dim 처리
+- [x] centered/opacity 회귀 테스트 추가 (`2026-07-14`: 623 tests, 0 failures)
 
 ### Phase 4: 정책 및 진단 정리
 

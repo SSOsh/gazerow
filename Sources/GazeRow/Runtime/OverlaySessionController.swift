@@ -203,11 +203,15 @@ final class OverlaySessionController {
         case .move(let moveCommand):
             session.pendingSecondConfirm = nil
             event = session.focusEngine.move(moveCommand)
+            session.focusOrigin = .keyboard
             session.queryInput.lastScope = .labels
             statusMessage = focusedMessage(for: session)
         case .typeLabel(let character):
             session.pendingSecondConfirm = nil
             let typingResult = session.focusEngine.typeLabelCharacter(character)
+            if typingResult.isExactMatch {
+                session.focusOrigin = .label
+            }
             session.queryInput.lastScope = .labels
             event = typingResult.event
             let feedback = feedback(for: typingResult, typedCharacter: character, session: session)
@@ -332,6 +336,9 @@ final class OverlaySessionController {
         }
 
         let event = session.focusEngine.focusNearest(to: gazePoint)
+        if event != nil {
+            session.focusOrigin = .gaze
+        }
         activeSession = session
         updateOverlayStatus(for: session, message: focusedMessage(for: session), tone: .neutral)
         record(event, context: session.snapshot.context)
@@ -666,6 +673,7 @@ final class OverlaySessionController {
         session.queryInput.lastScope = resolution.scope
         if let focusTargetCandidateIndex = resolution.focusTargetCandidateIndex {
             _ = session.focusEngine.focusItem(id: focusTargetCandidateIndex)
+            session.focusOrigin = .query
         } else if resolution.scope == .elements {
             _ = session.focusEngine.focusItem(id: -1)
         }
@@ -822,7 +830,8 @@ final class OverlaySessionController {
                 tone: tone,
                 message: message
             ),
-            requiresSecondConfirm: requiresSecondConfirm
+            requiresSecondConfirm: requiresSecondConfirm,
+            hasExplicitFocus: session.focusOrigin.isExplicit
         )
     }
 
@@ -1185,6 +1194,7 @@ struct OverlaySessionState: Equatable {
     var windowMatches: [WindowMatch] = []
     var windowMatchIndex: Int = 0
     var pendingSecondConfirm: PendingSecondConfirm?
+    var focusOrigin: OverlayFocusOrigin = .initial
 }
 
 /// 위험 click second confirm 대기 상태.

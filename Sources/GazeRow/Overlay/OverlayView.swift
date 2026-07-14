@@ -27,8 +27,6 @@ struct OverlayView: View {
 
     var body: some View {
         let focusStyle = QueryFocusStyle(scope: status.activeScope)
-        let labelOpacity = status.activeScope == .windows ? 0.25 : 1.0
-
         ZStack(alignment: .topLeading) {
             if showsBoundary {
                 Rectangle()
@@ -52,7 +50,11 @@ struct OverlayView: View {
                     isFocused: label.id == focusedLabelID,
                     appearance: appearance,
                     focusStyle: focusStyle,
-                    labelOpacity: labelOpacity
+                    labelOpacity: OverlayLabelVisibility.opacity(
+                        for: label,
+                        focusedLabelID: focusedLabelID,
+                        status: status
+                    )
                 )
                     .frame(width: label.labelFrame.width, height: label.labelFrame.height)
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
