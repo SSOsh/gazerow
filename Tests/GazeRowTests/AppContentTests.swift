@@ -38,6 +38,22 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(limitations.contains("representative click task still needs verification"))
     }
 
+    func test_knownLimitations은_검증된중앙좌표클릭정책을_안내한다() {
+        // given
+        let english = AppContent.localized(for: .english)
+        let korean = AppContent.localized(for: .korean)
+
+        // when
+        let englishLimitations = english.knownLimitations.joined(separator: "\n")
+        let koreanLimitations = korean.knownLimitations.joined(separator: "\n")
+
+        // then
+        XCTAssertTrue(englishLimitations.contains("verified target's center coordinate"))
+        XCTAssertTrue(englishLimitations.contains("no click is sent"))
+        XCTAssertTrue(koreanLimitations.contains("현재 대상의 중앙 좌표"))
+        XCTAssertTrue(koreanLimitations.contains("클릭하지 않고 라벨을 갱신"))
+    }
+
     func test_overlayUsageSteps_핵심조작을_순서대로_안내한다() {
         // given
         let steps = AppContent.overlayUsageSteps

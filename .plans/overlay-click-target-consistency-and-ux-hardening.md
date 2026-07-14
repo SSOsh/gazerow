@@ -682,9 +682,9 @@ open -n .build/local-app/GazeRow.app
 
 ### Phase 4: 정책 및 진단 정리
 
-- [ ] coordinate-first 용어와 안내 문구 현행화
-- [ ] interaction 진단 event 호환 확장
-- [ ] raw 사용자 데이터 비포함 테스트 추가
+- [x] coordinate-first 용어와 안내 문구 현행화
+- [x] interaction 진단 event 호환 확장
+- [x] raw 사용자 데이터 비포함 테스트 추가 (`2026-07-14`: 625 tests, 0 failures)
 
 ### Phase 5: 성능 후속
 

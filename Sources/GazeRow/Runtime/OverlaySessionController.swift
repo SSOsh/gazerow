@@ -567,22 +567,51 @@ final class OverlaySessionController {
         record(kind: .clickAttempt(risk: risk.logCode), context: context)
 
         if shouldRecordClickCompleted(for: result) {
+            let metadata = clickInteractionMetadata(for: result)
             record(
                 kind: .clickCompleted(
                     risk: risk.logCode,
                     success: result.isSuccess
                 ),
-                context: context
+                context: context,
+                clickMethod: metadata.method,
+                targetMatchResult: metadata.targetMatchResult
             )
         }
     }
 
-    private func record(kind: InteractionEventKind, context: TargetContext) {
+    private func clickInteractionMetadata(
+        for result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+    ) -> (method: String?, targetMatchResult: String?) {
+        switch result {
+        case .success(let success):
+            return (success.method.logCode, "matched")
+        case .failure(.executionFailed):
+            return (nil, "matched")
+        case .failure(.selectedTargetUnavailable):
+            return (nil, "unavailable")
+        case .failure(.selectedTargetChanged):
+            return (nil, "changed")
+        case .failure(.selectedTargetAmbiguous):
+            return (nil, "ambiguous")
+        case .failure:
+            return (nil, nil)
+        }
+    }
+
+    private func record(
+        kind: InteractionEventKind,
+        context: TargetContext,
+        clickMethod: String? = nil,
+        targetMatchResult: String? = nil
+    ) {
         interactionRecorder.record(
             InteractionEvent(
                 timestamp: dateProvider(),
                 kind: kind,
-                windowTitleHash: windowTitleHasher.hash(context.window.title)
+                windowTitleHash: windowTitleHasher.hash(context.window.title),
+                clickMethod: clickMethod,
+                targetMatchResult: targetMatchResult
             )
         )
     }
@@ -1306,6 +1335,21 @@ private extension ClickRiskClass {
             "externalEffect"
         case .unknownRisk:
             "unknownRisk"
+        }
+    }
+}
+
+private extension ClickExecutionMethod {
+    var logCode: String {
+        switch self {
+        case .axPress:
+            "axPress"
+        case .accessibilityAction(let action):
+            "accessibilityAction.\(action)"
+        case .axFocus:
+            "axFocus"
+        case .coordinateFallback:
+            "coordinateFallback"
         }
     }
 }

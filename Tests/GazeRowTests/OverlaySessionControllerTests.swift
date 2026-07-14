@@ -779,7 +779,9 @@ final class OverlaySessionControllerTests: XCTestCase {
                 InteractionEvent(
                     timestamp: timestamp,
                     kind: .clickCompleted(risk: "safeNavigation", success: true),
-                    windowTitleHash: hasher.hash("Finder")
+                    windowTitleHash: hasher.hash("Finder"),
+                    clickMethod: "axPress",
+                    targetMatchResult: "matched"
                 )
             ]
         )
@@ -947,6 +949,7 @@ final class OverlaySessionControllerTests: XCTestCase {
 
     func test_handleKeyboardCommand_targetMismatch는_cache를무효화하고_새라벨을표시한다() {
         // given
+        let recorder = StubInteractionRecorder()
         let scanner = StubOverlayScanner(
             results: [
                 .success(makeScanResult(candidates: [makeCandidate(title: "Open")])),
@@ -960,7 +963,8 @@ final class OverlaySessionControllerTests: XCTestCase {
         let sut = makeSessionController(
             scanner: scanner,
             clickExecutor: clickExecutor,
-            presenter: presenter
+            presenter: presenter,
+            recorder: recorder
         )
         _ = sut.start()
 
@@ -978,6 +982,8 @@ final class OverlaySessionControllerTests: XCTestCase {
             presenter.statusUpdates.last?.message,
             "The screen changed, so labels were refreshed. Select again."
         )
+        XCTAssertEqual(recorder.events.last?.clickMethod, nil)
+        XCTAssertEqual(recorder.events.last?.targetMatchResult, "changed")
     }
 
     func test_handleKeyboardCommand_targetMismatch재스캔실패는_기존overlay에_안내를표시한다() {
@@ -1479,6 +1485,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         scanner: StubOverlayScanner,
         clickExecutor: StubOverlayClickExecutor,
         presenter: StubOverlayPresenter = StubOverlayPresenter(),
+        recorder: any OverlaySessionInteractionRecording = StubInteractionRecorder(),
         windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
         windowActivator: any WindowActivating = StubWindowActivator(result: .failure(.appNotRunning))
     ) -> OverlaySessionController {
@@ -1486,7 +1493,7 @@ final class OverlaySessionControllerTests: XCTestCase {
             targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
             scanner: scanner,
             overlayPresenter: presenter,
-            interactionRecorder: StubInteractionRecorder(),
+            interactionRecorder: recorder,
             clickExecutor: clickExecutor,
             searchableNodeCollector: nil,
             windowSearchIndexProvider: windowSearchIndexProvider,

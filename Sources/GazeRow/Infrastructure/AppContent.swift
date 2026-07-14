@@ -398,10 +398,10 @@ enum AppContent {
     medical or safety-critical use.
     """
 
-    /// 좌표 클릭 fallback이 기본 비활성임을 알리는 문구.
+    /// 검증된 overlay click과 일반 좌표 fallback 정책을 알리는 문구.
     static let fallbackDisabledNotice = """
-    Coordinate-based click fallback (CGEventPost) is disabled by default to \
-    reduce the risk of mis-clicks. Clicks use supported accessibility actions.
+    Confirmed overlay clicks use the current verified target's center coordinate. \
+    Coordinate fallback outside that verified path is disabled by default.
     """
 
     /// 첫 실행 안내에서 소개하는 setup 단계.
@@ -417,8 +417,9 @@ enum AppContent {
     static let knownLimitations: [String] = [
         "Only the frontmost app's focused window is scanned.",
         "Some apps expose an incomplete accessibility tree, so candidates may be missing.",
-        "Clicks rely on accessibility actions such as AXPress, AXConfirm, AXOpen, and AXShowDefaultUI; elements without a supported action may not be actionable.",
-        "Coordinate-click fallback is off by default and must be enabled in debug.",
+        "Confirmed overlay clicks use the current verified target's center coordinate. If the selected target cannot be uniquely matched after a rescan, no click is sent and labels refresh.",
+        "Other click paths rely on accessibility actions such as AXPress, AXConfirm, AXOpen, and AXShowDefaultUI; elements without a supported action may not be actionable.",
+        "Coordinate-click fallback outside the verified overlay path is off by default.",
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
         "Gaze/camera features are Post-MVP and disabled in this build.",
         "Discord now exposes app UI candidates through expanded AX child scanning, but a representative click task still needs verification."
@@ -643,8 +644,9 @@ enum AppContent {
         knownLimitations: [
             "맨 앞 앱의 focused window만 스캔합니다.",
             "일부 앱은 접근성 트리를 불완전하게 노출해 후보가 빠질 수 있습니다.",
-            "클릭은 AXPress, AXConfirm, AXOpen, AXShowDefaultUI 같은 접근성 action에 의존합니다. 지원 action이 없는 요소는 실행되지 않을 수 있습니다.",
-            "좌표 기반 클릭 fallback은 기본적으로 꺼져 있으며, 명시 확인된 overlay 클릭 경로에서만 제한적으로 사용합니다.",
+            "확정된 overlay 클릭은 다시 검증한 현재 대상의 중앙 좌표를 클릭합니다. 재스캔 후 선택 대상을 하나로 확인할 수 없으면 클릭하지 않고 라벨을 갱신합니다.",
+            "그 밖의 클릭 경로는 AXPress, AXConfirm, AXOpen, AXShowDefaultUI 같은 접근성 action에 의존합니다. 지원 action이 없는 요소는 실행되지 않을 수 있습니다.",
+            "검증된 overlay 경로 밖의 좌표 기반 클릭 fallback은 기본적으로 꺼져 있습니다.",
             "모든 클릭은 키보드 확인이 필요합니다. 자동 클릭은 없습니다.",
             "Gaze/camera 기능은 실험 기능이며 기본적으로 꺼져 있습니다.",
             "Discord는 확장된 AX child scanning으로 앱 UI 후보를 노출하지만, 대표 클릭 task 검증은 아직 필요합니다."
@@ -662,7 +664,7 @@ enum AppContent {
         keyCursor는 키보드 중심 사용자를 위한 생산성 유틸리티입니다. 접근성/보조공학 제품이나 의료·안전 필수 용도로 설계된 제품이 아닙니다.
         """,
         fallbackDisabledNotice: """
-        오클릭 위험을 줄이기 위해 좌표 기반 클릭 fallback(CGEventPost)은 기본적으로 꺼져 있습니다. 일반 클릭은 지원되는 접근성 action을 사용합니다.
+        확정된 overlay 클릭은 현재 검증된 대상 중앙 좌표를 클릭합니다. 그 밖의 좌표 기반 클릭 fallback(CGEventPost)은 오클릭 위험을 줄이기 위해 기본적으로 꺼져 있습니다.
         """,
         windowControlShortcutsNotice: """
         창 단축키는 맨 앞 창의 표준 title-bar 버튼(닫기, 최소화, 확대/축소)에 접근성 action을 보냅니다. keyCursor에 Accessibility 권한이 있을 때만 동작합니다.

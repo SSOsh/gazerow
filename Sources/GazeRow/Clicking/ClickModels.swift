@@ -2,7 +2,8 @@ import CoreGraphics
 
 /// click 실행 정책.
 ///
-/// 좌표 fallback은 오클릭 리스크 때문에 기본 비활성이다.
+/// 일반 click 경로의 좌표 fallback은 오클릭 리스크 때문에 기본 비활성이다.
+/// overlay에서 사용자가 Enter로 확정한 click은 현재 검증된 target 중앙을 좌표로 클릭한다.
 /// 위험 action의 2단계 확인(second confirm)은 기본 비활성이며, 위험 버튼도 1회
 /// 확인(Enter)으로 실행한다. 필요 시 명시적으로 켤 수 있다.
 ///
