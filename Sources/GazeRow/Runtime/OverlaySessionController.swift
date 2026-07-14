@@ -357,8 +357,34 @@ final class OverlaySessionController {
             for: focusedItemID,
             session: &session
         )
+        guard session.snapshot.scanResult.candidates.indices.contains(focusedItemID) else {
+            let result: Result<ClickExecutionSuccess, OverlaySessionClickFailure> = .failure(
+                .missingFocusedTarget(index: focusedItemID)
+            )
+            lastClickResult = result
+            clickResultObserver(result)
+            recordClick(result: result, context: session.snapshot.context)
+            activeSession = session
+            overlayPresenter.updateStatus(
+                status(for: session, resolution: nil, message: result.statusMessage, tone: .failure)
+            )
+            return
+        }
+        let selection = OverlayClickSelection(
+            labelID: focusedItemID,
+            candidate: session.snapshot.scanResult.candidates[focusedItemID],
+            sourceCandidateCount: session.snapshot.scanResult.candidateCount
+        )
+        let diagnostic = OverlayClickTargetDiagnostic.source(
+            index: selection.labelID,
+            candidateCount: selection.sourceCandidateCount,
+            candidate: selection.candidate
+        )
+        AppLogger.interaction.info(
+            "\(diagnostic, privacy: .public)"
+        )
         let result = clickExecutor.execute(
-            focusedIndex: focusedItemID,
+            selection: selection,
             context: session.snapshot.context,
             isSecondConfirmProvided: isSecondConfirmProvided
         )

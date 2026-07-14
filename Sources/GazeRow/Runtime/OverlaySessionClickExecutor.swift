@@ -10,7 +10,7 @@ import Foundation
 @MainActor
 protocol OverlaySessionClickExecuting {
     func execute(
-        focusedIndex: Int,
+        selection: OverlayClickSelection,
         context: TargetContext,
         isSecondConfirmProvided: Bool
     ) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure>
@@ -35,6 +35,7 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
     private let targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient>
     private let clickExecutor: ClickExecutor<AXClickExecutionClient>
     private let clickPreparer: TargetApplicationClickPreparer
+    private let targetMatcher: OverlayClickTargetMatcher
 
     init(
         targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient> = OverlaySessionClickTargetResolver(client: AXAccessibilityElementClient()),
@@ -42,34 +43,41 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
             client: AXClickExecutionClient(),
             configuration: .overlayConfirmedClick
         ),
-        clickPreparer: TargetApplicationClickPreparer = TargetApplicationClickPreparer()
+        clickPreparer: TargetApplicationClickPreparer = TargetApplicationClickPreparer(),
+        targetMatcher: OverlayClickTargetMatcher = OverlayClickTargetMatcher()
     ) {
         self.targetResolver = targetResolver
         self.clickExecutor = clickExecutor
         self.clickPreparer = clickPreparer
+        self.targetMatcher = targetMatcher
     }
 
     func execute(
-        focusedIndex: Int,
+        selection: OverlayClickSelection,
         context: TargetContext,
         isSecondConfirmProvided: Bool
     ) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure> {
         switch targetResolver.resolveTargets(context: context) {
         case .success(let targets):
-            guard targets.indices.contains(focusedIndex) else {
-                return .failure(.missingFocusedTarget(index: focusedIndex))
+            switch targetMatcher.match(selection: selection, currentTargets: targets) {
+            case .matched(let target, let metadata):
+                let diagnostic = OverlayClickTargetDiagnostic.resolved(
+                    index: metadata.currentIndex,
+                    candidateCount: targets.count,
+                    target: target
+                )
+                AppLogger.interaction.info(
+                    "\(diagnostic, privacy: .public)"
+                )
+                clickPreparer.prepareForClick(application: context.application)
+                let request = ClickExecutionRequest(
+                    target: target,
+                    isSecondConfirmProvided: isSecondConfirmProvided
+                )
+                return clickExecutor.execute(request).mapError(OverlaySessionClickFailure.executionFailed)
+            case .unavailable, .changed, .ambiguous:
+                return .failure(.missingFocusedTarget(index: selection.labelID))
             }
-            let target = targets[focusedIndex]
-            let frameText = "(\(Int(target.frame.minX)),\(Int(target.frame.minY)) \(Int(target.frame.width))x\(Int(target.frame.height)))"
-            AppLogger.interaction.info(
-                "click target index=\(focusedIndex, privacy: .public) count=\(targets.count, privacy: .public) role=\(target.role, privacy: .public) frame=\(frameText, privacy: .public) actions=\(target.actions.joined(separator: ","), privacy: .public)"
-            )
-            clickPreparer.prepareForClick(application: context.application)
-            let request = ClickExecutionRequest(
-                target: target,
-                isSecondConfirmProvided: isSecondConfirmProvided
-            )
-            return clickExecutor.execute(request).mapError(OverlaySessionClickFailure.executionFailed)
         case .failure(let failure):
             return .failure(.scanFailed(failure))
         }

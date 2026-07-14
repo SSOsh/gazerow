@@ -707,7 +707,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertNotNil(sut.activeSession)
     }
 
-    func test_handleKeyboardCommand_dryRunConfirm은_focusedIndex를_clickExecutor에_전달() {
+    func test_handleKeyboardCommand_dryRunConfirm은_선택snapshot을_clickExecutor에_전달() {
         // given
         let clickExecutor = StubOverlayClickExecutor(
             result: .success(
@@ -730,7 +730,9 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // then
         XCTAssertEqual(event, .dryRunConfirm(index: 1))
-        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [1])
+        XCTAssertEqual(clickExecutor.requests.map(\.selection.labelID), [1])
+        XCTAssertEqual(clickExecutor.requests.first?.selection.sourceCandidateCount, 2)
+        XCTAssertEqual(clickExecutor.requests.first?.selection.candidate, makeCandidate(frame: CGRect(x: 220, y: 180, width: 44, height: 24)))
         XCTAssertEqual(clickExecutor.requests.first?.isSecondConfirmProvided, false)
         XCTAssertEqual(sut.lastClickResult, clickExecutor.result)
         XCTAssertNil(sut.activeSession)
@@ -827,7 +829,7 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // then
         XCTAssertEqual(result, .some(clickExecutor.result))
-        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [1])
+        XCTAssertEqual(clickExecutor.requests.map(\.selection.labelID), [1])
         XCTAssertEqual(presenter.focusUpdates, [0, 1, 1])
         XCTAssertEqual(
             presenter.statusUpdates.last,
@@ -1043,7 +1045,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
 
         // then
-        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [0, 1])
+        XCTAssertEqual(clickExecutor.requests.map(\.selection.labelID), [0, 1])
         XCTAssertEqual(clickExecutor.requests.map(\.isSecondConfirmProvided), [false, false])
         XCTAssertEqual(
             sut.activeSession?.pendingSecondConfirm,
@@ -1698,13 +1700,13 @@ private final class StubOverlayClickExecutor: OverlaySessionClickExecuting {
     }
 
     func execute(
-        focusedIndex: Int,
+        selection: OverlayClickSelection,
         context: TargetContext,
         isSecondConfirmProvided: Bool
     ) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure> {
         requests.append(
             ClickRequest(
-                focusedIndex: focusedIndex,
+                selection: selection,
                 context: context,
                 isSecondConfirmProvided: isSecondConfirmProvided
             )
@@ -1717,7 +1719,7 @@ private final class StubOverlayClickExecutor: OverlaySessionClickExecuting {
 }
 
 private struct ClickRequest: Equatable {
-    let focusedIndex: Int
+    let selection: OverlayClickSelection
     let context: TargetContext
     let isSecondConfirmProvided: Bool
 }
