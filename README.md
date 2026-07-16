@@ -160,14 +160,17 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 # 손쉬운 사용 권한 요청/설정 화면을 바로 열고 실행
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --request-accessibility
 
-# 로컬 .app 번들 생성 후 실행 (키 입력/activation이 더 안정적)
-scripts/build_local_app.sh
-open -n .build/local-app/GazeRow.app
+# 로컬 .app 번들 생성 후 단일 인스턴스로 실행 (키 입력/activation이 더 안정적)
+scripts/run_local_app.sh
+
+# 실행 중인 기존 GazeRow를 정상 종료한 뒤 새 빌드로 교체
+scripts/run_local_app.sh --replace-running
 ```
 
 > **주의**: 여러 Xcode 버전이 설치되어 있으면 위처럼 `DEVELOPER_DIR`로 원하는
 > Xcode toolchain을 지정하세요. 로컬 `.app` 번들 생성/서명 흐름은 전체 Xcode
-> 설치를 기준으로 검증합니다.
+> 설치를 기준으로 검증합니다. `open -n`은 중복 인스턴스를 강제로 만들기 때문에
+> 사용하지 마세요.
 
 실행 후 메뉴바 커서 아이콘을 클릭하면 **Open Settings** / **Quit** 등으로 동작을
 확인할 수 있습니다. 권한이 없으면 Settings의 **권한 요청** 버튼이나 위 런치 옵션으로

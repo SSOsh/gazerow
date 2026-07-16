@@ -66,6 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 실행 시 전달된 로컬 평가/복구 옵션.
     private let launchOptions = AppLaunchOptions.current
 
+    /// 설치 위치와 무관하게 GazeRow 단일 인스턴스 실행을 보장한다.
+    private lazy var singleInstanceCoordinator = SingleInstanceCoordinator()
+
     /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
     private lazy var overlaySessionController = OverlaySessionController(
         targetResolver: makeTargetResolver(),
@@ -75,6 +78,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        switch singleInstanceCoordinator.start(onActivationRequest: { [weak self] in
+            self?.handleExistingInstanceActivationRequest()
+        }) {
+        case .primary:
+            break
+        case .duplicate(let ownerProcessIdentifier):
+            AppLogger.lifecycle.info(
+                "duplicate instance terminated ownerPid=\(ownerProcessIdentifier ?? -1, privacy: .public)"
+            )
+            NSApp.terminate(nil)
+            return
+        case .unavailable(let errorCode):
+            presentSingleInstanceUnavailableGuidance(errorCode: errorCode)
+            NSApp.terminate(nil)
+            return
+        }
+
         // 메뉴바 앱: Dock 아이콘 없이 accessory 모드로 동작.
         NSApp.setActivationPolicy(.accessory)
 
@@ -94,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         removeOverlayActivationShortcut()
+        singleInstanceCoordinator.stop()
         if let gazeCalibrationObserver {
             NotificationCenter.default.removeObserver(gazeCalibrationObserver)
             self.gazeCalibrationObserver = nil
@@ -118,6 +139,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// status item 메뉴를 생성한다.
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
+
+        let instanceStatus = NSMenuItem(
+            title: "Running · Single instance",
+            action: nil,
+            keyEquivalent: ""
+        )
+        instanceStatus.isEnabled = false
+        menu.addItem(instanceStatus)
+        menu.addItem(.separator())
 
         let openSettings = NSMenuItem(
             title: "Open Settings",
@@ -184,6 +214,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         AppLogger.lifecycle.info("settings opened")
+    }
+
+    /// 중복 실행 요청을 기존 인스턴스가 받으면 Settings를 앞으로 가져온다.
+    private func handleExistingInstanceActivationRequest() {
+        AppLogger.lifecycle.info("existing instance activation requested")
+        openSettings()
+    }
+
+    /// process lock을 사용할 수 없어 입력 독점성을 보장하지 못할 때 안전하게 중단한다.
+    private func presentSingleInstanceUnavailableGuidance(errorCode: Int32) {
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "GazeRow could not start safely"
+        alert.informativeText = "GazeRow could not verify that only one instance is running. Error code: \(errorCode)."
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+
+        AppLogger.lifecycle.error(
+            "single instance lock unavailable errorCode=\(errorCode, privacy: .public)"
+        )
     }
 
     /// 커피값 후원 안내를 표시한다.

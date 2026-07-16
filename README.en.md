@@ -161,14 +161,17 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 # Open the Accessibility permission request/settings flow and run
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --request-accessibility
 
-# Build a local .app bundle and run it (more reliable key input / activation)
-scripts/build_local_app.sh
-open -n .build/local-app/GazeRow.app
+# Build a local .app bundle and run it as a single instance
+scripts/run_local_app.sh
+
+# Gracefully stop an existing GazeRow before replacing it with the new build
+scripts/run_local_app.sh --replace-running
 ```
 
 > **Note**: if multiple Xcode versions are installed, specify the intended toolchain
 > with `DEVELOPER_DIR` as above. The local `.app` bundling/signing flow is verified
-> with the full Xcode app installed.
+> with the full Xcode app installed. Do not use `open -n`, because it intentionally
+> starts another app instance.
 
 After launching, click the keyCursor icon in the menu bar to try **Open Settings** /
 **Quit** and confirm it works. Without permission, use the **Request Permission**
