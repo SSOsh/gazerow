@@ -19,6 +19,7 @@ struct OverlayLayoutEngine {
     ) -> OverlayLayout {
         let mapper = OverlayCoordinateMapper(targetFrame: targetFrame)
         let labelText = resolveLabelText(candidates: candidates, labels: labels)
+        let labelPlacement = effectiveLabelPlacement(candidateCount: candidates.count)
         var placedLabels: [OverlayLabel] = []
         var collisionCount = 0
         var occlusionCount = 0
@@ -28,8 +29,10 @@ struct OverlayLayoutEngine {
             let text = labelText(index)
             let labelFrame = placeLabelFrame(
                 over: candidateFrame,
+                labelSize: labelSize(for: text),
                 placed: placedLabels.map(\.labelFrame),
-                in: mapper.localBounds
+                in: mapper.localBounds,
+                placement: labelPlacement
             )
 
             if placedLabels.contains(where: { $0.labelFrame.intersects(labelFrame) }) {
@@ -123,15 +126,17 @@ struct OverlayLayoutEngine {
     /// `.adaptive`는 occlusion을 피하고 collision을 해소하도록 밀어낸다.
     private func placeLabelFrame(
         over candidateFrame: CGRect,
+        labelSize: CGSize,
         placed: [CGRect],
-        in bounds: CGRect
+        in bounds: CGRect,
+        placement: LabelPlacement
     ) -> CGRect {
-        switch configuration.labelPlacement {
+        switch placement {
         case .centered:
-            return makeCenteredLabelFrame(over: candidateFrame, in: bounds)
+            return makeCenteredLabelFrame(over: candidateFrame, labelSize: labelSize, in: bounds)
         case .adaptive:
             return OverlayLabelPlacer(
-                labelSize: configuration.labelSize,
+                labelSize: labelSize,
                 labelSpacing: configuration.labelSpacing,
                 edgeInset: configuration.edgeInset,
                 collisionShiftLimit: configuration.collisionShiftLimit
@@ -139,18 +144,42 @@ struct OverlayLayoutEngine {
         }
     }
 
+    /// 라벨 수가 많은 화면에서는 후보 중앙 겹침보다 adaptive 배치를 우선한다.
+    private func effectiveLabelPlacement(candidateCount: Int) -> LabelPlacement {
+        guard configuration.usesAdaptivePlacementForDenseLayouts,
+              configuration.labelPlacement == .centered,
+              candidateCount >= configuration.denseCandidateThreshold else {
+            return configuration.labelPlacement
+        }
+
+        return .adaptive
+    }
+
+    /// 긴 라벨은 고정 폭 안에 글자를 압축하지 않도록 폭을 확장한다.
+    private func labelSize(for text: String) -> CGSize {
+        let extraCharacters = max(0, text.count - 2)
+        return CGSize(
+            width: configuration.labelSize.width + CGFloat(extraCharacters) * 10,
+            height: configuration.labelSize.height
+        )
+    }
+
     /// 라벨을 후보 요소의 중앙에 겹쳐 배치한다.
     ///
     /// 후보에서 멀리 밀어내지 않으므로 라벨이 각 요소 위에 분산돼, 밀집 UI나
     /// 화면 가장자리에서 라벨이 한쪽으로 쏠려 뭉치는 현상을 없앤다. 화면 밖으로
     /// 벗어나지 않도록 경계 안으로만 clamp 한다.
-    private func makeCenteredLabelFrame(over candidateFrame: CGRect, in bounds: CGRect) -> CGRect {
+    private func makeCenteredLabelFrame(
+        over candidateFrame: CGRect,
+        labelSize: CGSize,
+        in bounds: CGRect
+    ) -> CGRect {
         let origin = CGPoint(
-            x: candidateFrame.midX - configuration.labelSize.width / 2,
-            y: candidateFrame.midY - configuration.labelSize.height / 2
+            x: candidateFrame.midX - labelSize.width / 2,
+            y: candidateFrame.midY - labelSize.height / 2
         )
 
-        return clamp(CGRect(origin: origin, size: configuration.labelSize), to: bounds)
+        return clamp(CGRect(origin: origin, size: labelSize), to: bounds)
     }
 
     private func clamp(_ frame: CGRect, to bounds: CGRect) -> CGRect {

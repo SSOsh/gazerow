@@ -115,7 +115,7 @@ struct ElementSearchIndex: Equatable {
     }
 
     func search(_ query: String) -> [SearchMatch] {
-        let normalizedQuery = Self.normalized(query)
+        let normalizedQuery = SearchTextMatcher.normalized(query)
         guard !normalizedQuery.isEmpty else {
             return []
         }
@@ -158,16 +158,14 @@ struct ElementSearchIndex: Equatable {
                 continue
             }
 
-            let normalizedValue = Self.normalized(value)
-            guard normalizedValue.contains(normalizedQuery) else {
+            guard let matchKind = SearchTextMatcher.match(value: value, query: normalizedQuery) else {
                 continue
             }
 
             matchedFields.append(field)
             let fieldScore = Self.score(
                 field: field,
-                normalizedValue: normalizedValue,
-                normalizedQuery: normalizedQuery
+                matchKind: matchKind
             )
             score = max(score, fieldScore)
         }
@@ -186,8 +184,7 @@ struct ElementSearchIndex: Equatable {
 
     private static func score(
         field: SearchableField,
-        normalizedValue: String,
-        normalizedQuery: String
+        matchKind: SearchTextMatchKind
     ) -> Int {
         let baseScore: Int
         switch field {
@@ -203,9 +200,17 @@ struct ElementSearchIndex: Equatable {
             baseScore = 10
         }
 
-        let prefixBonus = (field == .title || field == .value)
-            && normalizedValue.hasPrefix(normalizedQuery)
-        return baseScore + (prefixBonus ? 20 : 0)
+        switch matchKind {
+        case .exact, .prefix:
+            let prefixBonus = field == .title || field == .value
+            return baseScore + (prefixBonus ? 20 : 0)
+        case .contains:
+            return baseScore
+        case .acronym:
+            return max(1, baseScore - 15)
+        case .subsequence:
+            return max(1, baseScore - 35)
+        }
     }
 
     private static func isIndexable(_ node: SearchableNode) -> Bool {
@@ -249,12 +254,6 @@ struct ElementSearchIndex: Equatable {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    private static func normalized(_ value: String) -> String {
-        value
-            .precomposedStringWithCanonicalMapping
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-    }
 }
 
 private extension SearchableNode {

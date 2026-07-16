@@ -153,6 +153,24 @@ struct GlobalHotKeyDefinition: Equatable {
     let signature: OSType
     let identifier: UInt32
 
+    var displayName: String {
+        var parts: [String] = []
+        if requiredModifiers.contains(.control) {
+            parts.append("Control")
+        }
+        if requiredModifiers.contains(.option) {
+            parts.append("Option")
+        }
+        if requiredModifiers.contains(.command) {
+            parts.append("Command")
+        }
+        if requiredModifiers.contains(.shift) {
+            parts.append("Shift")
+        }
+        parts.append(keyDisplayName)
+        return parts.joined(separator: "+")
+    }
+
     var carbonModifiers: UInt32 {
         var modifiers: UInt32 = 0
 
@@ -172,10 +190,94 @@ struct GlobalHotKeyDefinition: Equatable {
         return modifiers
     }
 
+    private var keyDisplayName: String {
+        switch keyCode {
+        case OverlayActivationKeyCode.space:
+            "Space"
+        default:
+            "KeyCode\(keyCode)"
+        }
+    }
+
     static func fourCharacterCode(_ string: String) -> OSType {
         string.utf8.prefix(4).reduce(OSType(0)) { result, character in
             (result << 8) + OSType(character)
         }
+    }
+}
+
+/// Carbon hotkey 등록 결과와 사용자 안내 문구를 만든다.
+///
+/// @author suho.do
+/// @since 2026-07-12
+struct GlobalHotKeyRegistrationStatus: Equatable {
+    let definition: GlobalHotKeyDefinition
+    let osStatus: OSStatus
+
+    var isRegistered: Bool {
+        osStatus == noErr
+    }
+
+    var reason: String {
+        if osStatus == noErr {
+            return "registered"
+        }
+        if osStatus == OSStatus(eventHotKeyExistsErr) {
+            return "shortcut already in use"
+        }
+        if osStatus == OSStatus(eventHotKeyInvalidErr) {
+            return "invalid hotkey"
+        }
+        return "OSStatus \(osStatus)"
+    }
+
+    var probeToken: String {
+        "id\(definition.identifier)=\(osStatus)"
+    }
+}
+
+/// 여러 hotkey 등록 결과를 로그/stdout/UI 안내로 요약한다.
+///
+/// @author suho.do
+/// @since 2026-07-12
+struct GlobalHotKeyRegistrationGuidance: Equatable {
+    let statuses: [GlobalHotKeyRegistrationStatus]
+
+    var logSummary: String {
+        statuses.map(\.probeToken).joined(separator: ",")
+    }
+
+    var probeSummary: String {
+        var parts = [
+            "statuses=\(statuses.map { String($0.osStatus) }.joined(separator: ","))",
+            "details=\(logSummary)"
+        ]
+
+        if let failureMessage {
+            parts.append("guidance=\"\(failureMessage)\"")
+        }
+
+        return parts.joined(separator: " ")
+    }
+
+    var failureMessage: String? {
+        let failedStatuses = statuses.filter { !$0.isRegistered }
+        guard !failedStatuses.isEmpty else {
+            return nil
+        }
+
+        let failedText = failedStatuses
+            .map { "\($0.definition.displayName): \($0.reason)" }
+            .joined(separator: "; ")
+        let availableShortcuts = statuses
+            .filter(\.isRegistered)
+            .map(\.definition.displayName)
+
+        if !availableShortcuts.isEmpty {
+            return "Some global shortcuts failed to register (\(failedText)). You can still use \(availableShortcuts.joined(separator: " or ")). Change the conflicting macOS/app shortcut, then restart GazeRow."
+        }
+
+        return "Global shortcuts failed to register (\(failedText)). Change the conflicting macOS/app shortcut or quit the app using it, then restart GazeRow."
     }
 }
 

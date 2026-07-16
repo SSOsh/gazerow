@@ -8,6 +8,83 @@ import XCTest
 /// @since 2026-07-02
 final class OverlayModelsTests: XCTestCase {
 
+    func test_labelVisibility는_초기focus에서_모든라벨을유지한다() {
+        // given
+        let label = OverlayLabel(
+            id: 1,
+            text: "B",
+            candidateFrame: .zero,
+            labelFrame: .zero,
+            anchorPoint: .zero
+        )
+
+        // when
+        let opacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: 0,
+            status: OverlayInteractionStatus()
+        )
+
+        // then
+        XCTAssertEqual(opacity, 1)
+    }
+
+    func test_labelVisibility는_prefix불일치와_명시focus비선택라벨을_dim처리한다() {
+        // given
+        let label = OverlayLabel(
+            id: 1,
+            text: "BC",
+            candidateFrame: .zero,
+            labelFrame: .zero,
+            anchorPoint: .zero
+        )
+
+        // when
+        let prefixOpacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: nil,
+            status: OverlayInteractionStatus(typedLabelBuffer: "A")
+        )
+        let focusOpacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: 0,
+            status: OverlayInteractionStatus(hasExplicitFocus: true)
+        )
+
+        // then
+        XCTAssertEqual(prefixOpacity, OverlayLabelVisibility.dimmedOpacity)
+        XCTAssertEqual(focusOpacity, OverlayLabelVisibility.dimmedOpacity)
+    }
+
+    func test_labelVisibility는_prefix일치와_명시focus선택라벨을_유지한다() {
+        // given
+        let label = OverlayLabel(
+            id: 1,
+            text: "BC",
+            candidateFrame: .zero,
+            labelFrame: CGRect(x: 120, y: 140, width: 44, height: 24),
+            anchorPoint: .zero
+        )
+
+        // when
+        let prefixOpacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: nil,
+            status: OverlayInteractionStatus(typedLabelBuffer: "b")
+        )
+        let focusOpacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: 1,
+            status: OverlayInteractionStatus(hasExplicitFocus: true)
+        )
+
+        // then
+        XCTAssertEqual(prefixOpacity, 1)
+        XCTAssertEqual(focusOpacity, 1)
+        XCTAssertEqual(label.labelFrame.midX, 142)
+        XCTAssertEqual(label.labelFrame.midY, 152)
+    }
+
     func test_LayoutConfiguration_기본값() {
         // given
         let sut = OverlayLayoutConfiguration()
@@ -17,6 +94,8 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.labelSpacing, 6)
         XCTAssertEqual(sut.edgeInset, 4)
         XCTAssertEqual(sut.collisionShiftLimit, 12)
+        XCTAssertFalse(sut.usesAdaptivePlacementForDenseLayouts)
+        XCTAssertEqual(sut.denseCandidateThreshold, 24)
     }
 
     func test_LayoutConfiguration_음수_spacing은_0으로_clamp() {
@@ -43,6 +122,14 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.collisionShiftLimit, 0)
     }
 
+    func test_LayoutConfiguration_denseThreshold는_최소2로_clamp() {
+        // given
+        let sut = OverlayLayoutConfiguration(denseCandidateThreshold: -1)
+
+        // then
+        XCTAssertEqual(sut.denseCandidateThreshold, 2)
+    }
+
     func test_DisplayInfo_isRetina_scaleFactor_2이상이면_true() {
         // given
         let sut = OverlayDisplayInfo(scaleFactor: 2, visibleFrame: nil)
@@ -57,6 +144,20 @@ final class OverlayModelsTests: XCTestCase {
 
         // then
         XCTAssertFalse(sut.isRetina)
+    }
+
+    func test_OverlayLabel_displayText는_여러글자도_모두_대문자로_표시한다() {
+        // given
+        let sut = OverlayLabel(
+            id: 0,
+            text: "aa",
+            candidateFrame: .zero,
+            labelFrame: .zero,
+            anchorPoint: .zero
+        )
+
+        // then
+        XCTAssertEqual(sut.displayText, "AA")
     }
 
     func test_LayoutMetrics_isRetina_displayScaleFactor_경계() {
@@ -88,6 +189,22 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.displayBuffer, "A")
         XCTAssertEqual(sut.activeScope, .labels)
         XCTAssertEqual(sut.enterActionHint, "click")
+        XCTAssertEqual(sut.phase, .idle)
+        XCTAssertFalse(sut.requiresSecondConfirm)
+    }
+
+    func test_OverlayInteractionStatus_위험확인상태를명시적으로표현한다() {
+        // given
+        let sut = OverlayInteractionStatus(
+            message: "Confirm again",
+            tone: .warning,
+            phase: .awaitingRiskConfirmation,
+            requiresSecondConfirm: true
+        )
+
+        // then
+        XCTAssertEqual(sut.phase, .awaitingRiskConfirmation)
+        XCTAssertTrue(sut.requiresSecondConfirm)
     }
 
     func test_OverlayInteractionStatus_queryBuffer가_있으면_표시값을_우선한다() {
@@ -112,53 +229,4 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.highlightFrame, CGRect(x: 10, y: 20, width: 30, height: 40))
     }
 
-    func test_StatusBarLayout_큰_창은_하단에_고정하고_기존_위치를_유지한다() {
-        // given
-        let bounds = CGRect(x: 0, y: 0, width: 360, height: 220)
-
-        // when
-        let sut = OverlayStatusBarLayout(bounds: bounds)
-
-        // then
-        XCTAssertEqual(sut.width, 344)          // min(360 - 16, 420)
-        XCTAssertEqual(sut.centerX, 180)        // 8 + 344 / 2
-        XCTAssertEqual(sut.centerY, 186)        // 220 - 34 (하단 고정)
-    }
-
-    func test_StatusBarLayout_넓은_창은_최대_폭을_넘지_않는다() {
-        // given
-        let bounds = CGRect(x: 0, y: 0, width: 1000, height: 600)
-
-        // when
-        let sut = OverlayStatusBarLayout(bounds: bounds)
-
-        // then
-        XCTAssertEqual(sut.width, 420)          // maxWidth clamp
-        XCTAssertEqual(sut.centerX, 218)        // 8 + 420 / 2
-        XCTAssertEqual(sut.centerY, 566)        // 600 - 34
-    }
-
-    func test_StatusBarLayout_작은_창은_상태바를_세로_중앙에_두어_이탈을_막는다() {
-        // given: height(40)가 estimatedHeight(44) + bottomInset(34)보다 작다
-        let bounds = CGRect(x: 0, y: 0, width: 200, height: 40)
-
-        // when
-        let sut = OverlayStatusBarLayout(bounds: bounds)
-
-        // then
-        XCTAssertEqual(sut.centerY, 20)         // height / 2 (하단 고정 대신 중앙)
-        XCTAssertEqual(sut.width, 184)          // min(200 - 16, 420)
-    }
-
-    func test_StatusBarLayout_아주_좁은_창은_폭이_음수가_되지_않는다() {
-        // given
-        let bounds = CGRect(x: 0, y: 0, width: 10, height: 200)
-
-        // when
-        let sut = OverlayStatusBarLayout(bounds: bounds)
-
-        // then
-        XCTAssertEqual(sut.width, 0)            // max(0, 10 - 16)
-        XCTAssertEqual(sut.centerX, 8)          // 8 + 0 / 2
-    }
 }

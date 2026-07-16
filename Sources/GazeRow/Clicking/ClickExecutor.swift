@@ -1,7 +1,7 @@
 /// keyboard-confirmed click을 실행한다.
 ///
 /// 기본적으로 AXPress를 우선 사용한다.
-/// 오버레이 확정 클릭은 AXPress 성공 후에도 실제 UI 반응이 없는 앱을 위해 좌표 클릭을 우선할 수 있다.
+/// 오버레이 확정 클릭은 재스캔으로 검증한 현재 target 중앙을 좌표로 클릭한다.
 ///
 /// @author suho.do
 /// @since 2026-07-02

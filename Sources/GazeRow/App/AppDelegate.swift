@@ -39,9 +39,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 고정키로 표준 윈도우 컨트롤(닫기/최소화/줌)을 실행하는 dispatcher.
     private let windowControlDispatcher = WindowControlCommandDispatcher()
 
-    /// event tap fallback 경로에서도 query primer/query buffer 상태를 유지하는 router.
-    private var overlayKeyboardRouter = OverlayKeyboardCommandRouter()
-
     /// Accessibility 권한 요청/설정 이동을 담당한다.
     private let permissionManager = PermissionManager()
 
@@ -69,6 +66,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 실행 시 전달된 로컬 평가/복구 옵션.
     private let launchOptions = AppLaunchOptions.current
 
+    /// 설치 위치와 무관하게 GazeRow 단일 인스턴스 실행을 보장한다.
+    private lazy var singleInstanceCoordinator = SingleInstanceCoordinator()
+
     /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
     private lazy var overlaySessionController = OverlaySessionController(
         targetResolver: makeTargetResolver(),
@@ -78,6 +78,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        switch singleInstanceCoordinator.start(onActivationRequest: { [weak self] in
+            self?.handleExistingInstanceActivationRequest()
+        }) {
+        case .primary:
+            break
+        case .duplicate(let ownerProcessIdentifier):
+            AppLogger.lifecycle.info(
+                "duplicate instance terminated ownerPid=\(ownerProcessIdentifier ?? -1, privacy: .public)"
+            )
+            NSApp.terminate(nil)
+            return
+        case .unavailable(let errorCode):
+            presentSingleInstanceUnavailableGuidance(errorCode: errorCode)
+            NSApp.terminate(nil)
+            return
+        }
+
         // 메뉴바 앱: Dock 아이콘 없이 accessory 모드로 동작.
         NSApp.setActivationPolicy(.accessory)
 
@@ -97,6 +114,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         removeOverlayActivationShortcut()
+        singleInstanceCoordinator.stop()
         if let gazeCalibrationObserver {
             NotificationCenter.default.removeObserver(gazeCalibrationObserver)
             self.gazeCalibrationObserver = nil
@@ -111,11 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
 
         if let button = item.button {
-            button.image = NSImage(
-                systemSymbolName: "cursorarrow.rays",
-                accessibilityDescription: "GazeRow"
-            )
-            button.image?.isTemplate = true
+            button.image = StatusItemIconFactory.makeIcon()
         }
 
         item.menu = buildMenu()
@@ -125,6 +139,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// status item 메뉴를 생성한다.
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
+
+        let instanceStatus = NSMenuItem(
+            title: "Running · Single instance",
+            action: nil,
+            keyEquivalent: ""
+        )
+        instanceStatus.isEnabled = false
+        menu.addItem(instanceStatus)
+        menu.addItem(.separator())
 
         let openSettings = NSMenuItem(
             title: "Open Settings",
@@ -166,7 +189,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         let quit = NSMenuItem(
-            title: "Quit GazeRow",
+            title: "Quit \(AppState.appName)",
             action: #selector(quit),
             keyEquivalent: "q"
         )
@@ -193,6 +216,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.lifecycle.info("settings opened")
     }
 
+    /// 중복 실행 요청을 기존 인스턴스가 받으면 Settings를 앞으로 가져온다.
+    private func handleExistingInstanceActivationRequest() {
+        AppLogger.lifecycle.info("existing instance activation requested")
+        openSettings()
+    }
+
+    /// process lock을 사용할 수 없어 입력 독점성을 보장하지 못할 때 안전하게 중단한다.
+    private func presentSingleInstanceUnavailableGuidance(errorCode: Int32) {
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.activate(ignoringOtherApps: true)
+
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "GazeRow could not start safely"
+        alert.informativeText = "GazeRow could not verify that only one instance is running. Error code: \(errorCode)."
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+
+        AppLogger.lifecycle.error(
+            "single instance lock unavailable errorCode=\(errorCode, privacy: .public)"
+        )
+    }
+
     /// 커피값 후원 안내를 표시한다.
     @objc private func showSupportDonation() {
         NSApp.activate(ignoringOtherApps: true)
@@ -215,7 +261,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hostingController = NSHostingController(rootView: SettingsView())
         let window = NSWindow(contentViewController: hostingController)
 
-        window.title = "GazeRow Settings"
+        window.title = "\(AppState.appName) Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
         window.center()
@@ -234,7 +280,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLogger.overlay.info("overlay shortcut fired (no camera)")
         switch overlaySessionController.start() {
         case .success(let snapshot):
-            syncOverlayKeyboardRouterWithActiveSession()
             AppLogger.overlay.info(
                 "overlay shown bundle=\(snapshot.context.application.bundleIdentifier, privacy: .public) labels=\(snapshot.layout.metrics.labelCount, privacy: .public)"
             )
@@ -273,7 +318,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        syncOverlayKeyboardRouterWithActiveSession()
         startGazeOneShotCapture()
     }
 
@@ -400,21 +444,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func installOverlayActivationShortcut() {
         let registrationStatuses = registerGlobalHotKeys()
         printHotKeyRegistrationIfNeeded(registrationStatuses)
+        presentHotKeyRegistrationGuidanceIfNeeded(registrationStatuses)
 
         globalShortcutMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            let overlayInput = Self.focusKeyboardInput(from: event)
             let input = OverlayActivationShortcutInput(event: event)
-
-            if let overlayInput {
-                Task { @MainActor in
-                    guard let command = self?.overlayKeyboardCommand(from: overlayInput) else {
-                        return
-                    }
-
-                    _ = self?.handleOverlayKeyboardCommand(command)
-                }
-            }
-
             switch overlayActivationMonitorRoute(for: input) {
             case .gaze:
                 Task { @MainActor in
@@ -432,12 +465,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         localShortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if let input = Self.focusKeyboardInput(from: event),
-               let overlayCommand = MainActor.assumeIsolated({ self?.overlayKeyboardCommand(from: input) }),
-               MainActor.assumeIsolated({ self?.handleOverlayKeyboardCommand(overlayCommand) == true }) {
-                return nil
-            }
-
             let input = OverlayActivationShortcutInput(event: event)
 
             switch overlayActivationMonitorRoute(for: input) {
@@ -458,47 +485,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private static func focusKeyboardInput(from event: NSEvent) -> FocusKeyboardInput? {
-        FocusKeyboardInput(
-            keyCode: event.keyCode,
-            charactersIgnoringModifiers: event.charactersIgnoringModifiers,
-            isShiftPressed: event.modifierFlags.contains(.shift)
-        )
-    }
-
-    private func overlayKeyboardCommand(from input: FocusKeyboardInput) -> FocusKeyboardCommand? {
-        guard overlaySessionController.activeSession != nil else {
-            overlayKeyboardRouter.syncKeyboardState(QueryInputState())
-            return nil
-        }
-
-        return overlayKeyboardRouter.command(for: input)
-    }
-
-    private func syncOverlayKeyboardRouterWithActiveSession() {
-        overlayKeyboardRouter.syncKeyboardState(
-            overlaySessionController.activeSession?.queryInput ?? QueryInputState()
-        )
-    }
-
-    @MainActor
-    private func handleOverlayKeyboardCommand(_ command: FocusKeyboardCommand) -> Bool {
-        guard overlaySessionController.activeSession != nil else {
-            AppLogger.interaction.info(
-                "overlay key ignored (no active session) command=\(String(describing: command), privacy: .public)"
-            )
-            return false
-        }
-
-        AppLogger.interaction.info(
-            "overlay key handled command=\(String(describing: command), privacy: .public)"
-        )
-        _ = overlaySessionController.handleKeyboardCommand(command)
-        return true
-    }
-
     /// overlay/gaze activation용 Carbon hotkey들을 등록한다.
-    private func registerGlobalHotKeys() -> [OSStatus] {
+    private func registerGlobalHotKeys() -> [GlobalHotKeyRegistrationStatus] {
         let controllers = GlobalHotKeyDefinition.overlayActivationDefinitions.map { definition in
             GlobalHotKeyController(definition: definition) { [weak self] in
                 self?.showOverlay()
@@ -507,9 +495,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         globalHotKeyControllers = controllers
 
         let statuses = globalHotKeyControllers.map { controller in
-            controller.register()
+            GlobalHotKeyRegistrationStatus(
+                definition: controller.definition,
+                osStatus: controller.register()
+            )
         }
-        AppLogger.overlay.info("global hotkey registration statuses=\(statuses.map(String.init).joined(separator: ","), privacy: .public)")
+        AppLogger.overlay.info("global hotkey registration statuses=\(GlobalHotKeyRegistrationGuidance(statuses: statuses).logSummary, privacy: .public)")
         return statuses
     }
 
@@ -735,18 +726,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 로컬 진단 옵션에서 Carbon hotkey 등록 결과를 stdout에 출력한다.
-    private func printHotKeyRegistrationIfNeeded(_ statuses: [OSStatus]) {
+    private func printHotKeyRegistrationIfNeeded(_ statuses: [GlobalHotKeyRegistrationStatus]) {
         guard launchOptions.printsHotKeyRegistration else {
             return
         }
 
-        let statusText = statuses.map(String.init).joined(separator: ",")
-        print("GAZEROW_HOTKEY_REGISTRATION statuses=\(statusText)")
+        print("GAZEROW_HOTKEY_REGISTRATION \(GlobalHotKeyRegistrationGuidance(statuses: statuses).probeSummary)")
         fflush(stdout)
 
         if launchOptions.isHotKeyRegistrationProbeOnly {
             NSApp.terminate(nil)
         }
+    }
+
+    /// Carbon hotkey 등록 실패가 있을 때 충돌 가능성과 대체 단축키를 안내한다.
+    private func presentHotKeyRegistrationGuidanceIfNeeded(_ statuses: [GlobalHotKeyRegistrationStatus]) {
+        guard !launchOptions.isHotKeyRegistrationProbeOnly,
+              let message = GlobalHotKeyRegistrationGuidance(statuses: statuses).failureMessage else {
+            return
+        }
+
+        AppLogger.overlay.error("global hotkey registration guidance=\(message, privacy: .public)")
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "\(AppState.appName) shortcut registration failed"
+        alert.informativeText = message
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 
     /// overlay 시작 실패가 조용히 묻히지 않도록 사용자가 해야 할 다음 행동을 설명한다.
@@ -768,7 +774,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.
     private func sessionMenuTitle() -> String {
-        SessionController.shared.isEnabled ? "Disable GazeRow" : "Enable GazeRow"
+        SessionController.shared.isEnabled ? "Disable \(AppState.appName)" : "Enable \(AppState.appName)"
     }
 
     /// 앱을 종료한다.

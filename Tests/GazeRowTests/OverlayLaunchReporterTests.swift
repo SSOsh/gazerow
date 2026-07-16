@@ -130,6 +130,20 @@ final class OverlayLaunchReporterTests: XCTestCase {
         )
     }
 
+    func test_clickResult_targetMismatch사유를_개인정보없이_출력한다() {
+        // when
+        let message = OverlayLaunchReporter.clickResult(
+            .failure(.selectedTargetAmbiguous(labelID: 3))
+        )
+
+        // then
+        XCTAssertEqual(
+            message,
+            "GAZEROW_OVERLAY_CLICK_RESULT failure reason=selected_target_ambiguous"
+        )
+        XCTAssertFalse(message.contains("3"))
+    }
+
     func test_queryResult_scope_match_focus_success를_출력한다() {
         // when
         let message = OverlayLaunchReporter.queryResult(

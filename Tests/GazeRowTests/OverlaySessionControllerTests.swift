@@ -68,10 +68,186 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.closeCallCount, 0)
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 0)
         XCTAssertEqual(presenter.focusUpdates, [0])
+        XCTAssertEqual(presenter.statusUpdates.last?.hasExplicitFocus, false)
 
         let request = try XCTUnwrap(presenter.showRequests.first)
         XCTAssertEqual(request.targetFrame, context.window.frame)
         XCTAssertEqual(request.candidates, candidates)
+    }
+
+    func test_start_성공은_activationPhase를_순서대로_기록한다() {
+        // given
+        let tracer = SpyOverlayActivationTracer()
+        let dates = [
+            Date(timeIntervalSince1970: 1_000),
+            Date(timeIntervalSince1970: 1_000.01),
+            Date(timeIntervalSince1970: 1_000.03),
+            Date(timeIntervalSince1970: 1_000.04),
+            Date(timeIntervalSince1970: 1_000.05)
+        ]
+        var nextDateIndex = 0
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: StubOverlayScanner(result: .success(makeScanResult(candidates: [makeCandidate()]))),
+            overlayPresenter: StubOverlayPresenter(),
+            dateProvider: {
+                defer { nextDateIndex += 1 }
+                return dates[min(nextDateIndex, dates.count - 1)]
+            },
+            activationTracer: tracer
+        )
+
+        // when
+        _ = sut.start()
+
+        // then
+        XCTAssertEqual(
+            tracer.phases,
+            [
+                .shortcutReceived,
+                .targetResolved,
+                .scanCompleted,
+                .layoutCompleted,
+                .sessionReady,
+                .captureReady,
+                .panelsOrdered,
+                .firstDisplayPass
+            ]
+        )
+        XCTAssertEqual(tracer.metadata(for: .scanCompleted)?.nodesVisited, 2)
+        XCTAssertEqual(tracer.metadata(for: .scanCompleted)?.candidateCount, 1)
+        XCTAssertEqual(tracer.metadata(for: .sessionReady)?.hasActiveSession, true)
+    }
+
+    func test_start_성공은_session을_준비한뒤_presenterShow를_호출한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: StubOverlayScanner(result: .success(makeScanResult(candidates: [makeCandidate()]))),
+            overlayPresenter: presenter
+        )
+        var sessionWasReadyWhenShown = false
+        presenter.onShow = {
+            sessionWasReadyWhenShown = sut.activeSession != nil
+        }
+
+        // when
+        _ = sut.start()
+
+        // then
+        XCTAssertTrue(sessionWasReadyWhenShown)
+    }
+
+    func test_start_labelOnly경로는_searchable과_windowIndex를_생성하지않는다() {
+        // given
+        let searchableNodeCollector = SpySearchableNodeCollector(index: ElementSearchIndex(nodes: []))
+        var windowIndexBuildCount = 0
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: StubOverlayScanner(result: .success(makeScanResult(candidates: [makeCandidate()]))),
+            overlayPresenter: StubOverlayPresenter(),
+            searchableNodeCollector: searchableNodeCollector,
+            windowSearchIndexProvider: {
+                windowIndexBuildCount += 1
+                return WindowSearchIndex(entries: [])
+            }
+        )
+
+        // when
+        _ = sut.start()
+        _ = sut.handleKeyboardCommand(.typeLabel("A"))
+
+        // then
+        XCTAssertEqual(searchableNodeCollector.buildCallCount, 0)
+        XCTAssertEqual(windowIndexBuildCount, 0)
+    }
+
+    func test_queryScope최초진입에서_해당Index만_한번_생성한다() {
+        // given
+        let searchableNodeCollector = SpySearchableNodeCollector(index: ElementSearchIndex(nodes: []))
+        var windowIndexBuildCount = 0
+        let sut = makeStartedSessionController(
+            searchableNodeCollector: searchableNodeCollector,
+            windowSearchIndexProvider: {
+                windowIndexBuildCount += 1
+                return WindowSearchIndex(entries: [])
+            }
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.pinScope(.elements))
+        _ = sut.handleKeyboardCommand(.appendQuery("find"))
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("code"))
+
+        // then
+        XCTAssertEqual(searchableNodeCollector.buildCallCount, 1)
+        XCTAssertEqual(windowIndexBuildCount, 1)
+    }
+
+    func test_queryIndex생성이_빈결과여도_labelFocus를_유지한다() {
+        // given
+        let sut = makeStartedSessionController(
+            searchableNodeCollector: SpySearchableNodeCollector(index: ElementSearchIndex(nodes: []))
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("missing"))
+        let event = sut.handleKeyboardCommand(.typeLabel("A"))
+
+        // then
+        XCTAssertEqual(event, .labelJump(typedLabel: "A", matched: true, to: 0))
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 0)
+    }
+
+    func test_overlayKeyboardCallback은_firstLabelInput을_한번만_처리하고_capture경로를_기록한다() throws {
+        // given
+        let presenter = StubOverlayPresenter()
+        let tracer = SpyOverlayActivationTracer()
+        let sut = makeStartedSessionController(presenter: presenter, activationTracer: tracer)
+
+        // when
+        try XCTUnwrap(presenter.keyboardCommandHandler)(
+            OverlayCapturedKeyboardCommand(command: .typeLabel("A"), captureMode: .eventTap)
+        )
+
+        // then
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 0)
+        XCTAssertEqual(tracer.phases.filter { $0 == .keyCaptured }.count, 1)
+        XCTAssertEqual(tracer.metadata(for: .keyCaptured)?.captureMode, "event_tap")
+    }
+
+    func test_start_scan실패는_scanCompleted이후_phase를_기록하지않는다() {
+        // given
+        let tracer = SpyOverlayActivationTracer()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: StubOverlayScanner(result: .failure(.childrenUnavailable("temporary"))),
+            overlayPresenter: StubOverlayPresenter(),
+            activationTracer: tracer
+        )
+
+        // when
+        _ = sut.start()
+
+        // then
+        XCTAssertEqual(tracer.phases, [.shortcutReceived, .targetResolved])
+        XCTAssertEqual(tracer.endedActivationCount, 1)
+    }
+
+    func test_keyboardCommand은_raw문자없이_commandKind만_기록한다() {
+        // given
+        let tracer = SpyOverlayActivationTracer()
+        let sut = makeStartedSessionController(activationTracer: tracer)
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("private-query"))
+
+        // then
+        XCTAssertEqual(tracer.metadata(for: .keyCaptured)?.commandKind, "append_query")
+        XCTAssertEqual(tracer.metadata(for: .commandHandled)?.commandKind, "append_query")
+        XCTAssertFalse(tracer.serializedMetadata.contains("private-query"))
     }
 
     func test_start_targetResolve실패면_overlay를_닫고_scan하지_않음() {
@@ -152,6 +328,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(event, .focusChanged(from: 0, to: 1, method: .tab))
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
         XCTAssertEqual(presenter.focusUpdates, [0, 1])
+        XCTAssertEqual(presenter.statusUpdates.last?.hasExplicitFocus, true)
     }
 
     func test_handleKeyboardCommand_typeLabel은_labelJump로_focus를_갱신() {
@@ -167,7 +344,13 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "S", message: "Focused", tone: .success)
+            OverlayInteractionStatus(
+                focusedLabel: "S",
+                message: "Focused",
+                tone: .success,
+                phase: .matching,
+                hasExplicitFocus: true
+            )
         )
     }
 
@@ -183,7 +366,12 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(event, .labelJump(typedLabel: "J", matched: false, to: nil))
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "A", message: "No label J", tone: .failure)
+            OverlayInteractionStatus(
+                focusedLabel: "A",
+                message: "No label J",
+                tone: .failure,
+                phase: .failure
+            )
         )
     }
 
@@ -238,9 +426,26 @@ final class OverlaySessionControllerTests: XCTestCase {
                 focusedDisplayName: "Delete",
                 highlightFrame: candidate.frame,
                 enterActionHint: AppContent.localized(for: .english).enterActionClick,
-                tone: .neutral
+                tone: .neutral,
+                phase: .matching,
+                hasExplicitFocus: true
             )
         )
+    }
+
+    func test_handleKeyboardCommand_query결과가없으면_noMatches상태를표시한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            searchableNodeCollector: StubSearchableNodeCollector(index: ElementSearchIndex(nodes: []))
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("missing"))
+
+        // then
+        XCTAssertEqual(presenter.statusUpdates.last?.phase, .noMatches)
     }
 
     func test_handleKeyboardCommand_deleteQueryCharacter는_queryBuffer_마지막글자를_삭제한다() {
@@ -283,13 +488,15 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.pinnedScope, .windows)
     }
 
-    func test_scopeSelectionHandler는_selectScope_command로_session을_갱신한다() throws {
+    func test_overlayKeyboardCallback은_selectScope_command로_session을_갱신한다() throws {
         // given
         let presenter = StubOverlayPresenter()
         let sut = makeStartedSessionController(presenter: presenter)
 
         // when
-        try XCTUnwrap(presenter.scopeSelectionHandler)(.windows)
+        try XCTUnwrap(presenter.keyboardCommandHandler)(
+            OverlayCapturedKeyboardCommand(command: .selectScope(.windows), captureMode: .eventTap)
+        )
 
         // then
         XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
@@ -550,14 +757,15 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(
             presenter.statusUpdates.last,
             OverlayInteractionStatus(
-                message: "Click failed: no focused target",
-                tone: .failure
+                message: "Click failed: no focused target. Type a label or press Tab first.",
+                tone: .failure,
+                phase: .failure
             )
         )
         XCTAssertNotNil(sut.activeSession)
     }
 
-    func test_handleKeyboardCommand_dryRunConfirm은_focusedIndex를_clickExecutor에_전달() {
+    func test_handleKeyboardCommand_dryRunConfirm은_선택snapshot을_clickExecutor에_전달() {
         // given
         let clickExecutor = StubOverlayClickExecutor(
             result: .success(
@@ -580,53 +788,13 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // then
         XCTAssertEqual(event, .dryRunConfirm(index: 1))
-        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [1])
+        XCTAssertEqual(clickExecutor.requests.map(\.selection.labelID), [1])
+        XCTAssertEqual(clickExecutor.requests.first?.selection.sourceCandidateCount, 2)
+        XCTAssertEqual(clickExecutor.requests.first?.selection.candidate, makeCandidate(frame: CGRect(x: 220, y: 180, width: 44, height: 24)))
         XCTAssertEqual(clickExecutor.requests.first?.isSecondConfirmProvided, false)
         XCTAssertEqual(sut.lastClickResult, clickExecutor.result)
         XCTAssertNil(sut.activeSession)
         XCTAssertEqual(presenter.closeCallCount, 1)
-    }
-
-    func test_handleKeyboardCommand_dryRunConfirm은_click동안_overlay_mouseInput을_끈다() {
-        // given
-        let clickExecutor = StubOverlayClickExecutor(
-            result: .success(
-                ClickExecutionSuccess(
-                    method: .coordinateFallback,
-                    riskClass: .safeNavigation,
-                    fallbackUsed: true
-                )
-            )
-        )
-        let presenter = StubOverlayPresenter()
-        let sut = makeStartedSessionController(
-            presenter: presenter,
-            clickExecutor: clickExecutor
-        )
-
-        // when
-        _ = sut.handleKeyboardCommand(.dryRunConfirm)
-
-        // then
-        XCTAssertEqual(presenter.mouseInputUpdates, [false])
-    }
-
-    func test_handleKeyboardCommand_dryRunConfirm_실패시_overlay_mouseInput을_복구한다() {
-        // given
-        let clickExecutor = StubOverlayClickExecutor(
-            result: .failure(.executionFailed(.axPressFailed(reason: "test")))
-        )
-        let presenter = StubOverlayPresenter()
-        let sut = makeStartedSessionController(
-            presenter: presenter,
-            clickExecutor: clickExecutor
-        )
-
-        // when
-        _ = sut.handleKeyboardCommand(.dryRunConfirm)
-
-        // then
-        XCTAssertEqual(presenter.mouseInputUpdates, [false, true])
     }
 
     func test_handleKeyboardCommand_click성공은_attempt와_completed를_기록() {
@@ -665,7 +833,9 @@ final class OverlaySessionControllerTests: XCTestCase {
                 InteractionEvent(
                     timestamp: timestamp,
                     kind: .clickCompleted(risk: "safeNavigation", success: true),
-                    windowTitleHash: hasher.hash("Finder")
+                    windowTitleHash: hasher.hash("Finder"),
+                    clickMethod: "axPress",
+                    targetMatchResult: "matched"
                 )
             ]
         )
@@ -719,11 +889,17 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // then
         XCTAssertEqual(result, .some(clickExecutor.result))
-        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [1])
+        XCTAssertEqual(clickExecutor.requests.map(\.selection.labelID), [1])
         XCTAssertEqual(presenter.focusUpdates, [0, 1, 1])
         XCTAssertEqual(
             presenter.statusUpdates.last,
-            OverlayInteractionStatus(focusedLabel: "S", message: "Clicked", tone: .success)
+            OverlayInteractionStatus(
+                focusedLabel: "S",
+                message: "Clicked",
+                tone: .success,
+                phase: .success,
+                hasExplicitFocus: true
+            )
         )
         XCTAssertNil(sut.activeSession)
     }
@@ -818,10 +994,84 @@ final class OverlaySessionControllerTests: XCTestCase {
             presenter.statusUpdates.last,
             OverlayInteractionStatus(
                 focusedLabel: "A",
-                message: "Click failed: no supported action",
-                tone: .failure
+                message: "Click failed: no supported action. Try another label.",
+                tone: .failure,
+                phase: .failure
             )
         )
+    }
+
+    func test_handleKeyboardCommand_targetMismatch는_cache를무효화하고_새라벨을표시한다() {
+        // given
+        let recorder = StubInteractionRecorder()
+        let scanner = StubOverlayScanner(
+            results: [
+                .success(makeScanResult(candidates: [makeCandidate(title: "Open")])),
+                .success(makeScanResult(candidates: [makeCandidate(title: "Reload")]))
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.selectedTargetChanged(labelID: 0))
+        )
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: clickExecutor,
+            presenter: presenter,
+            recorder: recorder
+        )
+        _ = sut.start()
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(sut.lastClickResult, .failure(.selectedTargetChanged(labelID: 0)))
+        XCTAssertEqual(clickExecutor.requests.count, 1)
+        XCTAssertEqual(scanner.invalidateCallCount, 1)
+        XCTAssertEqual(scanner.scanCallCount, 2)
+        XCTAssertEqual(presenter.showRequests.count, 2)
+        XCTAssertEqual(presenter.showRequests.last?.candidates.map(\.title), ["Reload"])
+        XCTAssertEqual(
+            presenter.statusUpdates.last?.message,
+            "The screen changed, so labels were refreshed. Select again."
+        )
+        XCTAssertEqual(recorder.events.last?.clickMethod, nil)
+        XCTAssertEqual(recorder.events.last?.targetMatchResult, "changed")
+    }
+
+    func test_handleKeyboardCommand_targetMismatch재스캔실패는_기존overlay에_안내를표시한다() {
+        // given
+        let scanner = StubOverlayScanner(
+            results: [
+                .success(makeScanResult(candidates: [makeCandidate(title: "Open")])),
+                .failure(.childrenUnavailable("test"))
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.selectedTargetUnavailable(labelID: 0))
+        )
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: clickExecutor,
+            presenter: presenter
+        )
+        _ = sut.start()
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(clickExecutor.requests.count, 1)
+        XCTAssertEqual(scanner.invalidateCallCount, 1)
+        XCTAssertEqual(scanner.scanCallCount, 2)
+        XCTAssertEqual(presenter.showRequests.count, 1)
+        XCTAssertEqual(
+            presenter.statusUpdates.last?.message,
+            "The screen could not be rescanned. Try again shortly."
+        )
+        XCTAssertEqual(sut.activeSession?.snapshot.scanResult.candidates.map(\.title), ["Open"])
     }
 
     func test_handleKeyboardCommand_click실패는_attempt와_completed_false를_기록() {
@@ -890,15 +1140,38 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.closeCallCount, 1)
     }
 
+    func test_handleKeyboardCommand_위험click은_명시적인재확인상태를표시한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive)))
+        )
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(presenter.statusUpdates.last?.phase, .awaitingRiskConfirmation)
+        XCTAssertEqual(presenter.statusUpdates.last?.requiresSecondConfirm, true)
+    }
+
     func test_handleKeyboardCommand_focus가_바뀌면_secondConfirm대기를_초기화() {
         // given
+        let timestamp = Date(timeIntervalSince1970: 100)
         let clickExecutor = StubOverlayClickExecutor(
             results: [
                 .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
                 .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive)))
             ]
         )
-        let sut = makeStartedSessionController(clickExecutor: clickExecutor)
+        let sut = makeStartedSessionController(
+            clickExecutor: clickExecutor,
+            dateProvider: { timestamp }
+        )
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
 
         // when
@@ -906,12 +1179,44 @@ final class OverlaySessionControllerTests: XCTestCase {
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
 
         // then
-        XCTAssertEqual(clickExecutor.requests.map(\.focusedIndex), [0, 1])
+        XCTAssertEqual(clickExecutor.requests.map(\.selection.labelID), [0, 1])
         XCTAssertEqual(clickExecutor.requests.map(\.isSecondConfirmProvided), [false, false])
         XCTAssertEqual(
             sut.activeSession?.pendingSecondConfirm,
-            PendingSecondConfirm(focusedItemID: 1, riskClass: .destructive)
+            PendingSecondConfirm(focusedItemID: 1, riskClass: .destructive, createdAt: timestamp)
         )
+    }
+
+    func test_handleKeyboardCommand_secondConfirm이_만료되면_다시_확인을_요구한다() {
+        // given
+        var currentDate = Date(timeIntervalSince1970: 200)
+        let clickExecutor = StubOverlayClickExecutor(
+            results: [
+                .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
+                .failure(.executionFailed(.secondConfirmRequired(riskClass: .destructive))),
+                .success(
+                    ClickExecutionSuccess(
+                        method: .axPress,
+                        riskClass: .destructive,
+                        fallbackUsed: false
+                    )
+                )
+            ]
+        )
+        let sut = makeStartedSessionController(
+            clickExecutor: clickExecutor,
+            dateProvider: { currentDate }
+        )
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // when
+        currentDate = Date(timeIntervalSince1970: 204)
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(clickExecutor.requests.map(\.isSecondConfirmProvided), [false, false, true])
+        XCTAssertEqual(sut.activeSession, nil)
     }
 
     func test_handleKeyboardCommand_focusChanged를_interactionLog에_기록() {
@@ -991,7 +1296,9 @@ final class OverlaySessionControllerTests: XCTestCase {
         _ = sut.start()
 
         // when
-        try XCTUnwrap(presenter.keyboardCommandHandler)(.move(.next))
+        try XCTUnwrap(presenter.keyboardCommandHandler)(
+            OverlayCapturedKeyboardCommand(command: .move(.next), captureMode: .eventTap)
+        )
 
         // then
         XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
@@ -1029,8 +1336,86 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
     }
 
+    func test_focusNearestLabel_elements_scope에서_겨냥한_요소이름과_index를_status에_반영한다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [
+                makeCandidate(title: "Open", frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                makeCandidate(title: "Save Draft", frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+            ]
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.elements))
+
+        // when
+        let event = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then
+        XCTAssertEqual(event, .focusChanged(from: 0, to: 1, method: .gaze))
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+        let status = presenter.statusUpdates.last
+        XCTAssertEqual(status?.activeScope, .elements)
+        XCTAssertEqual(status?.focusedDisplayName, "Save Draft")
+        XCTAssertEqual(status?.isGazeTargeting, true)
+        // 겨냥은 검색 매칭이 아니므로 matchCount를 올리지 않는다.
+        XCTAssertEqual(status?.matchCount, 0)
+        XCTAssertEqual(status?.matchIndex, 0)
+    }
+
+    func test_focusNearestLabel_labels_scope에서는_element맥락을_주입하지_않는다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [
+                makeCandidate(title: "Open", frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                makeCandidate(title: "Save Draft", frame: CGRect(x: 220, y: 180, width: 44, height: 24))
+            ]
+        )
+
+        // when
+        _ = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then
+        let status = presenter.statusUpdates.last
+        XCTAssertEqual(status?.activeScope, .labels)
+        XCTAssertNil(status?.focusedDisplayName)
+        XCTAssertEqual(status?.isGazeTargeting, false)
+        XCTAssertEqual(status?.matchCount, 0)
+        XCTAssertNotNil(status?.focusedLabel)
+    }
+
+    func test_focusNearestLabel_elements_scope에서_title이_없으면_role을_이름으로_쓴다() {
+        // given
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            candidates: [
+                makeCandidate(title: "Open", frame: CGRect(x: 120, y: 140, width: 40, height: 20)),
+                ClickableCandidate(
+                    role: AccessibilityRole.link,
+                    subrole: nil,
+                    title: nil,
+                    frame: CGRect(x: 220, y: 180, width: 44, height: 24),
+                    actions: [AccessibilityAction.press]
+                )
+            ]
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.elements))
+
+        // when
+        _ = sut.focusNearestLabel(to: CGPoint(x: 225, y: 185))
+
+        // then
+        let status = presenter.statusUpdates.last
+        XCTAssertEqual(sut.activeSession?.focusEngine.focusedItemID, 1)
+        XCTAssertEqual(status?.focusedDisplayName, AccessibilityRole.link)
+        XCTAssertEqual(status?.isGazeTargeting, true)
+    }
+
     func test_focusNearestLabel_windows_scope에서는_gaze를_무시한다() {
-        // given: windows scope를 pin하면 공간 겨냥 대상이 없다(원인 4)
+        // given: windows scope를 pin하면 공간 겨냥 대상이 없다.
         let presenter = StubOverlayPresenter()
         let recorder = StubInteractionRecorder()
         let sut = makeStartedSessionController(presenter: presenter, recorder: recorder)
@@ -1102,6 +1487,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         windowActivator: (any WindowActivating)? = nil,
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt(value: "default-test-salt")),
         dateProvider: @escaping () -> Date = Date.init,
+        activationTracer: (any OverlayActivationTracing)? = nil,
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) -> OverlaySessionController {
         let presenter = presenter ?? StubOverlayPresenter()
@@ -1109,6 +1495,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         let clickExecutor = clickExecutor ?? StubOverlayClickExecutor(
             result: .failure(.missingFocusedTarget(index: 0))
         )
+        let activationTracer = activationTracer ?? OverlayActivationTracer()
         let windowActivator = windowActivator ?? StubWindowActivator(result: .failure(.appNotRunning))
         let context = makeContext()
         let resolver = StubOverlayTargetResolver(result: .success(context))
@@ -1133,6 +1520,7 @@ final class OverlaySessionControllerTests: XCTestCase {
             windowActivator: windowActivator,
             windowTitleHasher: windowTitleHasher,
             dateProvider: dateProvider,
+            activationTracer: activationTracer,
             clickResultObserver: clickResultObserver
         )
         _ = sut.start()
@@ -1156,16 +1544,18 @@ final class OverlaySessionControllerTests: XCTestCase {
         scanner: StubOverlayScanner,
         clickExecutor: StubOverlayClickExecutor,
         presenter: StubOverlayPresenter? = nil,
+        recorder: (any OverlaySessionInteractionRecording)? = nil,
         windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
         windowActivator: (any WindowActivating)? = nil
     ) -> OverlaySessionController {
         let presenter = presenter ?? StubOverlayPresenter()
+        let recorder = recorder ?? StubInteractionRecorder()
         let windowActivator = windowActivator ?? StubWindowActivator(result: .failure(.appNotRunning))
         return OverlaySessionController(
             targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
             scanner: scanner,
             overlayPresenter: presenter,
-            interactionRecorder: StubInteractionRecorder(),
+            interactionRecorder: recorder,
             clickExecutor: clickExecutor,
             searchableNodeCollector: nil,
             windowSearchIndexProvider: windowSearchIndexProvider,
@@ -1243,6 +1633,21 @@ private struct StubSearchableNodeCollector: SearchableNodeCollecting {
 }
 
 @MainActor
+private final class SpySearchableNodeCollector: SearchableNodeCollecting {
+    private let index: ElementSearchIndex
+    private(set) var buildCallCount = 0
+
+    init(index: ElementSearchIndex) {
+        self.index = index
+    }
+
+    func buildIndex(context: TargetContext) -> ElementSearchIndex {
+        buildCallCount += 1
+        return index
+    }
+}
+
+@MainActor
 private final class StubOverlayTargetResolver: OverlaySessionTargetResolving {
     private let result: Result<TargetContext, TargetResolutionFailure>
     private(set) var resolveCallCount = 0
@@ -1288,35 +1693,24 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
     private let forcedLayout: OverlayLayout?
     private(set) var showRequests: [ShowRequest] = []
     private(set) var closeCallCount = 0
-    private(set) var keyboardCommandHandler: ((FocusKeyboardCommand) -> Void)?
-    private(set) var scopeSelectionHandler: ((QueryScope) -> Void)?
+    private(set) var keyboardCommandHandler: ((OverlayCapturedKeyboardCommand) -> Void)?
     private(set) var focusUpdates: [Int?] = []
     private(set) var statusUpdates: [OverlayInteractionStatus] = []
-    private(set) var mouseInputUpdates: [Bool] = []
+    private(set) var presentationEvents: [OverlayPresentationEvent] = []
     private var lastLayout: OverlayLayout?
+    private var candidatesForNextShow: [ClickableCandidate] = []
+    var onShow: (() -> Void)?
 
     init(forcedLayout: OverlayLayout? = nil) {
         self.forcedLayout = forcedLayout
     }
 
-    func show(
+    func makeLayout(
         targetFrame: CGRect,
         candidates: [ClickableCandidate],
-        labels: [String],
-        onEscape: @escaping () -> Void,
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void,
-        onScopeSelection: @MainActor @escaping (QueryScope) -> Void
+        labels: [String]
     ) -> OverlayLayout {
-        showRequests.append(
-            ShowRequest(
-                targetFrame: targetFrame,
-                candidates: candidates,
-                labels: labels
-            )
-        )
-        keyboardCommandHandler = onKeyboardCommand
-        scopeSelectionHandler = onScopeSelection
-
+        candidatesForNextShow = candidates
         if let forcedLayout {
             lastLayout = forcedLayout
             return forcedLayout
@@ -1329,6 +1723,32 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
         )
         lastLayout = layout
         return layout
+    }
+
+    func show(
+        layout: OverlayLayout,
+        initialStatus: OverlayInteractionStatus,
+        onEscape: @escaping () -> Void,
+        onKeyboardCommand: @MainActor @escaping (OverlayCapturedKeyboardCommand) -> Void,
+        onPresentationEvent: @MainActor @escaping (OverlayPresentationEvent) -> Void
+    ) -> OverlayKeyboardCaptureMode {
+        showRequests.append(
+            ShowRequest(
+                targetFrame: layout.targetFrame,
+                candidates: candidatesForNextShow,
+                labels: layout.labels.map(\.text)
+            )
+        )
+        keyboardCommandHandler = onKeyboardCommand
+        lastLayout = layout
+        statusUpdates.append(initialStatus)
+        focusUpdates.append(focusedLabelID(for: initialStatus.focusedLabel))
+        onShow?()
+        onPresentationEvent(.captureReady(.eventTap))
+        onPresentationEvent(.panelsOrdered)
+        onPresentationEvent(.firstDisplayPass)
+        presentationEvents = [.captureReady(.eventTap), .panelsOrdered, .firstDisplayPass]
+        return .eventTap
     }
 
     func close() {
@@ -1344,16 +1764,48 @@ private final class StubOverlayPresenter: OverlaySessionPresenting {
         focusUpdates.append(focusedLabelID(for: status.focusedLabel))
     }
 
-    func setMouseInputEnabled(_ isEnabled: Bool) {
-        mouseInputUpdates.append(isEnabled)
-    }
-
     private func focusedLabelID(for label: String?) -> Int? {
         guard let label else {
             return nil
         }
 
         return lastLayout?.labels.first { $0.text == label }?.id
+    }
+}
+
+@MainActor
+private final class SpyOverlayActivationTracer: OverlayActivationTracing {
+    private(set) var phases: [OverlayActivationPhase] = []
+    private(set) var metadataByPhase: [OverlayActivationPhase: OverlayActivationTraceMetadata] = [:]
+    private(set) var endedActivationCount = 0
+
+    func begin(at date: Date) -> UUID {
+        UUID()
+    }
+
+    func end(activationID: UUID) {
+        endedActivationCount += 1
+    }
+
+    func mark(
+        _ phase: OverlayActivationPhase,
+        activationID: UUID,
+        at date: Date,
+        metadata: OverlayActivationTraceMetadata
+    ) {
+        phases.append(phase)
+        metadataByPhase[phase] = metadata
+    }
+
+    func metadata(for phase: OverlayActivationPhase) -> OverlayActivationTraceMetadata? {
+        metadataByPhase[phase]
+    }
+
+    var serializedMetadata: String {
+        metadataByPhase.values.map { metadata in
+            "\(metadata.nodesVisited ?? -1)|\(metadata.candidateCount ?? -1)|\(metadata.commandKind ?? "-")|\(metadata.hasActiveSession.map(String.init) ?? "-")"
+        }
+        .joined(separator: " ")
     }
 }
 
@@ -1391,13 +1843,13 @@ private final class StubOverlayClickExecutor: OverlaySessionClickExecuting {
     }
 
     func execute(
-        focusedIndex: Int,
+        selection: OverlayClickSelection,
         context: TargetContext,
         isSecondConfirmProvided: Bool
     ) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure> {
         requests.append(
             ClickRequest(
-                focusedIndex: focusedIndex,
+                selection: selection,
                 context: context,
                 isSecondConfirmProvided: isSecondConfirmProvided
             )
@@ -1410,7 +1862,7 @@ private final class StubOverlayClickExecutor: OverlaySessionClickExecuting {
 }
 
 private struct ClickRequest: Equatable {
-    let focusedIndex: Int
+    let selection: OverlayClickSelection
     let context: TargetContext
     let isSecondConfirmProvided: Bool
 }

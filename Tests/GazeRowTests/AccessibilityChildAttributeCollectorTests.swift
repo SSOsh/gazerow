@@ -7,7 +7,40 @@ import XCTest
 /// @since 2026-07-03
 final class AccessibilityChildAttributeCollectorTests: XCTestCase {
 
-    func test_collect_첫_nonEmpty_attribute를_반환하고_뒤_attribute는_읽지않는다() {
+    func test_collect_기본순서는_contents를_children보다_먼저_읽는다() {
+        // given
+        let sut = AccessibilityChildAttributeCollector<Int>()
+        var readAttributes: [String] = []
+
+        // when
+        _ = sut.collect { attribute in
+            readAttributes.append(attribute)
+            return .success([])
+        }
+
+        // then
+        XCTAssertEqual(readAttributes.prefix(3), ["AXContents", "AXVisibleChildren", "AXChildren"])
+    }
+
+    func test_collect_기본순서는_navigation과_visibleRow계열도_읽는다() {
+        // given
+        let sut = AccessibilityChildAttributeCollector<Int>()
+        var readAttributes: [String] = []
+
+        // when
+        _ = sut.collect { attribute in
+            readAttributes.append(attribute)
+            return .success([])
+        }
+
+        // then
+        XCTAssertTrue(readAttributes.contains("AXChildrenInNavigationOrder"))
+        XCTAssertTrue(readAttributes.contains("AXVisibleRows"))
+        XCTAssertTrue(readAttributes.contains("AXTabs"))
+        XCTAssertTrue(readAttributes.contains("AXSelectedRows"))
+    }
+
+    func test_collect_nonEmpty_attribute들을_모두_합쳐서_반환한다() {
         // given
         let sut = AccessibilityChildAttributeCollector<Int>(
             attributes: ["AXChildren", "AXVisibleChildren", "AXContents"]
@@ -30,8 +63,8 @@ final class AccessibilityChildAttributeCollectorTests: XCTestCase {
         }
 
         // then
-        XCTAssertEqual(try? result.get(), [1, 2])
-        XCTAssertEqual(readAttributes, ["AXChildren"])
+        XCTAssertEqual(try? result.get(), [1, 2, 3, 4, 5])
+        XCTAssertEqual(readAttributes, ["AXChildren", "AXVisibleChildren", "AXContents"])
     }
 
     func test_collect_앞_attribute가_실패해도_뒤_attribute가_있으면_성공한다() {

@@ -104,7 +104,7 @@ struct WindowSearchIndex: Equatable {
     }
 
     func search(_ query: String) -> [WindowMatch] {
-        let normalizedQuery = Self.normalized(query)
+        let normalizedQuery = SearchTextMatcher.normalized(query)
         guard !normalizedQuery.isEmpty else {
             return []
         }
@@ -132,28 +132,21 @@ struct WindowSearchIndex: Equatable {
     }
 
     private func match(entry: WindowEntry, normalizedQuery: String) -> WindowMatch? {
-        let title = entry.windowTitle.map(Self.normalized)
-        let appName = Self.normalized(entry.appName)
-        let bundleID = Self.normalized(entry.bundleID)
+        let title = entry.windowTitle
+        let appName = entry.appName
+        let bundleID = entry.bundleID
         var score = 0
 
-        if let title {
-            if title == normalizedQuery {
-                score = max(score, 200)
-            } else if title.hasPrefix(normalizedQuery) {
-                score = max(score, 150)
-            } else if title.contains(normalizedQuery) {
-                score = max(score, 100)
-            }
+        if let title,
+           let matchKind = SearchTextMatcher.match(value: title, query: normalizedQuery) {
+            score = max(score, titleScore(for: matchKind))
         }
 
-        if appName == normalizedQuery {
-            score = max(score, 80)
-        } else if appName.contains(normalizedQuery) {
-            score = max(score, 60)
+        if let matchKind = SearchTextMatcher.match(value: appName, query: normalizedQuery) {
+            score = max(score, appNameScore(for: matchKind))
         }
 
-        if bundleID.contains(normalizedQuery) {
+        if SearchTextMatcher.match(value: bundleID, query: normalizedQuery) != nil {
             score = max(score, 40)
         }
 
@@ -211,10 +204,31 @@ struct WindowSearchIndex: Equatable {
         return value as? String
     }
 
-    private static func normalized(_ value: String) -> String {
-        value
-            .precomposedStringWithCanonicalMapping
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    private func titleScore(for matchKind: SearchTextMatchKind) -> Int {
+        switch matchKind {
+        case .exact:
+            200
+        case .prefix:
+            150
+        case .contains:
+            100
+        case .acronym:
+            90
+        case .subsequence:
+            70
+        }
+    }
+
+    private func appNameScore(for matchKind: SearchTextMatchKind) -> Int {
+        switch matchKind {
+        case .exact:
+            80
+        case .prefix, .contains:
+            60
+        case .acronym:
+            55
+        case .subsequence:
+            45
+        }
     }
 }

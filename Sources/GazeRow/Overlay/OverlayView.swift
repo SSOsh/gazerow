@@ -10,33 +10,24 @@ struct OverlayView: View {
     let focusedLabelID: Int?
     let status: OverlayInteractionStatus
     let appearance: OverlayAppearance
-    let content: AppContent.Localized
-    let onScopeSelection: (QueryScope) -> Void
 
     init(
         layout: OverlayLayout,
         showsBoundary: Bool = true,
         focusedLabelID: Int? = nil,
         status: OverlayInteractionStatus = OverlayInteractionStatus(),
-        appearance: OverlayAppearance = OverlayAppearance(),
-        content: AppContent.Localized = AppContent.localized(for: .english),
-        onScopeSelection: @escaping (QueryScope) -> Void = { _ in }
+        appearance: OverlayAppearance = OverlayAppearance()
     ) {
         self.layout = layout
         self.showsBoundary = showsBoundary
         self.focusedLabelID = focusedLabelID
         self.status = status
         self.appearance = appearance
-        self.content = content
-        self.onScopeSelection = onScopeSelection
     }
 
     var body: some View {
-        let statusBarLayout = OverlayStatusBarLayout(bounds: layout.localBounds)
         let focusStyle = QueryFocusStyle(scope: status.activeScope)
-        let labelOpacity = status.activeScope == .windows ? 0.25 : 1.0
         let highlightFrame = localHighlightFrame
-
         ZStack(alignment: .topLeading) {
             if showsBoundary {
                 Rectangle()
@@ -66,22 +57,16 @@ struct OverlayView: View {
                     isFocused: label.id == focusedLabelID,
                     appearance: appearance,
                     focusStyle: focusStyle,
-                    labelOpacity: labelOpacity
+                    labelOpacity: OverlayLabelVisibility.opacity(
+                        for: label,
+                        focusedLabelID: focusedLabelID,
+                        status: status
+                    )
                 )
                     .frame(width: label.labelFrame.width, height: label.labelFrame.height)
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
             }
 
-            OverlayStatusView(
-                status: status,
-                content: content,
-                onScopeSelection: onScopeSelection
-            )
-                .frame(width: statusBarLayout.width, alignment: .leading)
-                .position(
-                    x: statusBarLayout.centerX,
-                    y: statusBarLayout.centerY
-                )
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
         .background(Color.clear)
@@ -123,18 +108,11 @@ private struct OverlayLabelView: View {
     let labelOpacity: Double
 
     var body: some View {
-        HStack(spacing: 1) {
-            if let prefix = shortcutPrefix {
-                Text(prefix)
-                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(Color.white.opacity(0.72 * appearance.labelTextOpacity))
-                    .baselineOffset(1)
-            }
-
-            Text(shortcutKey)
-                .font(.system(size: 15, weight: .heavy, design: .monospaced))
-                .foregroundStyle(Color.white.opacity(appearance.labelTextOpacity))
-        }
+        Text(label.displayText)
+            .font(.system(size: 15, weight: .heavy, design: .monospaced))
+            .minimumScaleFactor(0.72)
+            .lineLimit(1)
+            .foregroundStyle(Color.white.opacity(appearance.labelTextOpacity))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(backgroundColor, in: RoundedRectangle(cornerRadius: 5))
             .overlay {
@@ -147,20 +125,8 @@ private struct OverlayLabelView: View {
 
     private var backgroundColor: Color {
         isFocused
-            ? focusStyle.markerColor.opacity(0.96)
+            ? focusStyle.markerColor.opacity(min(1.0, appearance.labelBackgroundOpacity + 0.16))
             : Color.accentColor.opacity(appearance.labelBackgroundOpacity)
-    }
-
-    private var shortcutPrefix: String? {
-        guard label.text.count > 1 else {
-            return nil
-        }
-
-        return String(label.text.dropLast())
-    }
-
-    private var shortcutKey: String {
-        String(label.text.suffix(1))
     }
 }
 
@@ -202,9 +168,7 @@ private struct OverlayTargetMarkerView: View {
     }
 
     private var fillColor: Color {
-        isFocused
-            ? focusStyle.markerColor.opacity(0.18)
-            : Color.accentColor.opacity(appearance.markerFillOpacity)
+        isFocused ? Color.clear : Color.accentColor.opacity(appearance.markerFillOpacity)
     }
 
     private var strokeColor: Color {
@@ -228,139 +192,6 @@ private struct QueryFocusStyle: Equatable {
         case .windows:
             Color(red: 0.30, green: 0.43, blue: 0.96)
         }
-    }
-}
-
-private struct OverlayStatusView: View {
-    let status: OverlayInteractionStatus
-    let content: AppContent.Localized
-    let onScopeSelection: (QueryScope) -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                ForEach(QueryScope.allCases, id: \.self) { scope in
-                    ScopeChip(
-                        title: content.queryScopeTitle(scope),
-                        accentColor: QueryFocusStyle(scope: scope).markerColor,
-                        isActive: status.activeScope == scope,
-                        isPinned: status.pinnedScope == scope,
-                        action: {
-                            onScopeSelection(scope)
-                        }
-                    )
-                }
-
-                Spacer(minLength: 8)
-
-                Text(bufferText)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .lineLimit(1)
-                    .truncationMode(.head)
-            }
-
-            HStack(spacing: 10) {
-                Text(summaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                Spacer(minLength: 12)
-
-                Text(keyHintText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-            }
-            .font(.system(size: 11, weight: .regular, design: .rounded))
-            .foregroundStyle(Color.white.opacity(0.88))
-        }
-        .foregroundStyle(Color.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(backgroundColor, in: RoundedRectangle(cornerRadius: 6))
-        .overlay {
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color.white.opacity(0.72), lineWidth: 1)
-        }
-    }
-
-    private var backgroundColor: Color {
-        switch status.tone {
-        case .neutral:
-            Color.black.opacity(0.72)
-        case .success:
-            Color.green.opacity(0.82)
-        case .warning:
-            Color.orange.opacity(0.86)
-        case .failure:
-            Color.red.opacity(0.86)
-        }
-    }
-
-    private var bufferText: String {
-        let buffer = status.displayBuffer
-        guard !buffer.isEmpty else {
-            return content.readyBadge
-        }
-
-        return "\(buffer)█"
-    }
-
-    private var summaryText: String {
-        if status.matchCount > 0 {
-            let displayIndex = max(1, status.matchIndex)
-            return content.queryMatchSummary(
-                count: status.matchCount,
-                index: min(displayIndex, status.matchCount),
-                displayName: status.focusedDisplayName ?? status.focusedLabel ?? ""
-            )
-        }
-
-        if !status.displayBuffer.isEmpty {
-            return content.queryNoMatch
-        }
-
-        if let message = status.message {
-            return message
-        }
-
-        // idle 상태에서는 현재 활성 scope의 역할을 노출해
-        // "지금 무엇을 하는 scope인지"를 항상 읽을 수 있게 한다.
-        return content.queryScopeRole(status.activeScope)
-    }
-
-    private var keyHintText: String {
-        content.queryKeyHint(for: status.activeScope, enterActionHint: status.enterActionHint)
-    }
-}
-
-private struct ScopeChip: View {
-    let title: String
-    let accentColor: Color
-    let isActive: Bool
-    let isPinned: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(isPinned ? "\(title)*" : title)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(Color.white.opacity(isActive ? 1 : 0.74))
-                .padding(.horizontal, 7)
-                .padding(.vertical, 3)
-                .background(
-                    isActive ? accentColor.opacity(0.42) : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 5)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: 5)
-                        .stroke(
-                            isActive ? accentColor.opacity(0.95) : Color.white.opacity(0.45),
-                            lineWidth: 1
-                        )
-                }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
     }
 }
 

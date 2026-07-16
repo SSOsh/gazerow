@@ -1,4 +1,4 @@
-# GazeRow
+# keyCursor
 
 A macOS utility for clicking on-screen buttons, links, and menus using only your
 keyboard. Trigger the overlay with a shortcut and every clickable element gets a
@@ -18,7 +18,7 @@ click it without touching the mouse. (Homerow style)
 
 ## Quick Start
 
-1. **Launch the app** — it appears as a cursor icon in the menu bar, with no Dock icon.
+1. **Launch the app** — it appears as a keyCursor icon in the menu bar, with no Dock icon.
 2. **Grant permission** — in the first-run guide (or Settings), allow **Accessibility
    permission** and press **Recheck**. Overlay and clicks require this permission.
 3. **Open the overlay** — bring the app you want to operate to the front and press `Command+Shift+Space`.
@@ -47,14 +47,13 @@ Once the overlay is open, every actionable element gets a letter label (A, B, �
 | --- | --- |
 | Focus an element | Type its label letters (e.g. `F`, `AB`) |
 | Click the focused element | `Return` |
+| Search elements / switch windows | `/` / `;` |
 | Move to next / previous candidate | `Tab` / `Shift+Tab` |
 | Move up / down candidate | `↑` / `↓` |
 | Clear the letters you typed | `Delete` |
 | Close without clicking | `Esc` |
 
-**Korean keyboards work as-is.** Even with a Korean input source active, labels
-match the physical key position — for example `ㄹ` selects `F` and `ㅁ` selects `A`.
-You don't need to switch to an English layout.
+Keyboard layout is handled automatically. No conversion setting or layout switch is required.
 
 ### Query Overlay
 
@@ -69,7 +68,7 @@ Bare letter input still prioritizes label selection, so the existing label flow 
 ### Window control shortcuts
 
 Press the frontmost window's standard title-bar buttons (close / minimize / zoom)
-from the keyboard. These work only while GazeRow has Accessibility permission.
+from the keyboard. These work only while keyCursor has Accessibility permission.
 
 | Action | Shortcut |
 | --- | --- |
@@ -162,16 +161,19 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 # Open the Accessibility permission request/settings flow and run
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --request-accessibility
 
-# Build a local .app bundle and run it (more reliable key input / activation)
-scripts/build_local_app.sh
-open -n .build/local-app/GazeRow.app
+# Build a local .app bundle and run it as a single instance
+scripts/run_local_app.sh
+
+# Gracefully stop an existing GazeRow before replacing it with the new build
+scripts/run_local_app.sh --replace-running
 ```
 
 > **Note**: if multiple Xcode versions are installed, specify the intended toolchain
 > with `DEVELOPER_DIR` as above. The local `.app` bundling/signing flow is verified
-> with the full Xcode app installed.
+> with the full Xcode app installed. Do not use `open -n`, because it intentionally
+> starts another app instance.
 
-After launching, click the cursor icon in the menu bar to try **Open Settings** /
+After launching, click the keyCursor icon in the menu bar to try **Open Settings** /
 **Quit** and confirm it works. Without permission, use the **Request Permission**
 button in Settings or the launch option above to open the permission flow.
 
@@ -179,7 +181,7 @@ button in Settings or the launch option above to open the permission flow.
 
 ## Support
 
-If GazeRow helps your workflow, support development via **Support GazeRow** in the
+If keyCursor helps your workflow, support development via **Support keyCursor** in the
 menu bar. (Account details to be added later.)
 
 ---

@@ -35,6 +35,7 @@ enum AppContent {
     struct Localized {
         let language: AppLanguage
         let languageLabel: String
+        let setupReadinessTitle: String
         let permissionsTitle: String
         let accessibilityLabel: String
         let requestPermissionButton: String
@@ -155,6 +156,12 @@ enum AppContent {
             return language == .korean
                 ? "매칭 \(safeCount) · \(safeIndex)/\(safeCount) · \(displayName)"
                 : "Matches \(safeCount) · \(safeIndex)/\(safeCount) · \(displayName)"
+        }
+
+        /// elements scope에서 gaze로 element를 겨냥 중일 때의 요약 문구.
+        /// 검색 매칭 요약과 달리 개수·인덱스 없이 겨냥 대상 이름만 보인다.
+        func gazeTargetSummary(displayName: String) -> String {
+            language == .korean ? "겨냥 · \(displayName)" : "Aiming · \(displayName)"
         }
 
         func queryKeyHint(for scope: QueryScope, enterActionHint: String) -> String {
@@ -282,7 +289,21 @@ enum AppContent {
             case .scanFailed:
                 language == .korean ? "클릭 실패: 대상이 변경됨" : "Click failed: target changed"
             case .missingFocusedTarget:
-                language == .korean ? "클릭 실패: focus된 대상 없음" : "Click failed: no focused target"
+                language == .korean
+                    ? "클릭 실패: 포커스된 대상이 없습니다. 라벨을 입력하거나 먼저 Tab을 누르세요."
+                    : "Click failed: no focused target. Type a label or press Tab first."
+            case .selectedTargetUnavailable:
+                language == .korean
+                    ? "선택한 요소가 더 이상 없습니다. 라벨을 갱신했습니다."
+                    : "The selected element is no longer available. Labels were refreshed."
+            case .selectedTargetChanged:
+                language == .korean
+                    ? "화면이 변경되어 라벨을 갱신했습니다. 다시 선택하세요."
+                    : "The screen changed, so labels were refreshed. Select again."
+            case .selectedTargetAmbiguous:
+                language == .korean
+                    ? "대상을 확실히 구분할 수 없어 클릭하지 않았습니다."
+                    : "The target could not be identified safely, so no click was performed."
             case .executionFailed(let executionFailure):
                 clickExecutionFailureText(executionFailure)
             }
@@ -292,7 +313,9 @@ enum AppContent {
         func clickExecutionFailureText(_ failure: ClickExecutionFailure) -> String {
             switch failure {
             case .missingPressAction:
-                language == .korean ? "클릭 실패: 지원되는 action 없음" : "Click failed: no supported action"
+                language == .korean
+                    ? "클릭 실패: 지원되는 동작이 없습니다. 다른 라벨을 선택하세요."
+                    : "Click failed: no supported action. Try another label."
             case .secondConfirmRequired(let riskClass):
                 overlaySecondConfirmText(riskClass)
             case .axPressFailed:
@@ -301,6 +324,161 @@ enum AppContent {
                 language == .korean ? "클릭 실패: 좌표 fallback 꺼짐" : "Click failed: coordinate fallback is off"
             case .coordinateFallbackFailed:
                 language == .korean ? "클릭 실패: 좌표 fallback 실패" : "Click failed: coordinate fallback failed"
+            }
+        }
+
+        func commandBarModeTitle(for scope: QueryScope) -> String {
+            switch scope {
+            case .labels:
+                language == .korean ? "라벨" : "Labels"
+            case .elements:
+                language == .korean ? "요소 검색" : "Element Search"
+            case .windows:
+                language == .korean ? "창 전환" : "Window Switcher"
+            }
+        }
+
+        func commandBarIdleSummary(for scope: QueryScope) -> String {
+            switch scope {
+            case .labels:
+                language == .korean ? "라벨 키를 입력하세요" : "Type a label key"
+            case .elements:
+                language == .korean ? "검색어를 입력하세요" : "Type to search elements"
+            case .windows:
+                language == .korean ? "앱 또는 창 이름을 입력하세요" : "Type an app or window name"
+            }
+        }
+
+        func commandBarNoMatchSummary(for scope: QueryScope) -> String {
+            switch scope {
+            case .labels:
+                language == .korean ? "일치하는 라벨 없음" : "No matching label"
+            case .elements:
+                language == .korean ? "검색 결과 없음" : "No element matches"
+            case .windows:
+                language == .korean ? "일치하는 창 없음" : "No window matches"
+            }
+        }
+
+        func commandBarTypingSummary(_ buffer: String) -> String {
+            language == .korean ? "\(buffer) 입력 중" : "Typing \(buffer)"
+        }
+
+        func commandBarModeHelper(for scope: QueryScope) -> String {
+            switch scope {
+            case .labels:
+                commandBarLabelHelper
+            case .elements:
+                language == .korean ? "/ 요소 검색 모드" : "/ Element Search mode"
+            case .windows:
+                language == .korean ? "; 창 전환 모드" : "; Window Switcher mode"
+            }
+        }
+
+        var commandBarLabelHelper: String {
+            language == .korean
+                ? "라벨 입력 후 Return으로 클릭"
+                : "Type a label, then press Return to click"
+        }
+
+        var commandBarRiskTitle: String {
+            language == .korean ? "위험 동작입니다" : "Risky action"
+        }
+
+        func commandBarAction(_ action: OverlayCommandBarAction) -> String {
+            switch action {
+            case .select:
+                language == .korean ? "선택" : "Select"
+            case .searchElements:
+                language == .korean ? "요소 검색" : "Search elements"
+            case .switchWindows:
+                language == .korean ? "창 전환" : "Switch windows"
+            case .close:
+                language == .korean ? "닫기" : "Close"
+            case .click:
+                language == .korean ? "클릭" : "Click"
+            case .next:
+                language == .korean ? "다음" : "Next"
+            case .previous:
+                language == .korean ? "이전" : "Previous"
+            case .clear:
+                language == .korean ? "지우기" : "Clear"
+            case .typeToSearch:
+                language == .korean ? "검색" : "Search"
+            case .confirmAgain:
+                language == .korean ? "다시 확인" : "Confirm again"
+            case .cancel:
+                language == .korean ? "취소" : "Cancel"
+            case .retry:
+                language == .korean ? "다시 시도" : "Retry"
+            }
+        }
+
+        var replayTutorialButton: String {
+            language == .korean ? "튜토리얼 다시 보기" : "Replay tutorial"
+        }
+
+        var tutorialStartButton: String {
+            language == .korean ? "시작하기" : "Start"
+        }
+
+        var tutorialBackButton: String {
+            language == .korean ? "뒤로" : "Back"
+        }
+
+        var tutorialSkipButton: String {
+            language == .korean ? "건너뛰기" : "Skip"
+        }
+
+        var tutorialFinishButton: String {
+            language == .korean ? "완료" : "Finish"
+        }
+
+        var tutorialExitTitle: String {
+            language == .korean ? "튜토리얼을 닫을까요?" : "Exit tutorial?"
+        }
+
+        var tutorialExitMessage: String {
+            language == .korean
+                ? "튜토리얼을 닫아도 언제든 설정에서 다시 볼 수 있습니다."
+                : "You can replay this tutorial from Settings at any time."
+        }
+
+        var tutorialExitButton: String {
+            language == .korean ? "닫기" : "Exit"
+        }
+
+        func tutorialTitle(for step: TutorialStep) -> String {
+            switch step {
+            case .introduction:
+                return language == .korean ? "keyCursor 시작하기" : "Getting started with keyCursor"
+            case .labelPractice:
+                return language == .korean ? "라벨로 대상 선택" : "Select a target by label"
+            case .modePractice:
+                return language == .korean ? "검색과 창 전환" : "Search and switch windows"
+            case .finish:
+                return language == .korean ? "준비됐습니다" : "You are ready"
+            }
+        }
+
+        func tutorialDescription(for step: TutorialStep) -> String {
+            switch step {
+            case .introduction:
+                return language == .korean
+                    ? "이 연습은 keyCursor 안에서만 동작하며 다른 앱을 클릭하거나 전환하지 않습니다."
+                    : "This practice stays inside keyCursor. It never clicks or switches another app."
+            case .labelPractice:
+                return language == .korean
+                    ? "F 라벨을 입력하고 Return으로 모의 선택을 확인하세요."
+                    : "Type the F label, then press Return to confirm the simulated selection."
+            case .modePractice:
+                return language == .korean
+                    ? "/로 요소 검색, ;로 창 전환을 각각 한 번 실행하세요."
+                    : "Press / for element search and ; for window switching once each."
+            case .finish:
+                return language == .korean
+                    ? "실제 overlay에서도 같은 키를 사용할 수 있습니다."
+                    : "Use the same keys in the live overlay."
             }
         }
 
@@ -315,6 +493,45 @@ enum AppContent {
                 return language == .korean ? "캘리브레이션 완료 (\(status.sampleCount)점)" : "Calibrated (\(status.sampleCount) points)"
             }
             return language == .korean ? "캘리브레이션 안 됨" : "Not calibrated"
+        }
+
+        func setupReadinessHeadline(for state: SettingsReadinessSummary.State) -> String {
+            switch state {
+            case .permissionRequired:
+                return language == .korean ? "손쉬운 사용 권한이 필요합니다" : "Accessibility permission required"
+            case .sessionDisabled:
+                return language == .korean ? "세션이 비활성화되어 있습니다" : "Session is disabled"
+            case .ready:
+                return language == .korean ? "Overlay를 사용할 준비가 됐습니다" : "Overlay is ready"
+            }
+        }
+
+        func setupReadinessDetail(for state: SettingsReadinessSummary.State) -> String {
+            switch state {
+            case .permissionRequired:
+                return language == .korean
+                    ? "시스템 설정에서 keyCursor를 허용한 뒤 다시 확인을 누르세요."
+                    : "Allow keyCursor in System Settings, then press Recheck."
+            case .sessionDisabled:
+                return language == .korean
+                    ? "세션을 활성화하면 단축키로 overlay를 다시 열 수 있습니다."
+                    : "Enable the session to open the overlay with the shortcut again."
+            case .ready:
+                return language == .korean
+                    ? "\(OverlayActivationShortcut.activationDisplayName)로 overlay를 열고 라벨을 입력해 focus를 이동하세요."
+                    : "Press \(OverlayActivationShortcut.activationDisplayName), then type a label to move focus."
+            }
+        }
+
+        func setupReadinessBadge(for state: SettingsReadinessSummary.State) -> String {
+            switch state {
+            case .permissionRequired:
+                return needsPermissionBadge
+            case .sessionDisabled:
+                return disabledBadge
+            case .ready:
+                return readyBadge
+            }
         }
 
         func diagnosticsMessage(_ message: String?) -> String? {
@@ -341,21 +558,21 @@ enum AppContent {
 
     /// 접근성/의료 보조 제품이 아님을 밝히는 문구.
     static let nonMedicalDisclaimer = """
-    GazeRow is a productivity utility for keyboard-centric users. It is not an \
+    keyCursor is a productivity utility for keyboard-centric users. It is not an \
     accessibility or assistive-technology product, and is not intended for \
     medical or safety-critical use.
     """
 
-    /// 좌표 클릭 fallback이 기본 비활성임을 알리는 문구.
+    /// 검증된 overlay click과 일반 좌표 fallback 정책을 알리는 문구.
     static let fallbackDisabledNotice = """
-    Coordinate-based click fallback (CGEventPost) is disabled by default to \
-    reduce the risk of mis-clicks. Clicks use supported accessibility actions.
+    Confirmed overlay clicks use the current verified target's center coordinate. \
+    Coordinate fallback outside that verified path is disabled by default.
     """
 
     /// 첫 실행 안내에서 소개하는 setup 단계.
     static let setupSteps: [String] = [
         "Grant Accessibility permission in System Settings.",
-        "Return to GazeRow and press Recheck to confirm the status.",
+        "Return to keyCursor and press Recheck to confirm the status.",
         "Open the overlay with the shortcut, focus an element, and confirm with a key."
     ]
 
@@ -365,8 +582,9 @@ enum AppContent {
     static let knownLimitations: [String] = [
         "Only the frontmost app's focused window is scanned.",
         "Some apps expose an incomplete accessibility tree, so candidates may be missing.",
-        "Clicks rely on accessibility actions such as AXPress, AXConfirm, AXOpen, and AXShowDefaultUI; elements without a supported action may not be actionable.",
-        "Coordinate-click fallback is off by default and must be enabled in debug.",
+        "Confirmed overlay clicks use the current verified target's center coordinate. If the selected target cannot be uniquely matched after a rescan, no click is sent and labels refresh.",
+        "Other click paths rely on accessibility actions such as AXPress, AXConfirm, AXOpen, and AXShowDefaultUI; elements without a supported action may not be actionable.",
+        "Coordinate-click fallback outside the verified overlay path is off by default.",
         "All clicks require explicit keyboard confirmation; there is no auto-click.",
         "Gaze/camera features are Post-MVP and disabled in this build.",
         "Discord now exposes app UI candidates through expanded AX child scanning, but a representative click task still needs verification."
@@ -379,8 +597,9 @@ enum AppContent {
     /// Onboarding/Settings가 같은 안내를 참조하도록 SSOT로 관리한다.
     static let overlayUsageSteps: [String] = [
         "Open the overlay with the Show overlay shortcut. Every actionable element gets a letter label.",
-        "Type the label letters to focus an element. Korean keyboards work too — labels match the physical key position (e.g. ㄹ selects F).",
+        "Type the label letters to focus an element. Keyboard layout is handled automatically.",
         "Press Return to confirm and click the focused element.",
+        "Press / to search elements or ; to switch windows.",
         "Use Tab or Shift+Tab, and the arrow keys, to move focus between candidates.",
         "Press Delete to clear the letters you have typed so far.",
         "Press Esc to close the overlay without clicking."
@@ -389,14 +608,14 @@ enum AppContent {
     // MARK: - Support
 
     /// 메뉴바 후원 항목 제목.
-    static let supportDonationMenuTitle = "Support GazeRow"
+    static let supportDonationMenuTitle = "Support keyCursor"
 
     /// 후원 안내 alert 제목.
-    static let supportDonationTitle = "Support GazeRow"
+    static let supportDonationTitle = "Support keyCursor"
 
     /// 후원 안내 alert 본문.
     static let supportDonationMessage = """
-    GazeRow가 작업 흐름에 도움이 됐다면 커피값 후원으로 개발을 응원해 주세요.
+    keyCursor가 작업 흐름에 도움이 됐다면 커피값 후원으로 개발을 응원해 주세요.
 
     계좌번호는 추후 추가 예정입니다.
     """
@@ -407,14 +626,14 @@ enum AppContent {
     static let windowControlShortcutsNotice = """
     Window shortcuts act on the frontmost window's standard title-bar buttons \
     (close, minimize, zoom) using accessibility actions. They work only while \
-    GazeRow has Accessibility permission.
+    keyCursor has Accessibility permission.
     """
 
     // MARK: - Diagnostics
 
     /// interaction 로그 저장 opt-in 토글 안내 문구.
     static let interactionLoggingNotice = """
-    When enabled, GazeRow stores minimal interaction events (focus/click) locally. \
+    When enabled, keyCursor stores minimal interaction events (focus/click) locally. \
     Window titles are stored only as a per-session hash; raw titles and text values \
     are never written.
     """
@@ -452,6 +671,7 @@ enum AppContent {
     private static let english = Localized(
         language: .english,
         languageLabel: "Language",
+        setupReadinessTitle: "Setup Status",
         permissionsTitle: "Permissions",
         accessibilityLabel: "Accessibility",
         requestPermissionButton: "Request Permission",
@@ -527,6 +747,7 @@ enum AppContent {
     private static let korean = Localized(
         language: .korean,
         languageLabel: "언어",
+        setupReadinessTitle: "설정 상태",
         permissionsTitle: "권한",
         accessibilityLabel: "손쉬운 사용",
         requestPermissionButton: "권한 요청",
@@ -582,43 +803,45 @@ enum AppContent {
         unverifiedBadge: "미확인",
         setupSteps: [
             "시스템 설정에서 손쉬운 사용 권한을 허용합니다.",
-            "GazeRow로 돌아와 다시 확인을 눌러 상태를 확인합니다.",
+            "keyCursor로 돌아와 다시 확인을 눌러 상태를 확인합니다.",
             "단축키로 overlay를 열고, 요소에 focus를 맞춘 뒤 키로 확인합니다."
         ],
         knownLimitations: [
             "맨 앞 앱의 focused window만 스캔합니다.",
             "일부 앱은 접근성 트리를 불완전하게 노출해 후보가 빠질 수 있습니다.",
-            "클릭은 AXPress, AXConfirm, AXOpen, AXShowDefaultUI 같은 접근성 action에 의존합니다. 지원 action이 없는 요소는 실행되지 않을 수 있습니다.",
-            "좌표 기반 클릭 fallback은 기본적으로 꺼져 있으며, 명시 확인된 overlay 클릭 경로에서만 제한적으로 사용합니다.",
+            "확정된 overlay 클릭은 다시 검증한 현재 대상의 중앙 좌표를 클릭합니다. 재스캔 후 선택 대상을 하나로 확인할 수 없으면 클릭하지 않고 라벨을 갱신합니다.",
+            "그 밖의 클릭 경로는 AXPress, AXConfirm, AXOpen, AXShowDefaultUI 같은 접근성 action에 의존합니다. 지원 action이 없는 요소는 실행되지 않을 수 있습니다.",
+            "검증된 overlay 경로 밖의 좌표 기반 클릭 fallback은 기본적으로 꺼져 있습니다.",
             "모든 클릭은 키보드 확인이 필요합니다. 자동 클릭은 없습니다.",
             "Gaze/camera 기능은 실험 기능이며 기본적으로 꺼져 있습니다.",
             "Discord는 확장된 AX child scanning으로 앱 UI 후보를 노출하지만, 대표 클릭 task 검증은 아직 필요합니다."
         ],
         overlayUsageSteps: [
             "Show overlay 단축키로 overlay를 엽니다. 실행 가능한 요소마다 문자 라벨이 붙습니다.",
-            "라벨 문자를 입력해 요소에 focus를 맞춥니다. 한글 키보드도 동작하며 물리 키 위치로 매칭됩니다. 예: ㄹ은 F를 선택합니다.",
+            "라벨 문자를 입력해 요소에 focus를 맞춥니다. 키보드 레이아웃은 자동으로 처리됩니다.",
             "Return을 눌러 focused element를 확인하고 클릭합니다.",
+            "/를 누르면 요소를 검색하고 ;를 누르면 창을 전환합니다.",
             "Tab, Shift+Tab, 방향키로 후보 사이를 이동합니다.",
             "Delete를 누르면 지금까지 입력한 라벨 문자를 지웁니다.",
             "Esc를 누르면 클릭하지 않고 overlay를 닫습니다."
         ],
         nonMedicalDisclaimer: """
-        GazeRow는 키보드 중심 사용자를 위한 생산성 유틸리티입니다. 접근성/보조공학 제품이나 의료·안전 필수 용도로 설계된 제품이 아닙니다.
+        keyCursor는 키보드 중심 사용자를 위한 생산성 유틸리티입니다. 접근성/보조공학 제품이나 의료·안전 필수 용도로 설계된 제품이 아닙니다.
         """,
         fallbackDisabledNotice: """
-        오클릭 위험을 줄이기 위해 좌표 기반 클릭 fallback(CGEventPost)은 기본적으로 꺼져 있습니다. 일반 클릭은 지원되는 접근성 action을 사용합니다.
+        확정된 overlay 클릭은 현재 검증된 대상 중앙 좌표를 클릭합니다. 그 밖의 좌표 기반 클릭 fallback(CGEventPost)은 오클릭 위험을 줄이기 위해 기본적으로 꺼져 있습니다.
         """,
         windowControlShortcutsNotice: """
-        창 단축키는 맨 앞 창의 표준 title-bar 버튼(닫기, 최소화, 확대/축소)에 접근성 action을 보냅니다. GazeRow에 Accessibility 권한이 있을 때만 동작합니다.
+        창 단축키는 맨 앞 창의 표준 title-bar 버튼(닫기, 최소화, 확대/축소)에 접근성 action을 보냅니다. keyCursor에 Accessibility 권한이 있을 때만 동작합니다.
         """,
         interactionLoggingNotice: """
-        켜면 GazeRow가 최소한의 interaction event(focus/click)를 로컬에 저장합니다. 창 제목은 세션별 hash로만 저장하며 원문 제목과 텍스트 값은 저장하지 않습니다.
+        켜면 keyCursor가 최소한의 interaction event(focus/click)를 로컬에 저장합니다. 창 제목은 세션별 hash로만 저장하며 원문 제목과 텍스트 값은 저장하지 않습니다.
         """,
         debugExportNotice: """
         Debug Export는 문제 해결을 위한 현재 진단 snapshot을 일반 텍스트로 저장합니다. 원본 창 제목이나 텍스트 값은 포함하지 않습니다.
         """,
-        supportDonationMenuTitle: "GazeRow 후원",
-        supportDonationTitle: "GazeRow 후원",
+        supportDonationMenuTitle: "keyCursor 후원",
+        supportDonationTitle: "keyCursor 후원",
         supportDonationMessage: supportDonationMessage,
         queryScopeWindows: "창",
         queryScopeElements: "요소",

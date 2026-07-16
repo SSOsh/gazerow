@@ -123,9 +123,43 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertEqual(activateCallCount, 0)
         XCTAssertEqual(keyboardEventTap.startCallCount, 1)
         XCTAssertTrue(sut.isVisible)
+        XCTAssertTrue(sut.isTargetPanelVisible)
+        XCTAssertTrue(sut.isCommandBarPanelVisible)
 
         sut.close()
         XCTAssertEqual(keyboardEventTap.stopCallCount, 1)
+    }
+
+    func test_show는_capture준비후_panel을_공개한다() {
+        // given
+        let keyboardEventTap = FakeOverlayKeyboardEventTap(startResult: true)
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                keyboardEventTap
+            }
+        )
+        var presentationEvents: [OverlayPresentationEvent] = []
+
+        // when
+        let captureMode = sut.show(
+            layout: makeLayout(),
+            initialStatus: OverlayInteractionStatus(),
+            onPresentationEvent: { event in
+                presentationEvents.append(event)
+            }
+        )
+
+        // then
+        XCTAssertEqual(captureMode, .eventTap)
+        XCTAssertEqual(
+            Array(presentationEvents.prefix(2)),
+            [.captureReady(.eventTap), .panelsOrdered]
+        )
+
+        sut.close()
     }
 
     func test_show는_keyboardEventTap이_실패하면_application을_activate한다() {
@@ -176,26 +210,6 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
-    func test_show는_scopeChip_click을_위해_mouseInput을_허용한다() {
-        // given
-        let sut = OverlayWindowController(
-            displayInfoProvider: { _ in
-                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
-            },
-            keyboardEventTapFactory: { _ in
-                FakeOverlayKeyboardEventTap(startResult: true)
-            }
-        )
-
-        // when
-        sut.show(layout: makeLayout())
-
-        // then
-        XCTAssertTrue(sut.acceptsMouseInput)
-
-        sut.close()
-    }
-
     func test_show는_render시_appearanceProvider를_조회한다() {
         // given: appearanceProvider는 렌더 시점마다 최신 설정을 읽어야 한다.
         var appearanceCallCount = 0
@@ -217,6 +231,65 @@ final class OverlayWindowControllerTests: XCTestCase {
 
         // then
         XCTAssertGreaterThanOrEqual(appearanceCallCount, 1)
+
+        sut.close()
+    }
+
+    func test_updateStatus는_기존HostingView를_재사용한다() {
+        // given
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        sut.show(layout: makeLayout())
+        let targetIdentifier = sut.targetHostingViewIdentifier
+        let commandIdentifier = sut.commandBarHostingViewIdentifier
+
+        // when
+        sut.updateStatus(
+            OverlayInteractionStatus(
+                focusedLabel: "AA",
+                hasExplicitFocus: true
+            )
+        )
+
+        // then
+        XCTAssertEqual(sut.targetHostingViewIdentifier, targetIdentifier)
+        XCTAssertEqual(sut.commandBarHostingViewIdentifier, commandIdentifier)
+
+        sut.close()
+    }
+
+    func test_show는_target교차면적이큰화면의_visibleFrame에_commandPanel을배치한다() {
+        // given
+        let leftScreen = OverlayScreenDescriptor(
+            frame: CGRect(x: 0, y: 0, width: 1_000, height: 800),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1_000, height: 760),
+            scaleFactor: 2
+        )
+        let rightScreen = OverlayScreenDescriptor(
+            frame: CGRect(x: 1_000, y: 0, width: 1_000, height: 800),
+            visibleFrame: CGRect(x: 1_000, y: 40, width: 1_000, height: 760),
+            scaleFactor: 1
+        )
+        let sut = OverlayWindowController(
+            screenFrameProvider: { [leftScreen.frame, rightScreen.frame] },
+            screenDescriptorProvider: { [leftScreen, rightScreen] },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        let layout = makeLayout(targetFrame: CGRect(x: 850, y: 100, width: 500, height: 400))
+
+        // when
+        sut.show(layout: layout)
+
+        // then
+        XCTAssertEqual(sut.commandBarPanelFrame, CGRect(x: 1_160, y: 56, width: 680, height: 72))
 
         sut.close()
     }
@@ -253,6 +326,104 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func test_OverlayKeyboardEventTapContext_연속입력은_FIFO순서로_전달한다() {
+        // given
+        let expectation = expectation(description: "keyboard commands delivered")
+        expectation.expectedFulfillmentCount = 2
+        var receivedCommands: [FocusKeyboardCommand] = []
+        let sut = OverlayKeyboardEventTapContext { command in
+            receivedCommands.append(command)
+            expectation.fulfill()
+        }
+        let labelEvent = CGEvent(keyboardEventSource: nil, virtualKey: 3, keyDown: true)!
+        let confirmEvent = CGEvent(keyboardEventSource: nil, virtualKey: 36, keyDown: true)!
+
+        // when
+        _ = sut.handle(type: .keyDown, event: labelEvent)
+        _ = sut.handle(type: .keyDown, event: confirmEvent)
+        wait(for: [expectation], timeout: 1)
+
+        // then
+        XCTAssertEqual(receivedCommands, [.typeLabel("F"), .dryRunConfirm])
+    }
+
+    func test_OverlayKeyboardEventTapContext_stop후_대기중인입력을_전달하지않는다() {
+        // given
+        let expectation = expectation(description: "keyboard command is not delivered")
+        expectation.isInverted = true
+        let sut = OverlayKeyboardEventTapContext { _ in
+            expectation.fulfill()
+        }
+        let event = CGEvent(keyboardEventSource: nil, virtualKey: 3, keyDown: true)!
+
+        // when
+        _ = sut.handle(type: .keyDown, event: event)
+        sut.stopAcceptingCommands()
+        wait(for: [expectation], timeout: 0.1)
+    }
+
+    func test_OverlayKeyboardCommandRouter_두번째_bareLabel도_label명령으로_유지한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        let first = sut.command(for: FocusKeyboardInput(keyCode: 3, charactersIgnoringModifiers: "F"))
+        let second = sut.command(for: FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "A"))
+
+        // then
+        XCTAssertEqual(first, .typeLabel("F"))
+        XCTAssertEqual(second, .typeLabel("A"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_scopePin후_query를_유지한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        let pin = sut.command(for: FocusKeyboardInput(keyCode: 41, charactersIgnoringModifiers: "/"))
+        let first = sut.command(for: FocusKeyboardInput(keyCode: 3, charactersIgnoringModifiers: "f"))
+        let second = sut.command(for: FocusKeyboardInput(keyCode: 2, charactersIgnoringModifiers: "d"))
+
+        // then
+        XCTAssertEqual(pin, .pinScope(.elements))
+        XCTAssertEqual(first, .appendQuery("f"))
+        XCTAssertEqual(second, .appendQuery("d"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_windowScopePin후_query를_유지한다() {
+        // given
+        var sut = OverlayKeyboardCommandRouter()
+
+        // when
+        let pin = sut.command(for: FocusKeyboardInput(keyCode: 41, charactersIgnoringModifiers: ";"))
+        let first = sut.command(for: FocusKeyboardInput(keyCode: 8, charactersIgnoringModifiers: "c"))
+        let second = sut.command(for: FocusKeyboardInput(keyCode: 31, charactersIgnoringModifiers: "o"))
+
+        // then
+        XCTAssertEqual(pin, .pinScope(.windows))
+        XCTAssertEqual(first, .appendQuery("c"))
+        XCTAssertEqual(second, .appendQuery("o"))
+    }
+
+    func test_OverlayKeyboardCommandRouter_두_capture경로는_동일한_commandSequence를_만든다() {
+        // given
+        let inputs = [
+            FocusKeyboardInput(keyCode: 3, charactersIgnoringModifiers: "F"),
+            FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "A"),
+            FocusKeyboardInput(keyCode: 36)
+        ]
+        var eventTapRouter = OverlayKeyboardCommandRouter()
+        var panelRouter = OverlayKeyboardCommandRouter()
+
+        // when
+        let eventTapCommands = inputs.compactMap { eventTapRouter.command(for: $0) }
+        let panelCommands = inputs.compactMap { panelRouter.command(for: $0) }
+
+        // then
+        XCTAssertEqual(eventTapCommands, [.typeLabel("F"), .typeLabel("A"), .dryRunConfirm])
+        XCTAssertEqual(panelCommands, eventTapCommands)
+    }
+
     func test_OverlayKeyboardEventTap_start는_secureEventInput이면_false() {
         // given
         let sut = OverlayKeyboardEventTap(
@@ -267,12 +438,11 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertFalse(result)
     }
 
-    func test_OverlayKeyboardEventTap_start는_inputMonitoring권한이_없고_요청거절이면_false() {
+    func test_OverlayKeyboardEventTap_start는_inputMonitoring권한이_없으면_요청하지않고_false() {
         // given
         let sut = OverlayKeyboardEventTap(
             isSecureEventInputEnabled: { false },
             hasListenEventAccess: { false },
-            requestListenEventAccess: { false },
             onKeyboardCommand: { _ in }
         )
 
@@ -297,7 +467,7 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertEqual(command, .appendQuery("s"))
     }
 
-    func test_OverlayKeyboardCommandRouter_syncKeyboardState는_pendingLabelPrimer를_초기화한다() {
+    func test_OverlayKeyboardCommandRouter_syncKeyboardState는_범위상태를_교체한다() {
         // given
         var sut = OverlayKeyboardCommandRouter()
         _ = sut.command(
@@ -314,26 +484,11 @@ final class OverlayWindowControllerTests: XCTestCase {
         XCTAssertEqual(command, .appendQuery("s"))
     }
 
-    func test_OverlayKeyboardCommandRouter_첫_label입력후_두번째_ascii는_두글자_query로_승격한다() {
-        // given
-        var sut = OverlayKeyboardCommandRouter()
-
-        // when
-        let first = sut.command(
-            for: FocusKeyboardInput(keyCode: 0, charactersIgnoringModifiers: "a")
-        )
-        let second = sut.command(
-            for: FocusKeyboardInput(keyCode: 11, charactersIgnoringModifiers: "b")
-        )
-
-        // then
-        XCTAssertEqual(first, .typeLabel("a"))
-        XCTAssertEqual(second, .appendQuery("ab"))
-    }
-
-    private func makeLayout() -> OverlayLayout {
+    private func makeLayout(
+        targetFrame: CGRect = CGRect(x: 0, y: 0, width: 200, height: 120)
+    ) -> OverlayLayout {
         OverlayLayout(
-            targetFrame: CGRect(x: 0, y: 0, width: 200, height: 120),
+            targetFrame: targetFrame,
             localBounds: CGRect(x: 0, y: 0, width: 200, height: 120),
             labels: [
                 OverlayLabel(

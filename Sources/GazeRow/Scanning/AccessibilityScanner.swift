@@ -29,14 +29,19 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
 
         switch client.rootElement(for: context) {
         case .success(let root):
-            return .success(scan(root: root, startedAt: startedAt))
+            return .success(scan(root: root, context: context, startedAt: startedAt))
         case .failure(let failure):
             return .failure(failure)
         }
     }
 
-    private func scan(root: Client.Element, startedAt: Date) -> AccessibilityScanResult {
+    private func scan(
+        root: Client.Element,
+        context: TargetContext,
+        startedAt: Date
+    ) -> AccessibilityScanResult {
         var stack: [(element: Client.Element, depth: Int)] = [(root, 0)]
+        stack.append(contentsOf: client.additionalRootElements(for: context).map { ($0, 0) })
         var nodesVisited = 0
         var candidates: [ClickableCandidate] = []
         var candidateKeys = Set<CandidateKey>()

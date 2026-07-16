@@ -35,6 +35,33 @@ final class WindowSearchIndexTests: XCTestCase {
         XCTAssertEqual(matches.first?.score, 60)
     }
 
+    func test_search_appName_약어도_검색된다() {
+        // given
+        let sut = WindowSearchIndex(entries: [
+            entry(id: 0, appName: "Visual Studio Code", bundleID: "com.microsoft.VSCode", title: "README.md")
+        ])
+
+        // when
+        let matches = sut.search("vsc")
+
+        // then
+        XCTAssertEqual(matches.map(\.entryID), [0])
+        XCTAssertEqual(matches.first?.score, 55)
+    }
+
+    func test_search_windowTitle_구분자를_무시한_contains를_지원한다() {
+        // given
+        let sut = WindowSearchIndex(entries: [
+            entry(id: 0, appName: "Preview", title: "README - Project Notes")
+        ])
+
+        // when
+        let matches = sut.search("readmeproject")
+
+        // then
+        XCTAssertEqual(matches.first, WindowMatch(entryID: 0, score: 100, displayLine: "Preview — README - Project Notes"))
+    }
+
     func test_search_bundleID_contains는_낮은_score로_검색된다() {
         // given
         let sut = WindowSearchIndex(entries: [
