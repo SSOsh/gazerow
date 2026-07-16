@@ -1,4 +1,4 @@
-# GazeRow TICKET-010 Prep v1
+# gazerow TICKET-010 Prep v1
 
 ## 변경 이력
 - v1: TICKET-010 Baseline Evaluation Run 착수 전, 평가 환경과 절차를 준비하기 위한 체크리스트를 분리.
@@ -37,18 +37,18 @@
 
 ### 권장
 
-- Console.app에서 GazeRow OSLog 확인 준비
+- Console.app에서 gazerow OSLog 확인 준비
 - 평가 화면 녹화가 필요하면 개인정보 검토 후 별도 동의
 - Numbers/CSV로 집계표 복사 준비
 
 ## 4. 평가 진행 순서
 
 1. commit hash와 macOS version 기록
-2. GazeRow 실행
+2. gazerow 실행
 3. 첫 실행 onboarding과 권한 안내 확인
 4. 5개 앱을 하나씩 열어 고정 task 수행
 5. 앱마다 mouse/trackpad baseline time 측정
-6. 앱마다 GazeRow time-to-click 측정
+6. 앱마다 gazerow time-to-click 측정
 7. correction count와 abandoned attempt count 기록
 8. overlay collision/occlusion/readability 기록
 9. click method와 fallback 필요 여부 기록

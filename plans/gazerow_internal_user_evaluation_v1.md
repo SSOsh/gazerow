@@ -1,4 +1,4 @@
-# GazeRow Internal User Evaluation v1
+# gazerow Internal User Evaluation v1
 
 ## 변경 이력
 - v1: TICKET-010 내부 사용자 3명 평가를 실행하기 위한 진행 절차와 기록지를 작성.
@@ -28,7 +28,7 @@ Post-MVP 재개 시 필요한 조건:
 
 - 키보드 단축키나 메뉴바 앱 사용에 익숙한 사용자
 - Finder, Safari 또는 Chrome 사용 경험이 있는 사용자
-- GazeRow 구현 내용을 직접 작성하지 않은 사용자
+- gazerow 구현 내용을 직접 작성하지 않은 사용자
 
 평가자가 3명 미만이면 이 runbook의 결과를 pass로 기록하지 않는다.
 
@@ -40,12 +40,12 @@ Post-MVP 재개 시 필요한 조건:
 cd /Users/suho/Github/gazerow
 git status --short --branch
 scripts/verify_mvp_freeze.sh
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run gazerow
 ```
 
 확인해야 할 UI:
 
-- 메뉴바에 GazeRow 아이콘이 표시된다.
+- 메뉴바에 gazerow 아이콘이 표시된다.
 - 메뉴바 아이콘에서 `Show Overlay`를 실행할 수 있다.
 - Settings에서 Accessibility 권한 상태가 granted로 표시된다.
 - Known Limitations에서 Finder와 VS Code가 Limited로 표시된다.
@@ -55,7 +55,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow
 평가자는 아래 설명만 읽어준다.
 
 ```text
-GazeRow는 키보드로 화면의 클릭 가능한 항목을 선택하는 macOS 메뉴바 앱입니다.
+gazerow는 키보드로 화면의 클릭 가능한 항목을 선택하는 macOS 메뉴바 앱입니다.
 메뉴바 아이콘에서 Show Overlay를 누르면 화면 위에 label이 뜹니다.
 원하는 label 문자를 입력하고 Return으로 실행합니다.
 일부 위험하거나 애매한 대상은 Return을 한 번 더 요구할 수 있습니다.
@@ -72,7 +72,7 @@ GazeRow는 키보드로 화면의 클릭 가능한 항목을 선택하는 macOS 
 
 각 평가자에게 아래 순서로 3분을 준다.
 
-1. GazeRow 메뉴바 아이콘을 찾는다.
+1. gazerow 메뉴바 아이콘을 찾는다.
 2. `Show Overlay`를 실행한다.
 3. label을 보고 키보드로 focus 또는 label jump를 시도한다.
 4. Return으로 confirm을 시도한다.

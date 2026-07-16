@@ -59,7 +59,7 @@ final class DebugExportManagerTests: XCTestCase {
 
         // then
         let content = try String(contentsOf: exportURL, encoding: .utf8)
-        XCTAssertTrue(content.contains("GazeRow Debug Export"))
+        XCTAssertTrue(content.contains("gazerow Debug Export"))
         XCTAssertTrue(content.contains("SCAN-SUMMARY-42"))
     }
 

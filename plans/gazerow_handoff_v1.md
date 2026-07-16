@@ -1,14 +1,14 @@
-# GazeRow Handoff v1
+# gazerow Handoff v1
 
 ## 변경 이력
-- v1: 다른 컴퓨터나 새 세션에서 GazeRow 작업을 이어받기 위한 읽기 순서, 현재 상태, 다음 액션, 미결정 항목을 정리.
+- v1: 다른 컴퓨터나 새 세션에서 gazerow 작업을 이어받기 위한 읽기 순서, 현재 상태, 다음 액션, 미결정 항목을 정리.
 - v2: TICKET-010/011 local MVP freeze GO, Finder/VS Code fixed task pass, Post-MVP 앱 평가 스크립트 준비 상태를 반영.
 - v3: Post-MVP Slack pass, Discord Limited 개선 상태와 2026-07-03 freeze 재검증 결과를 반영.
 - v4: Query Overlay v1 TICKET-012~019 구현, 평가 스크립트, verify 통합 상태를 반영.
 
 ## 1. 목적
 
-이 문서는 GazeRow 작업을 새 환경에서 이어받을 때 가장 먼저 보는 핸드오프 문서다.
+이 문서는 gazerow 작업을 새 환경에서 이어받을 때 가장 먼저 보는 핸드오프 문서다.
 
 목표:
 
@@ -175,7 +175,7 @@ Deferred:
 
 ## 8. 산출물 위치
 
-모든 GazeRow 계획 문서는 아래 폴더에서 관리한다.
+모든 gazerow 계획 문서는 아래 폴더에서 관리한다.
 
 ```text
 /Users/suho/Github/gazerow/plans/

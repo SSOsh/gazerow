@@ -1,11 +1,11 @@
-# GazeRow Distribution Checklist v1
+# gazerow Distribution Checklist v1
 
 ## 변경 이력
 - v1: TICKET-011 freeze package의 code signing/notarization 체크리스트를 별도 문서로 구체화.
 
 ## 1. 목적
 
-이 문서는 GazeRow를 로컬 MVP 밖으로 배포하기 전에 필요한 signing, notarization, privacy 문서 준비 항목을 정리한다.
+이 문서는 gazerow를 로컬 MVP 밖으로 배포하기 전에 필요한 signing, notarization, privacy 문서 준비 항목을 정리한다.
 
 현재 TICKET-011 로컬 MVP freeze의 완료 조건은 아니다. TICKET-010 결과가 GO 또는 CONDITIONAL-GO가 된 뒤 외부 배포를 검토할 때 사용한다.
 
@@ -76,12 +76,12 @@
 외부 배포용 `.app` 산출물 생성 뒤 아래 검증을 수행한다.
 
 ```bash
-codesign --verify --deep --strict --verbose=2 GazeRow.app
-spctl --assess --type execute --verbose=4 GazeRow.app
-xcrun stapler validate GazeRow.app
+codesign --verify --deep --strict --verbose=2 gazerow.app
+spctl --assess --type execute --verbose=4 gazerow.app
+xcrun stapler validate gazerow.app
 ```
 
-`GazeRow.app` 산출 방식은 아직 확정하지 않았다.
+`gazerow.app` 산출 방식은 아직 확정하지 않았다.
 
 ---
 

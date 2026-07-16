@@ -1,4 +1,4 @@
-# GazeRow Baseline Evaluation Template v1
+# gazerow Baseline Evaluation Template v1
 
 ## 변경 이력
 - v1: TICKET-010 착수 전 평가자가 동일한 기준으로 Baseline MVP를 측정할 수 있도록 수동 평가 양식, 앱별 task, go/no-go 판정 기준을 정의.
@@ -10,7 +10,7 @@
 목표:
 
 - 초기 5개 앱에서 같은 task를 반복 측정한다.
-- mouse/trackpad baseline과 GazeRow 흐름을 같은 기준으로 비교한다.
+- mouse/trackpad baseline과 gazerow 흐름을 같은 기준으로 비교한다.
 - overlay 품질, click 안전성, setup friction을 분리해서 기록한다.
 - go/no-go 결론을 주관 느낌이 아니라 정해진 기준으로 남긴다.
 
@@ -28,7 +28,7 @@
 | 평가 일시 | TBD |
 | 평가자 | TBD |
 | macOS version | TBD |
-| GazeRow commit | TBD |
+| gazerow commit | TBD |
 | 빌드 방식 | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build` |
 | Accessibility 권한 | granted / not granted |
 | Input Monitoring 권한 | requested / not requested |

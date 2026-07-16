@@ -24,7 +24,7 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 
 /// 사용자 선택 언어 저장소.
 ///
-/// macOS 시스템 언어와 독립적으로 GazeRow 설명/설정 문구 언어만 제어한다.
+/// macOS 시스템 언어와 독립적으로 gazerow 설명/설정 문구 언어만 제어한다.
 ///
 /// @author suho.do
 /// @since 2026-07-03

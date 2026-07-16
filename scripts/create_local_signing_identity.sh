@@ -11,6 +11,7 @@
 # @since 2026-07-03
 set -euo pipefail
 
+# 기존 인증서명을 유지해 이미 발급한 로컬 서명 identity를 재사용한다.
 IDENTITY_NAME="${IDENTITY_NAME:-GazeRow Local Signing}"
 KEYCHAIN="${KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
 P12_PASSWORD="${P12_PASSWORD:-gazerow}"

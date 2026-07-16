@@ -341,7 +341,7 @@ enum AppContent {
 
     /// 접근성/의료 보조 제품이 아님을 밝히는 문구.
     static let nonMedicalDisclaimer = """
-    GazeRow is a productivity utility for keyboard-centric users. It is not an \
+    gazerow is a productivity utility for keyboard-centric users. It is not an \
     accessibility or assistive-technology product, and is not intended for \
     medical or safety-critical use.
     """
@@ -355,7 +355,7 @@ enum AppContent {
     /// 첫 실행 안내에서 소개하는 setup 단계.
     static let setupSteps: [String] = [
         "Grant Accessibility permission in System Settings.",
-        "Return to GazeRow and press Recheck to confirm the status.",
+        "Return to gazerow and press Recheck to confirm the status.",
         "Open the overlay with the shortcut, focus an element, and confirm with a key."
     ]
 
@@ -389,14 +389,14 @@ enum AppContent {
     // MARK: - Support
 
     /// 메뉴바 후원 항목 제목.
-    static let supportDonationMenuTitle = "Support GazeRow"
+    static let supportDonationMenuTitle = "Support gazerow"
 
     /// 후원 안내 alert 제목.
-    static let supportDonationTitle = "Support GazeRow"
+    static let supportDonationTitle = "Support gazerow"
 
     /// 후원 안내 alert 본문.
     static let supportDonationMessage = """
-    GazeRow가 작업 흐름에 도움이 됐다면 커피값 후원으로 개발을 응원해 주세요.
+    gazerow가 작업 흐름에 도움이 됐다면 커피값 후원으로 개발을 응원해 주세요.
 
     계좌번호는 추후 추가 예정입니다.
     """
@@ -407,14 +407,14 @@ enum AppContent {
     static let windowControlShortcutsNotice = """
     Window shortcuts act on the frontmost window's standard title-bar buttons \
     (close, minimize, zoom) using accessibility actions. They work only while \
-    GazeRow has Accessibility permission.
+    gazerow has Accessibility permission.
     """
 
     // MARK: - Diagnostics
 
     /// interaction 로그 저장 opt-in 토글 안내 문구.
     static let interactionLoggingNotice = """
-    When enabled, GazeRow stores minimal interaction events (focus/click) locally. \
+    When enabled, gazerow stores minimal interaction events (focus/click) locally. \
     Window titles are stored only as a per-session hash; raw titles and text values \
     are never written.
     """
@@ -582,7 +582,7 @@ enum AppContent {
         unverifiedBadge: "미확인",
         setupSteps: [
             "시스템 설정에서 손쉬운 사용 권한을 허용합니다.",
-            "GazeRow로 돌아와 다시 확인을 눌러 상태를 확인합니다.",
+            "gazerow로 돌아와 다시 확인을 눌러 상태를 확인합니다.",
             "단축키로 overlay를 열고, 요소에 focus를 맞춘 뒤 키로 확인합니다."
         ],
         knownLimitations: [
@@ -603,22 +603,22 @@ enum AppContent {
             "Esc를 누르면 클릭하지 않고 overlay를 닫습니다."
         ],
         nonMedicalDisclaimer: """
-        GazeRow는 키보드 중심 사용자를 위한 생산성 유틸리티입니다. 접근성/보조공학 제품이나 의료·안전 필수 용도로 설계된 제품이 아닙니다.
+        gazerow는 키보드 중심 사용자를 위한 생산성 유틸리티입니다. 접근성/보조공학 제품이나 의료·안전 필수 용도로 설계된 제품이 아닙니다.
         """,
         fallbackDisabledNotice: """
         오클릭 위험을 줄이기 위해 좌표 기반 클릭 fallback(CGEventPost)은 기본적으로 꺼져 있습니다. 일반 클릭은 지원되는 접근성 action을 사용합니다.
         """,
         windowControlShortcutsNotice: """
-        창 단축키는 맨 앞 창의 표준 title-bar 버튼(닫기, 최소화, 확대/축소)에 접근성 action을 보냅니다. GazeRow에 Accessibility 권한이 있을 때만 동작합니다.
+        창 단축키는 맨 앞 창의 표준 title-bar 버튼(닫기, 최소화, 확대/축소)에 접근성 action을 보냅니다. gazerow에 Accessibility 권한이 있을 때만 동작합니다.
         """,
         interactionLoggingNotice: """
-        켜면 GazeRow가 최소한의 interaction event(focus/click)를 로컬에 저장합니다. 창 제목은 세션별 hash로만 저장하며 원문 제목과 텍스트 값은 저장하지 않습니다.
+        켜면 gazerow가 최소한의 interaction event(focus/click)를 로컬에 저장합니다. 창 제목은 세션별 hash로만 저장하며 원문 제목과 텍스트 값은 저장하지 않습니다.
         """,
         debugExportNotice: """
         Debug Export는 문제 해결을 위한 현재 진단 snapshot을 일반 텍스트로 저장합니다. 원본 창 제목이나 텍스트 값은 포함하지 않습니다.
         """,
-        supportDonationMenuTitle: "GazeRow 후원",
-        supportDonationTitle: "GazeRow 후원",
+        supportDonationMenuTitle: "gazerow 후원",
+        supportDonationTitle: "gazerow 후원",
         supportDonationMessage: supportDonationMessage,
         queryScopeWindows: "창",
         queryScopeElements: "요소",

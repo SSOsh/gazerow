@@ -19,7 +19,7 @@ if [[ ! -d "${DEVELOPER_DIR}" ]]; then
 fi
 
 echo "==> Using DEVELOPER_DIR=${DEVELOPER_DIR}"
-echo "==> Building GazeRow"
+echo "==> Building gazerow"
 swift build
 
 echo "==> Running tests"

@@ -1,4 +1,4 @@
-# GazeRow Decisions v1
+# gazerow Decisions v1
 
 ## 변경 이력
 - v1: `gazerow_mvp_v5.md`, `gazerow_tickets_v1.md`, `gazerow_evaluation_template_v1.md` 기준으로 구현 착수 전 결정값과 미결정 항목을 분리해 기록.
@@ -93,7 +93,7 @@
 | ED-001 | 내부 평가자 수 | Deferred | 3명 (Post-MVP) | 외부 내부 사용자 확보 불가로 local MVP freeze에서는 평가를 Post-MVP로 defer. ED-008 참조 |
 | ED-002 | 평가 앱 | Accepted | Finder, Safari, Chrome, VS Code, System Settings | MVP 기준 앱 |
 | ED-003 | task 성공 기준 | Accepted | 앱별 고정 task 성공 | 주관 평가만으로 판단하지 않기 위함 |
-| ED-004 | mouse baseline | Accepted | 동일 task를 mouse/trackpad와 GazeRow로 각각 측정 | 속도보다 흐름 유지 가치까지 판단 |
+| ED-004 | mouse baseline | Accepted | 동일 task를 mouse/trackpad와 gazerow로 각각 측정 | 속도보다 흐름 유지 가치까지 판단 |
 | ED-005 | overlay 품질 | Accepted | collision, label count, occlusion, readability, scaling 기록 | click success와 별도 평가 |
 | ED-006 | abandoned attempt | Accepted | task당 1회 이하 목표 | 사용자가 포기하는 흐름을 제품성 실패로 봄 |
 | ED-007 | go/no-go 양식 | Accepted | `gazerow_evaluation_template_v1.md` 사용 | 평가 결과를 일관되게 기록 |

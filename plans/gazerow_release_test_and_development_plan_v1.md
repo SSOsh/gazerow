@@ -1,4 +1,4 @@
-# GazeRow Release Test and Development Plan v1
+# gazerow Release Test and Development Plan v1
 
 ## 변경 이력
 - v1: 릴리즈 전 결함 발견을 위한 자동/수동 테스트 목록과 Post-MVP 개발 후보를 통합 정리.
@@ -6,7 +6,7 @@
 
 ## 1. 목적
 
-이 문서는 GazeRow 릴리즈 전까지 결함을 최대한 빨리 발견하기 위한 테스트 목록을 정리한다.
+이 문서는 gazerow 릴리즈 전까지 결함을 최대한 빨리 발견하기 위한 테스트 목록을 정리한다.
 
 범위:
 
@@ -164,7 +164,7 @@ scripts/evaluate_overlay_target.sh --bundle-id com.apple.systempreferences --tim
 - `GAZEROW_OVERLAY_RESULT failure`
 - timeout
 - labels가 0 또는 기존 기준보다 급감
-- 대상 앱이 아닌 GazeRow/다른 앱이 스캔됨
+- 대상 앱이 아닌 gazerow/다른 앱이 스캔됨
 - overlay가 실제 화면에는 보이지 않음
 
 ### 4.5 반자동 click smoke
@@ -190,7 +190,7 @@ SwiftPM 실행과 `.app` 실행은 activation/keyboard focus 조건이 다르므
 
 ```bash
 scripts/build_local_app.sh
-open -n .build/local-app/GazeRow.app
+open -n .build/local-app/gazerow.app
 ```
 
 확인할 결함:
@@ -228,7 +228,7 @@ Codex가 비교할 문서:
 
 | 테스트 | 절차 | Pass 기준 |
 | --- | --- | --- |
-| 최초 실행 | `.app` 실행 또는 `swift run GazeRow` | 메뉴바 아이콘 표시, crash 없음 |
+| 최초 실행 | `.app` 실행 또는 `swift run gazerow` | 메뉴바 아이콘 표시, crash 없음 |
 | Settings 열기 | 메뉴바 아이콘 → Open Settings | Settings window 표시 |
 | Quit | 메뉴바 아이콘 → Quit | 앱 정상 종료 |
 | 재실행 | 종료 후 다시 실행 | 상태 꼬임 없이 실행 |
@@ -399,9 +399,9 @@ notes:
 | local `.app` 생성 | `scripts/build_local_app.sh` | bundle 생성 |
 | clean machine 실행 | 새 사용자/다른 Mac에서 실행 | 최초 실행/권한 동선 정상 |
 | quarantine 상태 실행 | 다운로드된 파일처럼 실행 | Gatekeeper 동작 확인 |
-| code signing | `codesign --verify --deep --strict --verbose=2 GazeRow.app` | pass |
-| Gatekeeper | `spctl --assess --type execute --verbose=4 GazeRow.app` | pass |
-| notarization staple | `xcrun stapler validate GazeRow.app` | pass |
+| code signing | `codesign --verify --deep --strict --verbose=2 gazerow.app` | pass |
+| Gatekeeper | `spctl --assess --type execute --verbose=4 gazerow.app` | pass |
+| notarization staple | `xcrun stapler validate gazerow.app` | pass |
 | version 표시 | 앱/문서/릴리즈 노트 | 버전/빌드 일치 |
 | privacy 문서 | 배포 페이지/README | 권한/로그/카메라 미사용 설명 일치 |
 
@@ -452,7 +452,7 @@ nextAction:
 - second confirm 없이 위험 후보가 실행됨
 - Settings 문구와 실제 단축키/권한 상태가 다름
 - debug/export/log가 기본 노출되거나 자동 생성됨
-- 앱 전환 직후 GazeRow 자신을 스캔함
+- 앱 전환 직후 gazerow 자신을 스캔함
 - 외장 모니터에서 label이 상하 반전 또는 다른 화면에 표시됨
 
 ## 7. 릴리즈 전 테스트 순서

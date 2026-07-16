@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 로컬 self-signed identity로 GazeRow.app 번들을 재서명한다.
+# 로컬 self-signed identity로 gazerow.app 번들을 재서명한다.
 #
 # scripts/build_local_app.sh 로 번들을 만든 뒤 실행한다. 인증서는
 # scripts/create_local_signing_identity.sh 가 미리 생성해 둔다(없으면 자동 실행).
@@ -11,8 +11,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# 기존 인증서명을 유지해 재빌드 시 Accessibility 권한이 끊기지 않게 한다.
 IDENTITY_NAME="${IDENTITY_NAME:-GazeRow Local Signing}"
-APP_DIR="${1:-${APP_DIR:-${ROOT_DIR}/.build/local-app/GazeRow.app}}"
+APP_DIR="${1:-${APP_DIR:-${ROOT_DIR}/.build/local-app/gazerow.app}}"
 BUNDLE_ID="${BUNDLE_ID:-dev.local.gazerow}"
 
 if [[ ! -d "${APP_DIR}" ]]; then

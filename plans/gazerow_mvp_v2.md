@@ -1,4 +1,4 @@
-# GazeRow MVP Plan v2
+# gazerow MVP Plan v2
 
 ## 변경 이력
 - v2: v1 대비 AI-DLC 관점을 추가. 제품 MVP를 단순 구현 목록이 아니라 문제정의, 데이터 수집, 모델/휴리스틱 선택, 평가셋, 안전 게이트, 피드백 루프, 배포 전 의사결정 기준까지 포함하는 개발 생명주기로 재구성.
@@ -6,7 +6,7 @@
 
 ## 1. AI-DLC 관점의 목표
 
-GazeRow는 일반 macOS 유틸리티이면서 동시에 AI/ML 성격이 들어가는 제품이다. 핵심 AI 성격은 다음 두 가지다.
+gazerow는 일반 macOS 유틸리티이면서 동시에 AI/ML 성격이 들어가는 제품이다. 핵심 AI 성격은 다음 두 가지다.
 
 1. 사용자의 카메라 입력에서 gaze 또는 attention region을 추정한다.
 2. macOS Accessibility tree, 화면 좌표, 사용자 입력 이력을 바탕으로 사용자가 의도한 클릭 후보를 ranking한다.

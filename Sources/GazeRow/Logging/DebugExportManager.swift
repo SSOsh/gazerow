@@ -75,7 +75,7 @@ final class DebugExportManager {
 
     /// export 텍스트 본문을 구성한다.
     private func makeContent() -> String {
-        let header = "GazeRow Debug Export"
+        let header = "gazerow Debug Export"
         let generatedAt = "Generated: \(Self.makeTimestampFormatter().string(from: now()))"
         let diagnostics = diagnosticsProvider()
 

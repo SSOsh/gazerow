@@ -1,4 +1,4 @@
-# GazeRow MVP Freeze Package v1
+# gazerow MVP Freeze Package v1
 
 ## 변경 이력
 - v1: TICKET-011 착수 전 freeze package 초안 작성. TICKET-010 수동 평가 결과가 필요한 항목은 명시적으로 보류.
@@ -33,7 +33,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 제품명 | GazeRow |
+| 제품명 | gazerow |
 | Bundle Identifier | `dev.local.gazerow` |
 | 플랫폼 | macOS 14+ |
 | 앱 형태 | 메뉴바 앱(`.accessory`) + Settings window |
@@ -93,7 +93,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 
 # local .app bundle 생성
 scripts/build_local_app.sh
-open -n .build/local-app/GazeRow.app
+open -n .build/local-app/gazerow.app
 
 # freeze 사전 검증
 scripts/verify_mvp_freeze.sh
@@ -105,7 +105,7 @@ scripts/verify_mvp_freeze.sh
 - 실행 후 Dock 아이콘 없이 메뉴바 status item이 표시된다.
 - SwiftPM 바이너리 실행에서 activation/keyboard focus 재현이 불안정하면 local `.app` bundle로 재평가한다.
 - Settings는 메뉴바 아이콘의 **Open Settings**로 연다.
-- 권한 요청 동선은 `swift run GazeRow -- --request-accessibility`로 바로 열 수 있다.
+- 권한 요청 동선은 `swift run gazerow -- --request-accessibility`로 바로 열 수 있다.
 - 실제 scanner/overlay 평가에는 Accessibility 권한이 필요하다.
 
 ## 5. 기능 플래그/기본값 확인

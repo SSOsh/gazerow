@@ -1,4 +1,4 @@
-# GazeRow Tickets v1
+# gazerow Tickets v1
 
 ## 변경 이력
 - v1: `gazerow_mvp_v5.md`를 실행 가능한 티켓 단위로 분해. Baseline MVP를 우선 구현 범위로 두고, gaze 관련 작업은 Post-MVP 후보로 분리.
@@ -334,7 +334,7 @@
 - 내부 사용자 3명 평가 준비
 - 5개 앱 task 수행
 - mouse/trackpad baseline time 측정
-- GazeRow time-to-click 측정
+- gazerow time-to-click 측정
 - correction count 기록
 - abandoned attempt count 기록
 - overlay readability 피드백 기록

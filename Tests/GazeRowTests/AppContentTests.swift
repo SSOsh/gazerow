@@ -61,8 +61,8 @@ final class AppContentTests: XCTestCase {
         let message = AppContent.supportDonationMessage
 
         // when & then
-        XCTAssertEqual(AppContent.supportDonationMenuTitle, "Support GazeRow")
-        XCTAssertEqual(AppContent.supportDonationTitle, "Support GazeRow")
+        XCTAssertEqual(AppContent.supportDonationMenuTitle, "Support gazerow")
+        XCTAssertEqual(AppContent.supportDonationTitle, "Support gazerow")
         XCTAssertTrue(message.contains("커피값 후원"))
         XCTAssertTrue(message.contains("계좌번호는 추후 추가 예정"))
     }
@@ -73,6 +73,7 @@ final class AppContentTests: XCTestCase {
 
         // when & then
         XCTAssertEqual(content.languageLabel, "Language")
+        XCTAssertEqual(content.welcomeTitle, "Welcome to gazerow")
         XCTAssertEqual(content.permissionsTitle, "Permissions")
         XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("physical key"))
     }
@@ -84,6 +85,7 @@ final class AppContentTests: XCTestCase {
 
         // when & then
         XCTAssertEqual(content.languageLabel, "언어")
+        XCTAssertEqual(content.welcomeTitle, "gazerow에 오신 것을 환영합니다")
         XCTAssertEqual(content.permissionsTitle, "권한")
         XCTAssertTrue(content.overlayUsageSteps.joined(separator: "\n").contains("한글 키보드"))
         XCTAssertTrue(appText.privacyNotice.contains("화면 녹화"))

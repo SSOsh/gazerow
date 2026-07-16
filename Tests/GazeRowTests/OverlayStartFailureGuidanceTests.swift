@@ -23,7 +23,7 @@ final class OverlayStartFailureGuidanceTests: XCTestCase {
         XCTAssertTrue(sut.message.contains("Control Center"))
     }
 
-    func test_sessionDisabled_영어는_Enable_GazeRow를_안내한다() {
+    func test_sessionDisabled_영어는_Enable_gazerow를_안내한다() {
         // given
         let failure = OverlaySessionStartFailure.sessionDisabled
 
@@ -31,8 +31,8 @@ final class OverlayStartFailureGuidanceTests: XCTestCase {
         let sut = OverlayStartFailureGuidance(failure: failure, language: .english)
 
         // then
-        XCTAssertEqual(sut.title, "GazeRow is disabled")
-        XCTAssertTrue(sut.message.contains("Enable GazeRow"))
+        XCTAssertEqual(sut.title, "gazerow is disabled")
+        XCTAssertTrue(sut.message.contains("Enable gazerow"))
     }
 
     func test_noCandidates_한국어는_클릭가능요소_없음을_설명한다() {

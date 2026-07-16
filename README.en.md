@@ -1,4 +1,4 @@
-# GazeRow
+# gazerow
 
 A macOS utility for clicking on-screen buttons, links, and menus using only your
 keyboard. Trigger the overlay with a shortcut and every clickable element gets a
@@ -69,7 +69,7 @@ Bare letter input still prioritizes label selection, so the existing label flow 
 ### Window control shortcuts
 
 Press the frontmost window's standard title-bar buttons (close / minimize / zoom)
-from the keyboard. These work only while GazeRow has Accessibility permission.
+from the keyboard. These work only while gazerow has Accessibility permission.
 
 | Action | Shortcut |
 | --- | --- |
@@ -160,11 +160,11 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 
 # Open the Accessibility permission request/settings flow and run
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --request-accessibility
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run gazerow -- --request-accessibility
 
 # Build a local .app bundle and run it (more reliable key input / activation)
 scripts/build_local_app.sh
-open -n .build/local-app/GazeRow.app
+open -n .build/local-app/gazerow.app
 ```
 
 > **Note**: if multiple Xcode versions are installed, specify the intended toolchain
@@ -179,7 +179,7 @@ button in Settings or the launch option above to open the permission flow.
 
 ## Support
 
-If GazeRow helps your workflow, support development via **Support GazeRow** in the
+If gazerow helps your workflow, support development via **Support gazerow** in the
 menu bar. (Account details to be added later.)
 
 ---

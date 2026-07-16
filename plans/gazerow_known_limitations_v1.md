@@ -1,11 +1,11 @@
-# GazeRow — Known Limitations & Support Scope (v1)
+# gazerow — Known Limitations & Support Scope (v1)
 
 > TICKET-009 산출물. 사용자 노출 문구의 단일 출처는 `AppContent.swift`이며,
 > 이 문서는 그 내용을 문서화하고 배경/근거를 함께 정리한다.
 
 ## 1. 포지셔닝 (Non-Medical Disclaimer)
 
-GazeRow는 키보드 중심 사용자를 위한 **생산성 유틸리티**다.
+gazerow는 키보드 중심 사용자를 위한 **생산성 유틸리티**다.
 접근성/보조공학(assistive-technology) 제품이 아니며, 의료·안전이 중요한
 용도(medical or safety-critical use)를 의도하지 않는다.
 

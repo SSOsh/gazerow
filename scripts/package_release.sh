@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GazeRow.app을 Developer ID로 서명하고 notarize/staple하여 Gatekeeper
+# gazerow.app을 Developer ID로 서명하고 notarize/staple하여 Gatekeeper
 # 정식 배포용 번들을 만든다.
 #
 # 로컬 개발용 번들(build_local_app.sh, dev.local.gazerow)과 달리, 이 스크립트는
@@ -26,7 +26,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 BUNDLE_ID="${BUNDLE_ID:-io.github.ssosh.gazerow}"
-APP_DIR="${APP_DIR:-${ROOT_DIR}/.build/release-app/GazeRow.app}"
+APP_DIR="${APP_DIR:-${ROOT_DIR}/.build/release-app/gazerow.app}"
 ENTITLEMENTS="${ENTITLEMENTS:-${ROOT_DIR}/scripts/GazeRow.entitlements}"
 MARKETING_VERSION="${MARKETING_VERSION:-0.1.0}"
 BUILD_VERSION="${BUILD_VERSION:-1}"
@@ -59,11 +59,11 @@ cd "${ROOT_DIR}"
 export DEVELOPER_DIR
 
 echo "==> Using DEVELOPER_DIR=${DEVELOPER_DIR}"
-echo "==> Building GazeRow (release)"
-swift build -c release
+echo "==> Building gazerow (release)"
+swift build -c release --product gazerow
 
 BIN_DIR="$(swift build -c release --show-bin-path)"
-EXECUTABLE_PATH="${BIN_DIR}/GazeRow"
+EXECUTABLE_PATH="${BIN_DIR}/gazerow"
 
 if [[ ! -x "${EXECUTABLE_PATH}" ]]; then
   echo "Built executable not found: ${EXECUTABLE_PATH}" >&2
@@ -73,8 +73,8 @@ fi
 echo "==> Assembling app bundle: ${APP_DIR}"
 rm -rf "${APP_DIR}"
 mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
-cp "${EXECUTABLE_PATH}" "${APP_DIR}/Contents/MacOS/GazeRow"
-chmod +x "${APP_DIR}/Contents/MacOS/GazeRow"
+cp "${EXECUTABLE_PATH}" "${APP_DIR}/Contents/MacOS/gazerow"
+chmod +x "${APP_DIR}/Contents/MacOS/gazerow"
 
 cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -84,13 +84,15 @@ cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleExecutable</key>
-  <string>GazeRow</string>
+  <string>gazerow</string>
   <key>CFBundleIdentifier</key>
   <string>${BUNDLE_ID}</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>GazeRow</string>
+  <string>gazerow</string>
+  <key>CFBundleDisplayName</key>
+  <string>gazerow</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -104,7 +106,7 @@ cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSCameraUsageDescription</key>
-  <string>GazeRow uses the camera only when you enable experimental gaze focus. Frames stay local and clicks still require keyboard confirmation.</string>
+  <string>gazerow uses the camera only when you enable experimental gaze focus. Frames stay local and clicks still require keyboard confirmation.</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
 </dict>

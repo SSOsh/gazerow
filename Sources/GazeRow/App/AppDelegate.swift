@@ -113,7 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = item.button {
             button.image = NSImage(
                 systemSymbolName: "cursorarrow.rays",
-                accessibilityDescription: "GazeRow"
+                accessibilityDescription: "gazerow"
             )
             button.image?.isTemplate = true
         }
@@ -166,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
 
         let quit = NSMenuItem(
-            title: "Quit GazeRow",
+            title: "Quit gazerow",
             action: #selector(quit),
             keyEquivalent: "q"
         )
@@ -215,7 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hostingController = NSHostingController(rootView: SettingsView())
         let window = NSWindow(contentViewController: hostingController)
 
-        window.title = "GazeRow Settings"
+        window.title = "gazerow Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
         window.center()
@@ -768,7 +768,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 현재 세션 상태에 맞는 kill switch 메뉴 타이틀.
     private func sessionMenuTitle() -> String {
-        SessionController.shared.isEnabled ? "Disable GazeRow" : "Enable GazeRow"
+        SessionController.shared.isEnabled ? "Disable gazerow" : "Enable gazerow"
     }
 
     /// 앱을 종료한다.

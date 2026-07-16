@@ -1,11 +1,11 @@
-# GazeRow TICKET-001 Spec v1
+# gazerow TICKET-001 Spec v1
 
 ## 변경 이력
 - v1: `gazerow_tickets_v1.md`의 `TICKET-001: Project Shell and App Lifecycle`을 구현 가능한 상세 명세로 확장. 앱 shell 생성 전 결정값, 권장 구조, 완료 기준, 검증 절차를 정의.
 
 ## 1. 티켓 요약
 
-TICKET-001은 GazeRow의 빈 macOS 앱 shell을 만드는 작업이다.
+TICKET-001은 gazerow의 빈 macOS 앱 shell을 만드는 작업이다.
 
 목표:
 
@@ -28,7 +28,7 @@ TICKET-001 시작 전에 아래 항목을 확정한다.
 
 | 항목 | 상태 | 권장값 | 비고 |
 | --- | --- | --- | --- |
-| 앱 이름 | TBD | GazeRow | bundle name, menu title, Settings title에 사용 |
+| 앱 이름 | TBD | gazerow | bundle name, menu title, Settings title에 사용 |
 | 저장소 위치 | TBD | `/Users/lotte/gitlab/gazerow` | Swift app 생성 위치 |
 | 앱 형태 | Proposed | 메뉴바 앱 + Settings window | 상시 실행 utility에 적합 |
 | 기본 단축키 | Proposed | Command + Shift + Space | TICKET-005 이후 변경 가능해야 함 |
@@ -42,9 +42,9 @@ TICKET-001 시작 전에 아래 항목을 확정한다.
 MVP 초기 구조:
 
 ```text
-GazeRow/
-  GazeRow.xcodeproj
-  GazeRow/
+gazerow/
+  gazerow.xcodeproj
+  gazerow/
     App/
       GazeRowApp.swift
       AppDelegate.swift
@@ -132,7 +132,7 @@ TICKET-001에서 표시할 수 있는 최소 정보:
 권장 문구:
 
 ```text
-GazeRow is a local macOS keyboard-click utility.
+gazerow is a local macOS keyboard-click utility.
 Baseline MVP does not use camera, screen recording, or external telemetry.
 ```
 
@@ -179,7 +179,7 @@ TICKET-001은 아래 조건을 만족하면 완료다.
 CLI 검증:
 
 ```text
-xcodebuild -scheme GazeRow -configuration Debug build
+xcodebuild -scheme gazerow -configuration Debug build
 ```
 
 실제 scheme 이름은 프로젝트 생성 후 기록한다.
