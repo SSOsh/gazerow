@@ -59,14 +59,18 @@ final class OverlaySessionController {
         activationTracer: (any OverlayActivationTracing)? = nil,
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) {
+        let generationStore = AccessibilityTreeGenerationStore()
         self.targetResolver = targetResolver ?? TargetResolver()
         self.scanner = scanner ?? CachingScanner(
             wrapped: AXRuntimeScanner(),
-            changeMonitor: AXAccessibilityChangeMonitor()
+            changeMonitor: AXAccessibilityChangeMonitor(),
+            generationStore: generationStore
         )
         self.overlayPresenter = overlayPresenter ?? OverlayWindowController()
         self.interactionRecorder = interactionRecorder ?? InteractionLogStore()
-        self.clickExecutor = clickExecutor ?? AXOverlaySessionClickExecutor()
+        self.clickExecutor = clickExecutor ?? AXOverlaySessionClickExecutor(
+            generationStore: scanner == nil ? generationStore : nil
+        )
         self.searchableNodeCollector = searchableNodeCollector
         self.intentRouter = intentRouter
         self.windowSearchIndexProvider = windowSearchIndexProvider

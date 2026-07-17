@@ -329,6 +329,343 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
         XCTAssertEqual(result.failureValue, .accessibilityPermissionDenied)
     }
 
+    func test_resolveTarget은_descriptor경로의_children만읽는다() throws {
+        // given
+        let target = FakeClickElement(
+            id: 3,
+            snapshot: makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+        )
+        let branch = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 50, height: 50),
+                actions: []
+            ),
+            children: [target]
+        )
+        let unrelated = nestedElement(
+            depth: 8,
+            leaf: FakeClickElement(
+                id: 99,
+                snapshot: makeSnapshot(frame: CGRect(x: 70, y: 70, width: 20, height: 20))
+            )
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                actions: []
+            ),
+            children: [branch, unrelated]
+        )
+        let client = CountingClickTargetClient(root: .success(root))
+        let sut = OverlaySessionClickTargetResolver(client: client)
+
+        // when
+        let result = sut.resolveTarget(
+            context: makeContext(),
+            descriptor: AccessibilityTargetDescriptor(axPath: [0, 0])
+        )
+
+        // then
+        XCTAssertEqual(try unwrapTarget(result)?.element.id, 3)
+        XCTAssertEqual(client.childrenCount, 2)
+        XCTAssertEqual(client.roleCount, 1)
+    }
+
+    func test_resolveTarget은_additionalRoot경로를해석한다() throws {
+        // given
+        let target = FakeClickElement(
+            id: 7,
+            snapshot: makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+        )
+        let additionalRoot = FakeClickElement(
+            id: 6,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                actions: []
+            ),
+            children: [target]
+        )
+        let client = CountingClickTargetClient(
+            root: .success(
+                FakeClickElement(
+                    id: 0,
+                    snapshot: makeSnapshot(
+                        role: "AXGroup",
+                        frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                        actions: []
+                    )
+                )
+            ),
+            extraRoots: [additionalRoot]
+        )
+        let sut = OverlaySessionClickTargetResolver(client: client)
+
+        // when
+        let result = sut.resolveTarget(
+            context: makeContext(),
+            descriptor: AccessibilityTargetDescriptor(axPath: [-1, 0])
+        )
+
+        // then
+        XCTAssertEqual(try unwrapTarget(result)?.element.id, 7)
+        XCTAssertEqual(client.childrenCount, 1)
+    }
+
+    func test_revalidate_generation동일이면_selectivePath로검증한다() {
+        // given
+        let target = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                actions: []
+            ),
+            children: [target]
+        )
+        let client = CountingClickTargetClient(root: .success(root))
+        let store = AccessibilityTreeGenerationStore()
+        store.setMonitoringActive(true, for: 100)
+        let sut = OverlayClickTargetRevalidator(
+            targetResolver: OverlaySessionClickTargetResolver(client: client),
+            generationStore: store
+        )
+
+        // when
+        let result = sut.revalidate(
+            selection: makeSelection(
+                candidate: makeCandidate(from: target.snapshot),
+                descriptor: AccessibilityTargetDescriptor(axPath: [0]),
+                isChangeMonitoringActive: true
+            ),
+            context: makeContext()
+        )
+
+        // then
+        guard case .matched(let matched, _, let path, _) = result else {
+            return XCTFail("selective match가 필요합니다.")
+        }
+        XCTAssertEqual(matched.element.id, 1)
+        XCTAssertEqual(path, .selective)
+        XCTAssertEqual(client.childrenCount, 1)
+    }
+
+    func test_revalidate_generation변경이면_fullRescan한다() {
+        // given
+        let target = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                actions: []
+            ),
+            children: [target]
+        )
+        let client = CountingClickTargetClient(root: .success(root))
+        let store = AccessibilityTreeGenerationStore()
+        _ = store.recordChange(AccessibilityChangeMetadata(kind: .layout), for: 100)
+        store.setMonitoringActive(true, for: 100)
+        let sut = OverlayClickTargetRevalidator(
+            targetResolver: OverlaySessionClickTargetResolver(client: client),
+            generationStore: store
+        )
+
+        // when
+        let result = sut.revalidate(
+            selection: makeSelection(
+                candidate: makeCandidate(from: target.snapshot),
+                descriptor: AccessibilityTargetDescriptor(axPath: [0]),
+                isChangeMonitoringActive: true
+            ),
+            context: makeContext()
+        )
+
+        // then
+        guard case .matched(_, _, let path, _) = result else {
+            return XCTFail("full-rescan match가 필요합니다.")
+        }
+        XCTAssertEqual(path, .fullRescan)
+        XCTAssertEqual(client.childrenCount, 2)
+    }
+
+    func test_revalidate_path가사라지면_fullRescan후_unavailable이다() {
+        // given
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                actions: []
+            )
+        )
+        let store = AccessibilityTreeGenerationStore()
+        store.setMonitoringActive(true, for: 100)
+        let sut = OverlayClickTargetRevalidator(
+            targetResolver: OverlaySessionClickTargetResolver(
+                client: FakeClickTargetClient(root: .success(root))
+            ),
+            generationStore: store
+        )
+
+        // when
+        let result = sut.revalidate(
+            selection: makeSelection(
+                candidate: makeCandidate(
+                    from: makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+                ),
+                descriptor: AccessibilityTargetDescriptor(axPath: [4]),
+                isChangeMonitoringActive: true
+            ),
+            context: makeContext()
+        )
+
+        // then
+        guard case .unavailable(let path) = result else {
+            return XCTFail("unavailable 결과가 필요합니다.")
+        }
+        XCTAssertEqual(path, .fullRescan)
+    }
+
+    func test_revalidate_frame변경은_fullRescan후_changed이다() {
+        // given
+        let original = makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+        let moved = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(frame: CGRect(x: 70, y: 70, width: 20, height: 20))
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                actions: []
+            ),
+            children: [moved]
+        )
+        let store = AccessibilityTreeGenerationStore()
+        store.setMonitoringActive(true, for: 100)
+        let sut = OverlayClickTargetRevalidator(
+            targetResolver: OverlaySessionClickTargetResolver(
+                client: FakeClickTargetClient(root: .success(root))
+            ),
+            generationStore: store
+        )
+
+        // when
+        let result = sut.revalidate(
+            selection: makeSelection(
+                candidate: makeCandidate(from: original),
+                descriptor: AccessibilityTargetDescriptor(axPath: [0]),
+                isChangeMonitoringActive: true
+            ),
+            context: makeContext()
+        )
+
+        // then
+        guard case .changed(let path) = result else {
+            return XCTFail("changed 결과가 필요합니다.")
+        }
+        XCTAssertEqual(path, .fullRescan)
+    }
+
+    func test_revalidate_observer비활성화면_fullRescan하고_중복은ambiguous이다() {
+        // given
+        let firstSnapshot = makeSnapshot(frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                actions: []
+            ),
+            children: [
+                FakeClickElement(id: 1, snapshot: firstSnapshot),
+                FakeClickElement(
+                    id: 2,
+                    snapshot: makeSnapshot(frame: CGRect(x: 18, y: 10, width: 20, height: 20))
+                )
+            ]
+        )
+        let sut = OverlayClickTargetRevalidator(
+            targetResolver: OverlaySessionClickTargetResolver(
+                client: FakeClickTargetClient(root: .success(root))
+            ),
+            generationStore: AccessibilityTreeGenerationStore()
+        )
+
+        // when
+        let result = sut.revalidate(
+            selection: makeSelection(
+                candidate: makeCandidate(from: firstSnapshot),
+                descriptor: AccessibilityTargetDescriptor(axPath: [0]),
+                isChangeMonitoringActive: false
+            ),
+            context: makeContext()
+        )
+
+        // then
+        guard case .ambiguous(let path) = result else {
+            return XCTFail("ambiguous 결과가 필요합니다.")
+        }
+        XCTAssertEqual(path, .fullRescan)
+    }
+
+    func test_revalidate_secureField는_fullRescan후_unavailable이다() {
+        // given
+        let secure = FakeClickElement(
+            id: 1,
+            snapshot: makeSnapshot(
+                role: AccessibilityRole.secureTextField,
+                frame: CGRect(x: 10, y: 10, width: 20, height: 20)
+            )
+        )
+        let root = FakeClickElement(
+            id: 0,
+            snapshot: makeSnapshot(
+                role: "AXGroup",
+                frame: CGRect(x: 0, y: 0, width: 100, height: 100),
+                actions: []
+            ),
+            children: [secure]
+        )
+        let store = AccessibilityTreeGenerationStore()
+        store.setMonitoringActive(true, for: 100)
+        let sut = OverlayClickTargetRevalidator(
+            targetResolver: OverlaySessionClickTargetResolver(
+                client: FakeClickTargetClient(root: .success(root))
+            ),
+            generationStore: store
+        )
+
+        // when
+        let result = sut.revalidate(
+            selection: makeSelection(
+                candidate: makeCandidate(from: secure.snapshot),
+                descriptor: AccessibilityTargetDescriptor(axPath: [0]),
+                isChangeMonitoringActive: true
+            ),
+            context: makeContext()
+        )
+
+        // then
+        guard case .unavailable(let path) = result else {
+            return XCTFail("secure field는 unavailable이어야 합니다.")
+        }
+        XCTAssertEqual(path, .fullRescan)
+    }
+
     func test_resolveTargets_후보가_아닌_node는_비싼속성을_읽지_않음() throws {
         // given
         let button = FakeClickElement(
@@ -414,6 +751,44 @@ final class OverlaySessionClickTargetResolverTests: XCTestCase {
             throw failure
         }
     }
+
+    private func unwrapTarget(
+        _ result: Result<ClickTarget<FakeClickElement>?, AccessibilityScanFailure>
+    ) throws -> ClickTarget<FakeClickElement>? {
+        switch result {
+        case .success(let target):
+            target
+        case .failure(let failure):
+            throw failure
+        }
+    }
+
+    private func makeCandidate(
+        from snapshot: AccessibilityElementSnapshot
+    ) -> ClickableCandidate {
+        ClickableCandidate(
+            role: snapshot.role ?? "",
+            subrole: snapshot.subrole,
+            title: snapshot.title,
+            frame: snapshot.frame ?? .zero,
+            actions: snapshot.actions
+        )
+    }
+
+    private func makeSelection(
+        candidate: ClickableCandidate,
+        descriptor: AccessibilityTargetDescriptor?,
+        isChangeMonitoringActive: Bool
+    ) -> OverlayClickSelection {
+        OverlayClickSelection(
+            labelID: 0,
+            candidate: candidate,
+            sourceCandidateCount: 1,
+            targetDescriptor: descriptor,
+            generation: .initial,
+            isChangeMonitoringActive: isChangeMonitoringActive
+        )
+    }
 }
 
 private struct FakeClickElement: Equatable {
@@ -455,6 +830,7 @@ private struct FakeClickTargetClient: AccessibilityElementClient {
 
 private final class CountingClickTargetClient: AccessibilityElementClient {
     let root: Result<FakeClickElement, AccessibilityScanFailure>
+    let extraRoots: [FakeClickElement]
     private(set) var snapshotCount = 0
     private(set) var roleCount = 0
     private(set) var subroleCount = 0
@@ -463,13 +839,22 @@ private final class CountingClickTargetClient: AccessibilityElementClient {
     private(set) var helpCount = 0
     private(set) var frameCount = 0
     private(set) var actionsCount = 0
+    private(set) var childrenCount = 0
 
-    init(root: Result<FakeClickElement, AccessibilityScanFailure>) {
+    init(
+        root: Result<FakeClickElement, AccessibilityScanFailure>,
+        extraRoots: [FakeClickElement] = []
+    ) {
         self.root = root
+        self.extraRoots = extraRoots
     }
 
     func rootElement(for context: TargetContext) -> Result<FakeClickElement, AccessibilityScanFailure> {
         root
+    }
+
+    func additionalRootElements(for context: TargetContext) -> [FakeClickElement] {
+        extraRoots
     }
 
     func snapshot(of element: FakeClickElement) -> AccessibilityElementSnapshot {
@@ -513,7 +898,8 @@ private final class CountingClickTargetClient: AccessibilityElementClient {
     }
 
     func children(of element: FakeClickElement) -> Result<[FakeClickElement], AccessibilityScanFailure> {
-        .success(element.children)
+        childrenCount += 1
+        return .success(element.children)
     }
 }
 
