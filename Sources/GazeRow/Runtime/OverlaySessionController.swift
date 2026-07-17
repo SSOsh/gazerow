@@ -211,7 +211,10 @@ final class OverlaySessionController {
                     activationID: activationID,
                     startedAt: startedAt,
                     targetResolvedAt: targetResolvedAt,
-                    elementIndex: bundle.elementIndex
+                    elementIndex: bundle.elementIndex,
+                    targetDescriptors: bundle.targetDescriptors,
+                    generation: bundle.generation,
+                    isChangeMonitoringActive: bundle.isChangeMonitoringActive
                 )
             case .failure(let failure):
                 self.close()
@@ -227,7 +230,10 @@ final class OverlaySessionController {
         activationID: UUID,
         startedAt: Date,
         targetResolvedAt: Date,
-        elementIndex: ElementSearchIndex? = nil
+        elementIndex: ElementSearchIndex? = nil,
+        targetDescriptors: [AccessibilityTargetDescriptor?] = [],
+        generation: AccessibilityTreeGeneration = .initial,
+        isChangeMonitoringActive: Bool = false
     ) -> OverlaySessionStartResult {
         let scannedAt = dateProvider()
         trace(
@@ -271,7 +277,10 @@ final class OverlaySessionController {
             snapshot: snapshot,
             focusEngine: FocusEngine(layout: layout),
             elementIndex: elementIndex ?? makeFallbackElementIndex(scanResult: scanResult),
-            didAttemptSearchableIndexBuild: elementIndex != nil
+            didAttemptSearchableIndexBuild: elementIndex != nil,
+            targetDescriptors: targetDescriptors,
+            generation: generation,
+            isChangeMonitoringActive: isChangeMonitoringActive
         )
         activeSession = session
         trace(
@@ -605,7 +614,12 @@ final class OverlaySessionController {
         let selection = OverlayClickSelection(
             labelID: focusedItemID,
             candidate: session.snapshot.scanResult.candidates[focusedItemID],
-            sourceCandidateCount: session.snapshot.scanResult.candidateCount
+            sourceCandidateCount: session.snapshot.scanResult.candidateCount,
+            targetDescriptor: session.targetDescriptors.indices.contains(focusedItemID)
+                ? session.targetDescriptors[focusedItemID]
+                : nil,
+            generation: session.generation,
+            isChangeMonitoringActive: session.isChangeMonitoringActive
         )
         let diagnostic = OverlayClickTargetDiagnostic.source(
             index: selection.labelID,
@@ -1556,6 +1570,9 @@ struct OverlaySessionState: Equatable {
     var windowMatchIndex: Int = 0
     var pendingSecondConfirm: PendingSecondConfirm?
     var focusOrigin: OverlayFocusOrigin = .initial
+    var targetDescriptors: [AccessibilityTargetDescriptor?] = []
+    var generation: AccessibilityTreeGeneration = .initial
+    var isChangeMonitoringActive = false
     /// 부분 후보 overlay가 최종 scan 결과를 기다리는 동안 입력과 click을 막는다.
     var isScanInProgress = false
 }

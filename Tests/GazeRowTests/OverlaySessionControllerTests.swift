@@ -420,6 +420,44 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(fallbackCollector.buildCallCount, 0)
     }
 
+    func test_startProgressively_confirm은_bundle의_targetDescriptor와cacheMetadata를전달한다() async {
+        // given
+        let candidate = makeCandidate(title: "Open")
+        let descriptor = AccessibilityTargetDescriptor(axPath: [0, 2])
+        let scanner = StubBundleProgressiveOverlayScanner(
+            bundle: AccessibilityScanBundle(
+                scanResult: makeScanResult(candidates: [candidate]),
+                elementIndex: ElementSearchIndex(nodes: []),
+                metrics: AccessibilityScanBundleMetrics(inspectionCount: 3, childReadCount: 3),
+                targetDescriptors: [descriptor],
+                generation: AccessibilityTreeGeneration(value: 7),
+                isChangeMonitoringActive: true
+            )
+        )
+        let clickExecutor = StubOverlayClickExecutor(
+            result: .failure(.executionFailed(.missingPressAction))
+        )
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: scanner,
+            overlayPresenter: StubOverlayPresenter(),
+            clickExecutor: clickExecutor
+        )
+
+        // when
+        sut.startProgressively { _ in }
+        await waitForProgressiveScan()
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(clickExecutor.requests.first?.selection.targetDescriptor, descriptor)
+        XCTAssertEqual(
+            clickExecutor.requests.first?.selection.generation,
+            AccessibilityTreeGeneration(value: 7)
+        )
+        XCTAssertEqual(clickExecutor.requests.first?.selection.isChangeMonitoringActive, true)
+    }
+
     func test_queryIndex생성이_빈결과여도_labelFocus를_유지한다() {
         // given
         let sut = makeStartedSessionController(

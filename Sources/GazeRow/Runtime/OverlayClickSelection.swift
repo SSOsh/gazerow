@@ -8,4 +8,23 @@ struct OverlayClickSelection: Equatable {
     let labelID: Int
     let candidate: ClickableCandidate
     let sourceCandidateCount: Int
+    let targetDescriptor: AccessibilityTargetDescriptor?
+    let generation: AccessibilityTreeGeneration
+    let isChangeMonitoringActive: Bool
+
+    init(
+        labelID: Int,
+        candidate: ClickableCandidate,
+        sourceCandidateCount: Int,
+        targetDescriptor: AccessibilityTargetDescriptor? = nil,
+        generation: AccessibilityTreeGeneration = .initial,
+        isChangeMonitoringActive: Bool = false
+    ) {
+        self.labelID = labelID
+        self.candidate = candidate
+        self.sourceCandidateCount = sourceCandidateCount
+        self.targetDescriptor = targetDescriptor
+        self.generation = generation
+        self.isChangeMonitoringActive = isChangeMonitoringActive
+    }
 }
