@@ -5,7 +5,7 @@ import Foundation
 ///
 /// @author suho.do
 /// @since 2026-07-09
-enum SearchableField: String, CaseIterable {
+enum SearchableField: String, CaseIterable, Sendable {
     case title
     case value
     case help
@@ -20,7 +20,7 @@ enum SearchableField: String, CaseIterable {
 ///
 /// @author suho.do
 /// @since 2026-07-09
-struct SearchableNode: Equatable, Identifiable {
+struct SearchableNode: Equatable, Identifiable, Sendable {
     let id: Int
     let role: String?
     let subrole: String?
@@ -64,7 +64,7 @@ struct SearchableNode: Equatable, Identifiable {
 ///
 /// @author suho.do
 /// @since 2026-07-09
-struct SearchMatch: Equatable {
+struct SearchMatch: Equatable, Sendable {
     let nodeID: Int
     let score: Int
     let matchedFields: [SearchableField]
@@ -75,7 +75,7 @@ struct SearchMatch: Equatable {
 ///
 /// @author suho.do
 /// @since 2026-07-09
-struct SearchIndexMetrics: Equatable {
+struct SearchIndexMetrics: Equatable, Sendable {
     let nodesVisited: Int
     let durationMs: Double
     let truncated: Bool
@@ -85,7 +85,7 @@ struct SearchIndexMetrics: Equatable {
 ///
 /// @author suho.do
 /// @since 2026-07-09
-struct ElementSearchIndex: Equatable {
+struct ElementSearchIndex: Equatable, Sendable {
     let nodes: [SearchableNode]
     let buildMetrics: SearchIndexMetrics
 

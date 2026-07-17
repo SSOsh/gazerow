@@ -16,9 +16,10 @@ final class AccessibilityScanRuntimeTests: XCTestCase {
             nodesVisited: 12
         )
         let expectedResult = scanResult(candidates: expectedProgress.candidates)
+        let expectedBundle = AccessibilityScanBundle.fallback(scanResult: expectedResult)
         let runtime = AccessibilityScanRuntime { _, onProgress in
             onProgress(expectedProgress)
-            return .success(expectedResult)
+            return .success(expectedBundle)
         }
         let request = makeRequest()
         var events: [AccessibilityScanRuntimeEvent] = []
@@ -34,9 +35,9 @@ final class AccessibilityScanRuntimeTests: XCTestCase {
             [
                 .progress(expectedProgress),
                 .completed(
-                    AccessibilityScanResponse(
+                    AccessibilityScanBundleResponse(
                         activationID: request.activationID,
-                        outcome: .success(expectedResult)
+                        outcome: .success(expectedBundle)
                     )
                 )
             ]
@@ -51,9 +52,10 @@ final class AccessibilityScanRuntimeTests: XCTestCase {
             nodesVisited: 32
         )
         let expectedResult = scanResult(candidates: [candidate(title: "Final")])
+        let expectedBundle = AccessibilityScanBundle.fallback(scanResult: expectedResult)
         let runtime = AccessibilityScanRuntime { _, onProgress in
             onProgress(expectedProgress)
-            return .success(expectedResult)
+            return .success(expectedBundle)
         }
         let sut = AXRuntimeScanner(runtime: runtime)
         var receivedProgress: [AccessibilityScanProgress] = []

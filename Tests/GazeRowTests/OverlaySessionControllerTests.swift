@@ -380,6 +380,46 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(windowIndexBuildCount, 1)
     }
 
+    func test_startProgressively_bundleIndex를사용해_elementsQuery의_추가AXwalk를생략한다() async {
+        // given
+        let candidate = makeCandidate(title: "Open")
+        let scanResult = makeScanResult(candidates: [candidate])
+        let bundleIndex = ElementSearchIndex(
+            nodes: [
+                SearchableNode(
+                    id: 7,
+                    role: AccessibilityRole.button,
+                    title: "Deep Setting",
+                    frame: candidate.frame
+                )
+            ]
+        )
+        let scanner = StubBundleProgressiveOverlayScanner(
+            bundle: AccessibilityScanBundle(
+                scanResult: scanResult,
+                elementIndex: bundleIndex,
+                metrics: AccessibilityScanBundleMetrics(inspectionCount: 3, childReadCount: 3)
+            )
+        )
+        let fallbackCollector = SpySearchableNodeCollector(index: ElementSearchIndex(nodes: []))
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: scanner,
+            overlayPresenter: StubOverlayPresenter(),
+            searchableNodeCollector: fallbackCollector
+        )
+
+        // when
+        sut.startProgressively { _ in }
+        await waitForProgressiveScan()
+        _ = sut.handleKeyboardCommand(.appendQuery("deep"))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.elementIndex, bundleIndex)
+        XCTAssertEqual(sut.activeSession?.elementMatches.map(\.displayName), ["Deep Setting"])
+        XCTAssertEqual(fallbackCollector.buildCallCount, 0)
+    }
+
     func test_queryIndex생성이_빈결과여도_labelFocus를_유지한다() {
         // given
         let sut = makeStartedSessionController(
@@ -2075,6 +2115,33 @@ private final class SuspendingProgressiveOverlayScanner: OverlaySessionProgressi
     private func cancel() {
         wasCancelled = true
         complete(with: .failure(.cancelled))
+    }
+}
+
+@MainActor
+private final class StubBundleProgressiveOverlayScanner: OverlaySessionBundleProgressiveScanning {
+    private let bundle: AccessibilityScanBundle
+
+    init(bundle: AccessibilityScanBundle) {
+        self.bundle = bundle
+    }
+
+    func scan(context: TargetContext) -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        .success(bundle.scanResult)
+    }
+
+    func scanProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        .success(bundle.scanResult)
+    }
+
+    func scanBundleProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanBundle, AccessibilityScanFailure> {
+        .success(bundle)
     }
 }
 

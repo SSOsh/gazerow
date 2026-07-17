@@ -168,7 +168,8 @@ final class OverlaySessionController {
                 return
             }
             var didShowPartialOverlay = false
-            let result = await progressiveScanner.scanProgressively(context: context) { [weak self] progress in
+            let bundleResult: Result<AccessibilityScanBundle, AccessibilityScanFailure>
+            let progressHandler: (AccessibilityScanProgress) -> Void = { [weak self] progress in
                 guard let self,
                       !didShowPartialOverlay,
                       !progress.candidates.isEmpty,
@@ -182,6 +183,18 @@ final class OverlaySessionController {
                     activationID: activationID
                 )
             }
+            if let bundleScanner = progressiveScanner as? any OverlaySessionBundleProgressiveScanning {
+                bundleResult = await bundleScanner.scanBundleProgressively(
+                    context: context,
+                    onProgress: progressHandler
+                )
+            } else {
+                bundleResult = await progressiveScanner.scanProgressively(
+                    context: context,
+                    onProgress: progressHandler
+                )
+                .map(AccessibilityScanBundle.fallback)
+            }
 
             guard self.isCurrentProgressiveScan(requestID: requestID, activationID: activationID) else {
                 return
@@ -190,14 +203,15 @@ final class OverlaySessionController {
             self.progressiveScanRequestID = nil
 
             let startResult: OverlaySessionStartResult
-            switch result {
-            case .success(let scanResult):
+            switch bundleResult {
+            case .success(let bundle):
                 startResult = self.completeStart(
                     context: context,
-                    scanResult: scanResult,
+                    scanResult: bundle.scanResult,
                     activationID: activationID,
                     startedAt: startedAt,
-                    targetResolvedAt: targetResolvedAt
+                    targetResolvedAt: targetResolvedAt,
+                    elementIndex: bundle.elementIndex
                 )
             case .failure(let failure):
                 self.close()
@@ -212,7 +226,8 @@ final class OverlaySessionController {
         scanResult: AccessibilityScanResult,
         activationID: UUID,
         startedAt: Date,
-        targetResolvedAt: Date
+        targetResolvedAt: Date,
+        elementIndex: ElementSearchIndex? = nil
     ) -> OverlaySessionStartResult {
         let scannedAt = dateProvider()
         trace(
@@ -255,7 +270,8 @@ final class OverlaySessionController {
         let session = OverlaySessionState(
             snapshot: snapshot,
             focusEngine: FocusEngine(layout: layout),
-            elementIndex: makeFallbackElementIndex(scanResult: scanResult)
+            elementIndex: elementIndex ?? makeFallbackElementIndex(scanResult: scanResult),
+            didAttemptSearchableIndexBuild: elementIndex != nil
         )
         activeSession = session
         trace(
@@ -842,17 +858,7 @@ final class OverlaySessionController {
     private func makeFallbackElementIndex(
         scanResult: AccessibilityScanResult
     ) -> ElementSearchIndex {
-        ElementSearchIndex(
-            nodes: scanResult.candidates.enumerated().map { index, candidate in
-                SearchableNode(
-                    id: index,
-                    role: candidate.role,
-                    subrole: candidate.subrole,
-                    title: candidate.title,
-                    frame: candidate.frame
-                )
-            }
-        )
+        AccessibilityScanBundle.fallback(scanResult: scanResult).elementIndex
     }
 
     private func ensureSearchableElementIndexIfNeeded(session: inout OverlaySessionState) {
@@ -1444,6 +1450,15 @@ protocol OverlaySessionProgressiveScanning: OverlaySessionScanning {
 
 extension AccessibilityScanner: OverlaySessionScanning {}
 extension AccessibilityScanner: OverlaySessionProgressiveScanning {}
+
+/// label 후보와 element index를 동일 AX walk에서 반환하는 scanner abstraction.
+@MainActor
+protocol OverlaySessionBundleProgressiveScanning: OverlaySessionProgressiveScanning {
+    func scanBundleProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanBundle, AccessibilityScanFailure>
+}
 
 /// overlay 표시 abstraction.
 ///

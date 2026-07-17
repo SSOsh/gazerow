@@ -56,3 +56,21 @@ struct AccessibilityScanResponse: Equatable, Sendable {
     let activationID: UUID
     let outcome: AccessibilityScanExecutionOutcome
 }
+
+/// AX runtime에서 UI actor로 전달하는 단일-walk bundle 결과.
+///
+/// @author suho.do
+/// @since 2026-07-17
+enum AccessibilityScanBundleExecutionOutcome: Equatable, Sendable {
+    case success(AccessibilityScanBundle)
+    case failure(AccessibilityScanFailure)
+}
+
+/// progressive scan bundle 완료 응답.
+///
+/// @author suho.do
+/// @since 2026-07-17
+struct AccessibilityScanBundleResponse: Equatable, Sendable {
+    let activationID: UUID
+    let outcome: AccessibilityScanBundleExecutionOutcome
+}

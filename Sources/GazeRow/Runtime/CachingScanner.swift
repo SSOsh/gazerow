@@ -11,7 +11,7 @@ import Foundation
 /// @author suho.do
 /// @since 2026-07-07
 @MainActor
-final class CachingScanner: OverlaySessionProgressiveScanning {
+final class CachingScanner: OverlaySessionBundleProgressiveScanning {
     private let wrapped: any OverlaySessionScanning
     private let timeToLive: TimeInterval
     private let monitoredTimeToLive: TimeInterval
@@ -43,13 +43,17 @@ final class CachingScanner: OverlaySessionProgressiveScanning {
         if let cachedScan,
            cachedScan.key == key,
            now.timeIntervalSince(cachedScan.storedAt) <= effectiveTimeToLive {
-            return .success(cachedScan.result)
+            return .success(cachedScan.bundle.scanResult)
         }
 
         let result = wrapped.scan(context: context)
         switch result {
         case .success(let scanResult):
-            cachedScan = CachedScan(key: key, result: scanResult, storedAt: now)
+            cachedScan = CachedScan(
+                key: key,
+                bundle: AccessibilityScanBundle.fallback(scanResult: scanResult),
+                storedAt: now
+            )
         case .failure:
             cachedScan = nil
         }
@@ -60,6 +64,14 @@ final class CachingScanner: OverlaySessionProgressiveScanning {
         context: TargetContext,
         onProgress: @escaping (AccessibilityScanProgress) -> Void
     ) async -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        let result = await scanBundleProgressively(context: context, onProgress: onProgress)
+        return result.map(\.scanResult)
+    }
+
+    func scanBundleProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanBundle, AccessibilityScanFailure> {
         let key = ScanCacheKey(context: context)
         let now = dateProvider()
         prepareChangeMonitoring(for: context.application.processIdentifier)
@@ -67,15 +79,30 @@ final class CachingScanner: OverlaySessionProgressiveScanning {
         if let cachedScan,
            cachedScan.key == key,
            now.timeIntervalSince(cachedScan.storedAt) <= effectiveTimeToLive {
-            onProgress(AccessibilityScanProgress(candidates: cachedScan.result.candidates, nodesVisited: cachedScan.result.nodesVisited))
-            return .success(cachedScan.result)
+            let scanResult = cachedScan.bundle.scanResult
+            onProgress(
+                AccessibilityScanProgress(
+                    candidates: scanResult.candidates,
+                    nodesVisited: scanResult.nodesVisited
+                )
+            )
+            return .success(cachedScan.bundle)
         }
 
-        let result: Result<AccessibilityScanResult, AccessibilityScanFailure>
-        if let progressiveScanner = wrapped as? any OverlaySessionProgressiveScanning {
-            result = await progressiveScanner.scanProgressively(context: context, onProgress: onProgress)
+        let result: Result<AccessibilityScanBundle, AccessibilityScanFailure>
+        if let bundleScanner = wrapped as? any OverlaySessionBundleProgressiveScanning {
+            result = await bundleScanner.scanBundleProgressively(
+                context: context,
+                onProgress: onProgress
+            )
+        } else if let progressiveScanner = wrapped as? any OverlaySessionProgressiveScanning {
+            result = await progressiveScanner.scanProgressively(
+                context: context,
+                onProgress: onProgress
+            )
+            .map(AccessibilityScanBundle.fallback)
         } else {
-            result = wrapped.scan(context: context)
+            result = wrapped.scan(context: context).map(AccessibilityScanBundle.fallback)
         }
         store(result, for: key, at: now)
         return result
@@ -87,13 +114,13 @@ final class CachingScanner: OverlaySessionProgressiveScanning {
     }
 
     private func store(
-        _ result: Result<AccessibilityScanResult, AccessibilityScanFailure>,
+        _ result: Result<AccessibilityScanBundle, AccessibilityScanFailure>,
         for key: ScanCacheKey,
         at date: Date
     ) {
         switch result {
-        case .success(let scanResult):
-            cachedScan = CachedScan(key: key, result: scanResult, storedAt: date)
+        case .success(let bundle):
+            cachedScan = CachedScan(key: key, bundle: bundle, storedAt: date)
         case .failure:
             cachedScan = nil
         }
@@ -131,7 +158,7 @@ final class CachingScanner: OverlaySessionProgressiveScanning {
 /// @since 2026-07-07
 private struct CachedScan {
     let key: ScanCacheKey
-    let result: AccessibilityScanResult
+    let bundle: AccessibilityScanBundle
     let storedAt: Date
 }
 

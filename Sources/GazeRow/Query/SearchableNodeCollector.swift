@@ -9,7 +9,10 @@ protocol SearchableNodeCollecting {
     func buildIndex(context: TargetContext) -> ElementSearchIndex
 }
 
-/// 기존 accessibility client를 재사용하는 searchable node collector.
+/// legacy scanner test double과 동기 fallback을 위한 searchable node collector.
+///
+/// production progressive activation은 `AccessibilityScanBundleCollector`가 만든 index를
+/// 사용하므로 이 collector로 AX tree를 다시 순회하지 않는다.
 ///
 /// @author suho.do
 /// @since 2026-07-09

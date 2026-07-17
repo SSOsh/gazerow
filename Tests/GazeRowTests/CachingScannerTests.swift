@@ -10,6 +10,37 @@ import XCTest
 @MainActor
 final class CachingScannerTests: XCTestCase {
 
+    func test_scanBundleProgressively는_bundle전체를_cache한다() async {
+        // given
+        let scanResult = makeScanResult(candidateCount: 1)
+        let bundle = AccessibilityScanBundle(
+            scanResult: scanResult,
+            elementIndex: ElementSearchIndex(
+                nodes: [
+                    SearchableNode(
+                        id: 9,
+                        role: AccessibilityRole.button,
+                        title: "Cached Search Node",
+                        frame: CGRect(x: 120, y: 140, width: 40, height: 20)
+                    )
+                ]
+            ),
+            metrics: AccessibilityScanBundleMetrics(inspectionCount: 2, childReadCount: 2)
+        )
+        let wrapped = SpyBundleScanner(bundle: bundle)
+        let sut = CachingScanner(wrapped: wrapped)
+        let context = makeContext()
+
+        // when
+        let first = await sut.scanBundleProgressively(context: context) { _ in }
+        let cached = await sut.scanBundleProgressively(context: context) { _ in }
+
+        // then
+        XCTAssertEqual(first, .success(bundle))
+        XCTAssertEqual(cached, .success(bundle))
+        XCTAssertEqual(wrapped.bundleScanCallCount, 1)
+    }
+
     func test_scanProgressively는_cacheHit이면_부분결과를즉시전달한다() async {
         // given
         let context = makeContext()
@@ -347,6 +378,35 @@ private final class SpyScanner: OverlaySessionScanning {
         receivedContexts.append(context)
         let index = min(receivedContexts.count - 1, results.count - 1)
         return results[index]
+    }
+}
+
+@MainActor
+private final class SpyBundleScanner: OverlaySessionBundleProgressiveScanning {
+    let bundle: AccessibilityScanBundle
+    private(set) var bundleScanCallCount = 0
+
+    init(bundle: AccessibilityScanBundle) {
+        self.bundle = bundle
+    }
+
+    func scan(context: TargetContext) -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        .success(bundle.scanResult)
+    }
+
+    func scanProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        .success(bundle.scanResult)
+    }
+
+    func scanBundleProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanBundle, AccessibilityScanFailure> {
+        bundleScanCallCount += 1
+        return .success(bundle)
     }
 }
 
