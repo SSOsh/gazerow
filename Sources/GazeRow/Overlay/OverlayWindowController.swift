@@ -8,6 +8,10 @@ import SwiftUI
 /// @since 2026-07-02
 @MainActor
 final class OverlayWindowController {
+    private static let labelPanelLevel = NSWindow.Level(
+        rawValue: NSWindow.Level.statusBar.rawValue + 1
+    )
+
     private var targetPanel: OverlayPanel?
     private var commandBarPanel: OverlayPanel?
     private var targetHostingView: NSHostingView<OverlayView>?
@@ -73,6 +77,15 @@ final class OverlayWindowController {
 
     var commandBarPanelFrame: CGRect? {
         commandBarPanel?.frame
+    }
+
+    /// 선택 label은 안내용 command bar보다 앞에 표시되어야 한다.
+    var labelsRenderAboveCommandBar: Bool {
+        guard let targetPanel, let commandBarPanel else {
+            return false
+        }
+
+        return targetPanel.level.rawValue > commandBarPanel.level.rawValue
     }
 
     var targetHostingViewIdentifier: ObjectIdentifier? {
@@ -162,7 +175,7 @@ final class OverlayWindowController {
             visibleFrame: targetScreen.visibleFrame,
             avoidingFrames: avoidingFrames
         )
-        let targetPanel = makePanel(frame: targetPanelFrame)
+        let targetPanel = makePanel(frame: targetPanelFrame, level: Self.labelPanelLevel)
         let commandBarPanel = makePanel(frame: commandLayout.panelFrame)
 
         targetPanel.onEscape = { [weak self] in
@@ -187,8 +200,8 @@ final class OverlayWindowController {
             panel: targetPanel
         )
         onPresentationEvent(.captureReady(captureMode))
-        targetPanel.orderFrontRegardless()
         commandBarPanel.orderFrontRegardless()
+        targetPanel.orderFrontRegardless()
         onPresentationEvent(.panelsOrdered)
         targetPanel.displayIfNeeded()
         commandBarPanel.displayIfNeeded()
@@ -359,14 +372,17 @@ final class OverlayWindowController {
         )
     }
 
-    private func makePanel(frame: CGRect) -> OverlayPanel {
+    private func makePanel(
+        frame: CGRect,
+        level: NSWindow.Level = .statusBar
+    ) -> OverlayPanel {
         let panel = OverlayPanel(
             contentRect: frame,
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
-        panel.level = .statusBar
+        panel.level = level
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false

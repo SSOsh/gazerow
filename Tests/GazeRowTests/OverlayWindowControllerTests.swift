@@ -162,6 +162,26 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_show는_선택label을_안내commandBar보다_앞에표시한다() {
+        // given
+        let sut = OverlayWindowController(
+            displayInfoProvider: { _ in
+                OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+            },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+
+        // when
+        sut.show(layout: makeLayout())
+
+        // then
+        XCTAssertTrue(sut.labelsRenderAboveCommandBar)
+
+        sut.close()
+    }
+
     func test_show는_keyboardEventTap이_실패하면_application을_activate한다() {
         // given
         var activateCallCount = 0
