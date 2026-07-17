@@ -1,4 +1,4 @@
-# keyCursor
+# gazerow
 
 A macOS utility for clicking on-screen buttons, links, and menus using only your
 keyboard. Trigger the overlay with a shortcut and every clickable element gets a
@@ -18,7 +18,7 @@ click it without touching the mouse. (Homerow style)
 
 ## Quick Start
 
-1. **Launch the app** — it appears as a keyCursor icon in the menu bar, with no Dock icon.
+1. **Launch the app** — it appears as a gazerow icon in the menu bar, with no Dock icon.
 2. **Grant permission** — in the first-run guide (or Settings), allow **Accessibility
    permission** and press **Recheck**. Overlay and clicks require this permission.
 3. **Open the overlay** — bring the app you want to operate to the front and press `Command+Shift+Space`.
@@ -68,7 +68,7 @@ Bare letter input still prioritizes label selection, so the existing label flow 
 ### Window control shortcuts
 
 Press the frontmost window's standard title-bar buttons (close / minimize / zoom)
-from the keyboard. These work only while keyCursor has Accessibility permission.
+from the keyboard. These work only while gazerow has Accessibility permission.
 
 | Action | Shortcut |
 | --- | --- |
@@ -159,12 +159,12 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 
 # Open the Accessibility permission request/settings flow and run
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow -- --request-accessibility
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run -- --request-accessibility
 
 # Build a local .app bundle and run it as a single instance
 scripts/run_local_app.sh
 
-# Gracefully stop an existing GazeRow before replacing it with the new build
+# Gracefully stop an existing gazerow before replacing it with the new build
 scripts/run_local_app.sh --replace-running
 ```
 
@@ -173,7 +173,7 @@ scripts/run_local_app.sh --replace-running
 > with the full Xcode app installed. Do not use `open -n`, because it intentionally
 > starts another app instance.
 
-After launching, click the keyCursor icon in the menu bar to try **Open Settings** /
+After launching, click the gazerow icon in the menu bar to try **Open Settings** /
 **Quit** and confirm it works. Without permission, use the **Request Permission**
 button in Settings or the launch option above to open the permission flow.
 
@@ -181,7 +181,7 @@ button in Settings or the launch option above to open the permission flow.
 
 ## Support
 
-If keyCursor helps your workflow, support development via **Support keyCursor** in the
+If gazerow helps your workflow, support development via **Support gazerow** in the
 menu bar. (Account details to be added later.)
 
 ---
