@@ -62,9 +62,10 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
             }
 
             nodesVisited += 1
+            let inspection = client.inspect(item.element)
 
             if let candidate = makeCandidate(
-                from: item.element,
+                from: inspection.snapshot,
                 within: context.window.frame
             ),
                candidateKeys.insert(CandidateKey(candidate)).inserted {
@@ -76,7 +77,7 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
                 continue
             }
 
-            switch client.children(of: item.element) {
+            switch inspection.children {
             case .success(let children):
                 stack.append(contentsOf: children.reversed().map { ($0, item.depth + 1) })
             case .failure:
@@ -101,10 +102,9 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
     }
 
     private func makeCandidate(
-        from element: Client.Element,
+        from snapshot: AccessibilityElementSnapshot,
         within targetFrame: CGRect
     ) -> ClickableCandidate? {
-        let snapshot = client.snapshot(of: element)
         guard let role = snapshot.role,
               !snapshot.isSecureField else {
             return nil

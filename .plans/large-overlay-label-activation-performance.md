@@ -82,15 +82,36 @@
 - [x] 5.2 관련 테스트와 전체 테스트 실행
 - [x] 5.3 기획서 완료 상태와 검증 결과 기록
 
+### Phase 6: AX node 통합 조회
+
+- [x] 6.1 snapshot과 children을 함께 반환하는 node inspection 계약 추가
+- [x] 6.2 production AX client에서 snapshot·children 단일 batch 조회 구현
+- [x] 6.3 scanner 호출 횟수 및 fallback 회귀 테스트
+
+### Phase 7: 변경 감지 cache
+
+- [x] 7.1 AXObserver 기반 UI 변경 감지기 구현
+- [x] 7.2 observer 활성 시 cache TTL 연장 및 변경 이벤트 무효화
+- [x] 7.3 observer 실패·context 전환·변경 이벤트 테스트
+
+### Phase 8: 렌더 후속 최적화
+
+- [x] 8.1 대량 Canvas 이중 순회와 text resolve 비용 측정
+- [x] 8.2 시각적 z-order를 유지할 수 있을 때 단일 렌더 패스 적용
+- [x] 8.3 대량 렌더 회귀 테스트 및 전체 성능 검증
+
 ## 검증 결과
 
 - AX child batch/fallback 테스트: 9개 통과
 - Accessibility scanner 테스트: 23개 통과
 - Candidate ordering 및 layout 테스트: 30개 통과
 - 대량 Canvas 전략 및 이미지 렌더 테스트: 3개 통과
-- 전체 테스트: 687개 통과, 실패 0개
+- 1차 전체 테스트: 687개 통과, 실패 0개
+- 2차 전체 테스트: 709개 통과, 실패 0개
 - 675개 centered layout 단위 테스트: 약 8ms
 - 675개 Canvas 이미지 렌더 단위 테스트: 약 109ms
+- 2차 최적화 전 675개 Canvas 5회 평균: 약 77ms
+- 단일 Canvas·label별 합성 layer 제거 후 5회 평균: 약 70ms
 - 실제 앱 activation p50/p95는 기존 `OverlayActivationTracer`의 `scanCompleted`, `layoutCompleted`, `firstDisplayPass`로 후속 측정한다.
 
 ## 비기능 요구사항

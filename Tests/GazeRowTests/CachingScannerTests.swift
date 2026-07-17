@@ -168,6 +168,110 @@ final class CachingScannerTests: XCTestCase {
         XCTAssertEqual(spy.scanCallCount, 2)
     }
 
+    func test_scan_observer활성화시_연장TTL동안_cache를_재사용한다() {
+        // given
+        let firstResult = makeScanResult(candidateCount: 1)
+        let spy = SpyScanner(results: [.success(firstResult), .success(makeScanResult(candidateCount: 2))])
+        let monitor = SpyAccessibilityChangeMonitor(startResult: true)
+        var now = Date(timeIntervalSince1970: 1_000)
+        let sut = CachingScanner(
+            wrapped: spy,
+            timeToLive: 0.5,
+            monitoredTimeToLive: 3,
+            changeMonitor: monitor,
+            dateProvider: { now }
+        )
+        let context = makeContext()
+
+        // when
+        _ = sut.scan(context: context)
+        now = now.addingTimeInterval(2)
+        let cached = sut.scan(context: context)
+
+        // then
+        XCTAssertEqual(cached, .success(firstResult))
+        XCTAssertEqual(spy.scanCallCount, 1)
+        XCTAssertEqual(monitor.startedProcessIdentifiers, [100])
+    }
+
+    func test_scan_observer변경이벤트후에는_연장TTL이내라도_재스캔한다() {
+        // given
+        let firstResult = makeScanResult(candidateCount: 1)
+        let secondResult = makeScanResult(candidateCount: 2)
+        let spy = SpyScanner(results: [.success(firstResult), .success(secondResult)])
+        let monitor = SpyAccessibilityChangeMonitor(startResult: true)
+        var now = Date(timeIntervalSince1970: 1_000)
+        let sut = CachingScanner(
+            wrapped: spy,
+            timeToLive: 0.5,
+            monitoredTimeToLive: 3,
+            changeMonitor: monitor,
+            dateProvider: { now }
+        )
+        let context = makeContext()
+
+        // when
+        _ = sut.scan(context: context)
+        now = now.addingTimeInterval(1)
+        monitor.sendChange()
+        let rescanned = sut.scan(context: context)
+
+        // then
+        XCTAssertEqual(rescanned, .success(secondResult))
+        XCTAssertEqual(spy.scanCallCount, 2)
+        XCTAssertEqual(monitor.startedProcessIdentifiers, [100, 100])
+    }
+
+    func test_scan_observer시작실패시_기본TTL을_유지한다() {
+        // given
+        let firstResult = makeScanResult(candidateCount: 1)
+        let secondResult = makeScanResult(candidateCount: 2)
+        let spy = SpyScanner(results: [.success(firstResult), .success(secondResult)])
+        let monitor = SpyAccessibilityChangeMonitor(startResult: false)
+        var now = Date(timeIntervalSince1970: 1_000)
+        let sut = CachingScanner(
+            wrapped: spy,
+            timeToLive: 0.5,
+            monitoredTimeToLive: 3,
+            changeMonitor: monitor,
+            dateProvider: { now }
+        )
+        let context = makeContext()
+
+        // when
+        _ = sut.scan(context: context)
+        now = now.addingTimeInterval(0.6)
+        let rescanned = sut.scan(context: context)
+
+        // then
+        XCTAssertEqual(rescanned, .success(secondResult))
+        XCTAssertEqual(spy.scanCallCount, 2)
+    }
+
+    func test_scan_process가_바뀌면_observer를_새process로_재시작한다() {
+        // given
+        let spy = SpyScanner(
+            results: [
+                .success(makeScanResult(candidateCount: 1)),
+                .success(makeScanResult(candidateCount: 2))
+            ]
+        )
+        let monitor = SpyAccessibilityChangeMonitor(startResult: true)
+        let sut = CachingScanner(
+            wrapped: spy,
+            changeMonitor: monitor,
+            dateProvider: { Date(timeIntervalSince1970: 1_000) }
+        )
+
+        // when
+        _ = sut.scan(context: makeContext(processIdentifier: 100))
+        _ = sut.scan(context: makeContext(processIdentifier: 200))
+
+        // then
+        XCTAssertEqual(monitor.startedProcessIdentifiers, [100, 200])
+        XCTAssertEqual(spy.scanCallCount, 2)
+    }
+
     private func makeContext(
         processIdentifier: pid_t = 100,
         frame: CGRect = CGRect(x: 100, y: 100, width: 500, height: 320),
@@ -223,5 +327,37 @@ private final class SpyScanner: OverlaySessionScanning {
         receivedContexts.append(context)
         let index = min(receivedContexts.count - 1, results.count - 1)
         return results[index]
+    }
+}
+
+@MainActor
+private final class SpyAccessibilityChangeMonitor: AccessibilityChangeMonitoring {
+    private let startResult: Bool
+    private var onChange: (@MainActor () -> Void)?
+    private(set) var startedProcessIdentifiers: [pid_t] = []
+    private(set) var stopCallCount = 0
+
+    init(startResult: Bool) {
+        self.startResult = startResult
+    }
+
+    func start(
+        processIdentifier: pid_t,
+        onChange: @escaping @MainActor () -> Void
+    ) -> Bool {
+        startedProcessIdentifiers.append(processIdentifier)
+        self.onChange = startResult ? onChange : nil
+        return startResult
+    }
+
+    func stop() {
+        stopCallCount += 1
+        onChange = nil
+    }
+
+    func sendChange() {
+        let callback = onChange
+        onChange = nil
+        callback?()
     }
 }

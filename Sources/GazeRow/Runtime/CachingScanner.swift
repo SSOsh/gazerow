@@ -14,26 +14,35 @@ import Foundation
 final class CachingScanner: OverlaySessionScanning {
     private let wrapped: any OverlaySessionScanning
     private let timeToLive: TimeInterval
+    private let monitoredTimeToLive: TimeInterval
     private let dateProvider: () -> Date
+    private let changeMonitor: (any AccessibilityChangeMonitoring)?
     private var cachedScan: CachedScan?
+    private var monitoredProcessIdentifier: pid_t?
+    private var isMonitoringChanges = false
 
     nonisolated init(
         wrapped: any OverlaySessionScanning,
         timeToLive: TimeInterval = 0.5,
+        monitoredTimeToLive: TimeInterval = 3,
+        changeMonitor: (any AccessibilityChangeMonitoring)? = nil,
         dateProvider: @escaping () -> Date = Date.init
     ) {
         self.wrapped = wrapped
         self.timeToLive = max(0, timeToLive)
+        self.monitoredTimeToLive = max(self.timeToLive, monitoredTimeToLive)
+        self.changeMonitor = changeMonitor
         self.dateProvider = dateProvider
     }
 
     func scan(context: TargetContext) -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
         let key = ScanCacheKey(context: context)
         let now = dateProvider()
+        prepareChangeMonitoring(for: context.application.processIdentifier)
 
         if let cachedScan,
            cachedScan.key == key,
-           now.timeIntervalSince(cachedScan.storedAt) <= timeToLive {
+           now.timeIntervalSince(cachedScan.storedAt) <= effectiveTimeToLive {
             return .success(cachedScan.result)
         }
 
@@ -50,6 +59,31 @@ final class CachingScanner: OverlaySessionScanning {
     /// cache를 즉시 무효화한다.
     func invalidate() {
         cachedScan = nil
+    }
+
+    private var effectiveTimeToLive: TimeInterval {
+        isMonitoringChanges ? monitoredTimeToLive : timeToLive
+    }
+
+    private func prepareChangeMonitoring(for processIdentifier: pid_t) {
+        guard let changeMonitor else {
+            return
+        }
+
+        if isMonitoringChanges, monitoredProcessIdentifier == processIdentifier {
+            return
+        }
+
+        changeMonitor.stop()
+        isMonitoringChanges = changeMonitor.start(
+            processIdentifier: processIdentifier,
+            onChange: { [weak self] in
+                self?.isMonitoringChanges = false
+                self?.monitoredProcessIdentifier = nil
+                self?.invalidate()
+            }
+        )
+        monitoredProcessIdentifier = isMonitoringChanges ? processIdentifier : nil
     }
 }
 

@@ -10,7 +10,7 @@ import Foundation
 /// @author suho.do
 /// @since 2026-07-03
 struct AccessibilityChildAttributeCollector<Element> {
-    private let attributes: [String]
+    let attributes: [String]
 
     init(attributes: [String] = AccessibilityChildAttributeCollector.defaultAttributes) {
         self.attributes = attributes

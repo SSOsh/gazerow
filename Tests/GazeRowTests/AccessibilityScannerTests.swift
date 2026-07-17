@@ -588,7 +588,7 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.failedChildReadCount, 1)
     }
 
-    func test_scan_각_node는_snapshot으로_한번만_속성을_읽음() {
+    func test_scan_각node는_inspection으로_snapshot과_children을_한번에_읽음() {
         // given
         let button = FakeElement(
             snapshot: snapshot(
@@ -611,7 +611,9 @@ final class AccessibilityScannerTests: XCTestCase {
             return
         }
         XCTAssertEqual(scanResult.candidateCount, 1)
-        XCTAssertEqual(client.snapshotCount, 2)
+        XCTAssertEqual(client.inspectionCount, 2)
+        XCTAssertEqual(client.snapshotCount, 0)
+        XCTAssertEqual(client.childrenCount, 0)
         XCTAssertEqual(client.roleCount, 0)
         XCTAssertEqual(client.actionsCount, 0)
         XCTAssertEqual(client.titleCount, 0)
@@ -658,7 +660,9 @@ final class AccessibilityScannerTests: XCTestCase {
             return
         }
         XCTAssertEqual(scanResult.candidates.map(\.title), ["Explorer"])
-        XCTAssertEqual(client.snapshotCount, 3)
+        XCTAssertEqual(client.inspectionCount, 3)
+        XCTAssertEqual(client.snapshotCount, 0)
+        XCTAssertEqual(client.childrenCount, 0)
         XCTAssertEqual(client.titleCount, 0)
         XCTAssertEqual(client.valueCount, 0)
         XCTAssertEqual(client.helpCount, 0)
@@ -764,7 +768,9 @@ private struct FakeAccessibilityElementClient: AccessibilityElementClient {
 @MainActor
 private final class CountingAccessibilityElementClient: AccessibilityElementClient {
     let root: Result<FakeElement, AccessibilityScanFailure>
+    private(set) var inspectionCount = 0
     private(set) var snapshotCount = 0
+    private(set) var childrenCount = 0
     private(set) var roleCount = 0
     private(set) var subroleCount = 0
     private(set) var titleCount = 0
@@ -779,6 +785,17 @@ private final class CountingAccessibilityElementClient: AccessibilityElementClie
 
     func rootElement(for context: TargetContext) -> Result<FakeElement, AccessibilityScanFailure> {
         root
+    }
+
+    func inspect(_ element: FakeElement) -> AccessibilityElementInspection<FakeElement> {
+        inspectionCount += 1
+        let children: Result<[FakeElement], AccessibilityScanFailure>
+        if let childrenFailure = element.childrenFailure {
+            children = .failure(childrenFailure)
+        } else {
+            children = .success(element.children)
+        }
+        return AccessibilityElementInspection(snapshot: element.snapshot, children: children)
     }
 
     func snapshot(of element: FakeElement) -> AccessibilityElementSnapshot {
@@ -822,6 +839,7 @@ private final class CountingAccessibilityElementClient: AccessibilityElementClie
     }
 
     func children(of element: FakeElement) -> Result<[FakeElement], AccessibilityScanFailure> {
+        childrenCount += 1
         if let childrenFailure = element.childrenFailure {
             return .failure(childrenFailure)
         }

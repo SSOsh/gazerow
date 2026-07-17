@@ -155,22 +155,40 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
         AXUIElementSetMessagingTimeout(element, messagingTimeout)
     }
 
+    /// 후보 snapshot과 child-like 속성을 한 batch로 읽어 node당 AX IPC를 줄인다.
+    func inspect(_ element: AXUIElement) -> AccessibilityElementInspection<AXUIElement> {
+        let attributes = Self.snapshotAttributes + childAttributeCollector.attributes
+        guard let values = copyMultipleAttributes(attributes, from: element) else {
+            return AccessibilityElementInspection(
+                snapshot: snapshot(of: element),
+                children: children(of: element)
+            )
+        }
+
+        let snapshot = makeSnapshot(from: values, element: element)
+        let children = childAttributeCollector.collect { attribute in
+            .success(values[attribute] as? [AXUIElement] ?? [])
+        }.map { elements in
+            AccessibilityElementDeduplicator<AXUIElement> { element in
+                AnyHashable(CFHash(element))
+            }
+            .deduplicated(elements)
+        }
+        return AccessibilityElementInspection(snapshot: snapshot, children: children)
+    }
+
     func snapshot(of element: AXUIElement) -> AccessibilityElementSnapshot {
-        guard let values = copyMultipleAttributes(
-            [
-                kAXRoleAttribute,
-                kAXSubroleAttribute,
-                kAXTitleAttribute,
-                kAXValueAttribute,
-                kAXHelpAttribute,
-                kAXPositionAttribute,
-                kAXSizeAttribute
-            ],
-            from: element
-        ) else {
+        guard let values = copyMultipleAttributes(Self.snapshotAttributes, from: element) else {
             return fallbackSnapshot(of: element)
         }
 
+        return makeSnapshot(from: values, element: element)
+    }
+
+    private func makeSnapshot(
+        from values: [String: AnyObject],
+        element: AXUIElement
+    ) -> AccessibilityElementSnapshot {
         return AccessibilityElementSnapshot(
             role: copyStringAttribute(kAXRoleAttribute, from: values),
             subrole: copyStringAttribute(kAXSubroleAttribute, from: values),
@@ -180,6 +198,18 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
             frame: copyFrame(from: values),
             actions: copyActionNames(from: element)
         )
+    }
+
+    private static var snapshotAttributes: [String] {
+        [
+            kAXRoleAttribute,
+            kAXSubroleAttribute,
+            kAXTitleAttribute,
+            kAXValueAttribute,
+            kAXHelpAttribute,
+            kAXPositionAttribute,
+            kAXSizeAttribute
+        ]
     }
 
     private func fallbackSnapshot(of element: AXUIElement) -> AccessibilityElementSnapshot {

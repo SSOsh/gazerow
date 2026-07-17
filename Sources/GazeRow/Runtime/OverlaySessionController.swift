@@ -41,7 +41,8 @@ final class OverlaySessionController {
     init(
         targetResolver: any OverlaySessionTargetResolving = TargetResolver(),
         scanner: any OverlaySessionScanning = CachingScanner(
-            wrapped: AccessibilityScanner(client: AXAccessibilityElementClient())
+            wrapped: AccessibilityScanner(client: AXAccessibilityElementClient()),
+            changeMonitor: AXAccessibilityChangeMonitor()
         ),
         overlayPresenter: any OverlaySessionPresenting = OverlayWindowController(),
         interactionRecorder: any OverlaySessionInteractionRecording = InteractionLogStore(),
