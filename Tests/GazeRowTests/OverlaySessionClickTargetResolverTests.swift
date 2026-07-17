@@ -432,7 +432,6 @@ private struct FakeClickElement: Equatable {
     }
 }
 
-@MainActor
 private struct FakeClickTargetClient: AccessibilityElementClient {
     let root: Result<FakeClickElement, AccessibilityScanFailure>
     var extraRoots: [FakeClickElement] = []
@@ -454,7 +453,6 @@ private struct FakeClickTargetClient: AccessibilityElementClient {
     }
 }
 
-@MainActor
 private final class CountingClickTargetClient: AccessibilityElementClient {
     let root: Result<FakeClickElement, AccessibilityScanFailure>
     private(set) var snapshotCount = 0

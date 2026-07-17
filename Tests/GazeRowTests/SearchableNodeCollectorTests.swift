@@ -180,7 +180,6 @@ private struct FakeSearchElement {
     }
 }
 
-@MainActor
 private struct FakeSearchAccessibilityElementClient: AccessibilityElementClient {
     let root: Result<FakeSearchElement, AccessibilityScanFailure>
 

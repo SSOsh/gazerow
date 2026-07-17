@@ -6,7 +6,6 @@ import Foundation
 ///
 /// @author suho.do
 /// @since 2026-07-02
-@MainActor
 struct AXAccessibilityElementClient: AccessibilityElementClient {
     private let rootElementSelector: AccessibilityRootElementSelector<AXUIElement>
     private let childAttributeCollector: AccessibilityChildAttributeCollector<AXUIElement>
@@ -15,7 +14,7 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
     }
     private let messagingTimeout: Float
 
-    nonisolated init(
+    init(
         rootElementSelector: AccessibilityRootElementSelector<AXUIElement> =
             AccessibilityRootElementSelector<AXUIElement>(),
         childAttributeCollector: AccessibilityChildAttributeCollector<AXUIElement> =

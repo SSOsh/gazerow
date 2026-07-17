@@ -19,7 +19,6 @@ struct AccessibilityElementInspection<Element> {
 ///
 /// @author suho.do
 /// @since 2026-07-02
-@MainActor
 protocol AccessibilityElementClient {
     associatedtype Element
 

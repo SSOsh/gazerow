@@ -104,6 +104,106 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertTrue(scanner.wasCancelled)
     }
 
+    func test_startProgressively는_scan중_sessionDisable후_close하면_늦은최종결과를무시한다() async {
+        // given
+        let firstCandidate = makeCandidate(title: "First")
+        let scanner = SuspendingProgressiveOverlayScanner(
+            progress: AccessibilityScanProgress(candidates: [firstCandidate], nodesVisited: 8)
+        )
+        let presenter = StubOverlayPresenter()
+        let sessionController = SessionController()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: scanner,
+            overlayPresenter: presenter,
+            isSessionEnabled: { sessionController.isEnabled }
+        )
+        var didComplete = false
+        sut.startProgressively { _ in
+            didComplete = true
+        }
+        await waitForProgressiveScan()
+        XCTAssertEqual(presenter.showRequests.map(\.candidates), [[firstCandidate]])
+
+        // when
+        sessionController.disable()
+        sut.close()
+        scanner.complete(
+            with: .success(
+                makeScanResult(candidates: [firstCandidate, makeCandidate(title: "Late")])
+            )
+        )
+        await waitForProgressiveScan()
+
+        // then
+        XCTAssertEqual(presenter.showRequests.map(\.candidates), [[firstCandidate]])
+        XCTAssertEqual(presenter.closeCallCount, 1)
+        XCTAssertNil(sut.activeSession)
+        XCTAssertFalse(didComplete)
+        XCTAssertTrue(scanner.wasCancelled)
+    }
+
+    func test_startProgressively는_새activation후_이전activation의늦은결과를무시한다() async {
+        // given
+        let firstPartialCandidate = makeCandidate(title: "First Partial")
+        let secondPartialCandidate = makeCandidate(title: "Second Partial")
+        let secondFinalCandidate = makeCandidate(title: "Second Final")
+        let scanner = SequencedSuspendingProgressiveOverlayScanner(
+            progresses: [
+                AccessibilityScanProgress(candidates: [firstPartialCandidate], nodesVisited: 4),
+                AccessibilityScanProgress(candidates: [secondPartialCandidate], nodesVisited: 6)
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(
+                results: [.success(makeContext()), .success(makeContext())]
+            ),
+            scanner: scanner,
+            overlayPresenter: presenter
+        )
+        var didCompleteFirstActivation = false
+        var secondActivationResult: OverlaySessionStartResult?
+
+        // when - first activation
+        sut.startProgressively { _ in
+            didCompleteFirstActivation = true
+        }
+        await waitForProgressiveScan()
+
+        // when - second activation
+        sut.startProgressively { result in
+            secondActivationResult = result
+        }
+        await waitForProgressiveScan()
+        scanner.complete(
+            requestAt: 1,
+            with: .success(makeScanResult(candidates: [secondFinalCandidate]))
+        )
+        await waitForProgressiveScan()
+
+        // when - stale first activation
+        scanner.complete(
+            requestAt: 0,
+            with: .success(makeScanResult(candidates: [makeCandidate(title: "Late First")]))
+        )
+        await waitForProgressiveScan()
+
+        // then
+        XCTAssertEqual(
+            presenter.showRequests.map(\.candidates),
+            [[firstPartialCandidate], [secondPartialCandidate], [secondFinalCandidate]]
+        )
+        XCTAssertEqual(sut.activeSession?.snapshot.scanResult.candidates, [secondFinalCandidate])
+        XCTAssertFalse(didCompleteFirstActivation)
+        guard case .success(let snapshot) = secondActivationResult else {
+            XCTFail("Expected second activation success, got \(String(describing: secondActivationResult)).")
+            return
+        }
+        XCTAssertEqual(snapshot.scanResult.candidates, [secondFinalCandidate])
+        XCTAssertEqual(scanner.cancelledRequestIndices, [0])
+    }
+
     func test_start_sessionDisabled이면_overlay를_닫고_resolve하지_않음() {
         // given
         let resolver = StubOverlayTargetResolver(result: .success(makeContext()))
@@ -1975,6 +2075,48 @@ private final class SuspendingProgressiveOverlayScanner: OverlaySessionProgressi
     private func cancel() {
         wasCancelled = true
         complete(with: .failure(.cancelled))
+    }
+}
+
+@MainActor
+private final class SequencedSuspendingProgressiveOverlayScanner: OverlaySessionProgressiveScanning {
+    private let progresses: [AccessibilityScanProgress]
+    private var continuations:
+        [Int: CheckedContinuation<Result<AccessibilityScanResult, AccessibilityScanFailure>, Never>] = [:]
+    private(set) var cancelledRequestIndices: [Int] = []
+    private var scanCallCount = 0
+
+    init(progresses: [AccessibilityScanProgress]) {
+        self.progresses = progresses
+    }
+
+    func scan(context: TargetContext) -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        .failure(.cancelled)
+    }
+
+    func scanProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        let requestIndex = scanCallCount
+        scanCallCount += 1
+        onProgress(progresses[min(requestIndex, progresses.count - 1)])
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                continuations[requestIndex] = continuation
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.cancelledRequestIndices.append(requestIndex)
+            }
+        }
+    }
+
+    func complete(
+        requestAt index: Int,
+        with result: Result<AccessibilityScanResult, AccessibilityScanFailure>
+    ) {
+        continuations.removeValue(forKey: index)?.resume(returning: result)
     }
 }
 

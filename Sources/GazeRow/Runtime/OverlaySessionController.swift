@@ -61,7 +61,7 @@ final class OverlaySessionController {
     ) {
         self.targetResolver = targetResolver ?? TargetResolver()
         self.scanner = scanner ?? CachingScanner(
-            wrapped: AccessibilityScanner(client: AXAccessibilityElementClient()),
+            wrapped: AXRuntimeScanner(),
             changeMonitor: AXAccessibilityChangeMonitor()
         )
         self.overlayPresenter = overlayPresenter ?? OverlayWindowController()

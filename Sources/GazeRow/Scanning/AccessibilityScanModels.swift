@@ -28,7 +28,7 @@ struct AccessibilityScanConfiguration: Equatable, Sendable {
 ///
 /// @author suho.do
 /// @since 2026-07-02
-struct AccessibilityElementSnapshot: Equatable {
+struct AccessibilityElementSnapshot: Equatable, Sendable {
     let role: String?
     let subrole: String?
     let title: String?
@@ -105,7 +105,7 @@ struct AccessibilityScanResult: Equatable, Sendable {
 ///
 /// @author suho.do
 /// @since 2026-07-17
-struct AccessibilityScanProgress: Equatable {
+struct AccessibilityScanProgress: Equatable, Sendable {
     let candidates: [ClickableCandidate]
     let nodesVisited: Int
 }

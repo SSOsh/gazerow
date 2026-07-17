@@ -786,7 +786,6 @@ private struct FakeElement {
     }
 }
 
-@MainActor
 private struct FakeAccessibilityElementClient: AccessibilityElementClient {
     let root: Result<FakeElement, AccessibilityScanFailure>
     var additionalRootElements: [FakeElement] = []
@@ -812,7 +811,6 @@ private struct FakeAccessibilityElementClient: AccessibilityElementClient {
     }
 }
 
-@MainActor
 private final class CountingAccessibilityElementClient: AccessibilityElementClient {
     let root: Result<FakeElement, AccessibilityScanFailure>
     private(set) var inspectionCount = 0
