@@ -40,6 +40,7 @@ final class AccessibilityScanBundleTests: XCTestCase {
         XCTAssertEqual(rowNode.childrenIDs, [2])
         XCTAssertEqual(buttonNode.parentID, 1)
         XCTAssertEqual(buttonNode.axPath, [0, 0])
+        XCTAssertEqual(bundle.targetDescriptors, [AccessibilityTargetDescriptor(axPath: [0, 0])])
         XCTAssertEqual(counter.snapshot(), BundleClientCounts(root: 1, inspect: 3, snapshot: 0, children: 0))
         XCTAssertEqual(bundle.metrics.inspectionCount, 3)
         XCTAssertEqual(bundle.metrics.childReadCount, 3)
@@ -67,6 +68,73 @@ final class AccessibilityScanBundleTests: XCTestCase {
         // then
         XCTAssertEqual(bundle.scanResult.candidates.map(\.title), ["Focused editor"])
         XCTAssertEqual(bundle.elementIndex.search("focused").map(\.displayName), ["Focused editor"])
+        XCTAssertEqual(bundle.targetDescriptors, [AccessibilityTargetDescriptor(axPath: [-1])])
+    }
+
+    func test_fallback은_candidate수만큼_nilDescriptor를만든다() {
+        // given
+        let scanResult = AccessibilityScanResult(
+            candidates: [
+                ClickableCandidate(
+                    role: AccessibilityRole.button,
+                    subrole: nil,
+                    title: "Open",
+                    frame: CGRect(x: 10, y: 10, width: 80, height: 30),
+                    actions: [AccessibilityAction.press]
+                ),
+                ClickableCandidate(
+                    role: AccessibilityRole.link,
+                    subrole: nil,
+                    title: "Details",
+                    frame: CGRect(x: 100, y: 10, width: 80, height: 30),
+                    actions: [AccessibilityAction.press]
+                )
+            ],
+            nodesVisited: 2,
+            scanDuration: 0,
+            didHitDepthLimit: false,
+            didHitNodeLimit: false,
+            didTimeout: false,
+            failedChildReadCount: 0
+        )
+
+        // when
+        let bundle = AccessibilityScanBundle.fallback(scanResult: scanResult)
+
+        // then
+        XCTAssertEqual(bundle.targetDescriptors, [nil, nil])
+    }
+
+    func test_init_descriptor수가_candidate수와다르면_안전한_nil배열로대체한다() {
+        // given
+        let scanResult = AccessibilityScanResult(
+            candidates: [
+                ClickableCandidate(
+                    role: AccessibilityRole.button,
+                    subrole: nil,
+                    title: "Open",
+                    frame: CGRect(x: 10, y: 10, width: 80, height: 30),
+                    actions: [AccessibilityAction.press]
+                )
+            ],
+            nodesVisited: 1,
+            scanDuration: 0,
+            didHitDepthLimit: false,
+            didHitNodeLimit: false,
+            didTimeout: false,
+            failedChildReadCount: 0
+        )
+
+        // when
+        let bundle = AccessibilityScanBundle(
+            scanResult: scanResult,
+            elementIndex: ElementSearchIndex(nodes: []),
+            metrics: AccessibilityScanBundleMetrics(inspectionCount: 1, childReadCount: 1),
+            targetDescriptors: []
+        )
+
+        // then
+        XCTAssertEqual(bundle.targetDescriptors, [nil])
     }
 
     func test_collect는_secureField를_candidate와검색index에서모두제외한다() async throws {

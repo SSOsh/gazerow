@@ -10,6 +10,17 @@ struct AccessibilityScanBundleMetrics: Equatable, Sendable {
     let childReadCount: Int
 }
 
+/// 최초 scan에서 후보 element까지 도달한 AX tree 경로.
+///
+/// 첫 component가 음수이면 additional root 순번을 `-(index + 1)`로 표현하고,
+/// 나머지 component는 각 parent의 children 배열 index다.
+///
+/// @author suho.do
+/// @since 2026-07-17
+struct AccessibilityTargetDescriptor: Equatable, Sendable {
+    let axPath: [Int]
+}
+
 /// label 후보와 Query Overlay index를 동일 AX snapshot에서 만든 결과.
 ///
 /// @author suho.do
@@ -18,6 +29,7 @@ struct AccessibilityScanBundle: Equatable, Sendable {
     let scanResult: AccessibilityScanResult
     let elementIndex: ElementSearchIndex
     let metrics: AccessibilityScanBundleMetrics
+    let targetDescriptors: [AccessibilityTargetDescriptor?]
     let generation: AccessibilityTreeGeneration
     let isChangeMonitoringActive: Bool
 
@@ -25,12 +37,17 @@ struct AccessibilityScanBundle: Equatable, Sendable {
         scanResult: AccessibilityScanResult,
         elementIndex: ElementSearchIndex,
         metrics: AccessibilityScanBundleMetrics,
+        targetDescriptors: [AccessibilityTargetDescriptor?]? = nil,
         generation: AccessibilityTreeGeneration = .initial,
         isChangeMonitoringActive: Bool = false
     ) {
         self.scanResult = scanResult
         self.elementIndex = elementIndex
         self.metrics = metrics
+        self.targetDescriptors = Self.alignedTargetDescriptors(
+            targetDescriptors,
+            candidateCount: scanResult.candidateCount
+        )
         self.generation = generation
         self.isChangeMonitoringActive = isChangeMonitoringActive
     }
@@ -51,7 +68,8 @@ struct AccessibilityScanBundle: Equatable, Sendable {
             metrics: AccessibilityScanBundleMetrics(
                 inspectionCount: scanResult.nodesVisited,
                 childReadCount: 0
-            )
+            ),
+            targetDescriptors: nil
         )
     }
 
@@ -63,9 +81,20 @@ struct AccessibilityScanBundle: Equatable, Sendable {
             scanResult: scanResult,
             elementIndex: elementIndex,
             metrics: metrics,
+            targetDescriptors: targetDescriptors,
             generation: generation,
             isChangeMonitoringActive: isChangeMonitoringActive
         )
+    }
+
+    private static func alignedTargetDescriptors(
+        _ descriptors: [AccessibilityTargetDescriptor?]?,
+        candidateCount: Int
+    ) -> [AccessibilityTargetDescriptor?] {
+        guard let descriptors, descriptors.count == candidateCount else {
+            return Array(repeating: nil, count: candidateCount)
+        }
+        return descriptors
     }
 }
 
@@ -158,6 +187,7 @@ struct AccessibilityScanBundleCollector<Client: AccessibilityElementClient> {
         ),
            state.candidateKeys.insert(BundleCandidateKey(candidate)).inserted {
             state.candidates.append(candidate)
+            state.targetDescriptors.append(AccessibilityTargetDescriptor(axPath: item.axPath))
             state.didAddCandidate = true
         }
 
@@ -229,7 +259,8 @@ struct AccessibilityScanBundleCollector<Client: AccessibilityElementClient> {
             metrics: AccessibilityScanBundleMetrics(
                 inspectionCount: state.inspectionCount,
                 childReadCount: state.childReadCount
-            )
+            ),
+            targetDescriptors: state.targetDescriptors
         )
     }
 
@@ -341,6 +372,7 @@ private struct CollectionState<Element> {
     var inspectionCount = 0
     var childReadCount = 0
     var candidates: [ClickableCandidate] = []
+    var targetDescriptors: [AccessibilityTargetDescriptor?] = []
     var candidateKeys = Set<BundleCandidateKey>()
     var nodes: [SearchableNode] = []
     var nodeIndexByID: [Int: Int] = [:]
