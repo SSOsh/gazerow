@@ -116,6 +116,30 @@ final class OverlayCommandBarModelsTests: XCTestCase {
         XCTAssertEqual(result.panelFrame, CGRect(x: 380, y: 716, width: 680, height: 168))
     }
 
+    func test_makeLayout_Codex처럼_중앙과왼쪽이혼잡하면_오른쪽빈공간에배치한다() {
+        // given
+        let sut = OverlayCommandBarLayoutEngine()
+        let visibleFrame = CGRect(x: 0, y: 0, width: 1920, height: 1255)
+        let avoidingFrames = [
+            CGRect(x: 650, y: 40, width: 32, height: 22),
+            CGRect(x: 650, y: 1180, width: 32, height: 22),
+            CGRect(x: 100, y: 40, width: 32, height: 22),
+            CGRect(x: 100, y: 1180, width: 32, height: 22)
+        ]
+
+        // when
+        let result = sut.makeLayout(
+            visibleFrame: visibleFrame,
+            showsWindowPreviews: false,
+            showsMessage: false,
+            avoidingFrames: avoidingFrames
+        )
+
+        // then
+        XCTAssertEqual(result.commandBarFrame, CGRect(x: 1224, y: 16, width: 680, height: 72))
+        XCTAssertFalse(avoidingFrames.contains { $0.intersects(result.panelFrame) })
+    }
+
     func test_screen_target과교차면적이가장큰화면을선택한다() {
         // given
         let sut = OverlayCommandBarLayoutEngine()

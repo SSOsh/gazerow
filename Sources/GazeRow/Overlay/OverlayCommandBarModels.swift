@@ -272,30 +272,33 @@ struct OverlayCommandBarLayoutEngine {
         let availableWidth = max(0, visibleFrame.width - horizontalInset * 2)
         let commandBarWidth = min(Self.maximumWidth, availableWidth)
         let commandBarHeight = showsMessage ? Self.messageHeight : Self.compactHeight
-        let bottomLayout = makeLayout(
+        let defaultLayout = makeLayout(
             visibleFrame: visibleFrame,
             commandBarWidth: commandBarWidth,
             commandBarHeight: commandBarHeight,
             showsWindowPreviews: showsWindowPreviews,
-            placement: .bottom
+            horizontalInset: horizontalInset,
+            placement: Self.candidatePlacements[0]
         )
 
         guard !avoidingFrames.isEmpty else {
-            return bottomLayout
+            return defaultLayout
         }
 
-        let topLayout = makeLayout(
-            visibleFrame: visibleFrame,
-            commandBarWidth: commandBarWidth,
-            commandBarHeight: commandBarHeight,
-            showsWindowPreviews: showsWindowPreviews,
-            placement: .top
-        )
-
-        return overlapArea(of: topLayout.panelFrame, with: avoidingFrames)
-            < overlapArea(of: bottomLayout.panelFrame, with: avoidingFrames)
-            ? topLayout
-            : bottomLayout
+        return Self.candidatePlacements.dropFirst().reduce(defaultLayout) { bestLayout, placement in
+            let candidateLayout = makeLayout(
+                visibleFrame: visibleFrame,
+                commandBarWidth: commandBarWidth,
+                commandBarHeight: commandBarHeight,
+                showsWindowPreviews: showsWindowPreviews,
+                horizontalInset: horizontalInset,
+                placement: placement
+            )
+            return overlapArea(of: candidateLayout.panelFrame, with: avoidingFrames)
+                < overlapArea(of: bestLayout.panelFrame, with: avoidingFrames)
+                ? candidateLayout
+                : bestLayout
+        }
     }
 
     private func makeLayout(
@@ -303,11 +306,16 @@ struct OverlayCommandBarLayoutEngine {
         commandBarWidth: CGFloat,
         commandBarHeight: CGFloat,
         showsWindowPreviews: Bool,
-        placement: VerticalPlacement
+        horizontalInset: CGFloat,
+        placement: CandidatePlacement
     ) -> OverlayCommandBarLayout {
         let commandBarFrame = CGRect(
-            x: visibleFrame.midX - commandBarWidth / 2,
-            y: placement.commandBarMinY(
+            x: placement.horizontal.commandBarMinX(
+                in: visibleFrame,
+                commandBarWidth: commandBarWidth,
+                horizontalInset: horizontalInset
+            ),
+            y: placement.vertical.commandBarMinY(
                 in: visibleFrame,
                 commandBarHeight: commandBarHeight
             ),
@@ -317,7 +325,7 @@ struct OverlayCommandBarLayoutEngine {
         let previewFrame = showsWindowPreviews
             ? CGRect(
                 x: commandBarFrame.minX,
-                y: placement.previewMinY(for: commandBarFrame),
+                y: placement.vertical.previewMinY(for: commandBarFrame),
                 width: commandBarFrame.width,
                 height: Self.previewHeight
             )
@@ -403,4 +411,39 @@ struct OverlayCommandBarLayoutEngine {
             }
         }
     }
+
+    private enum HorizontalPlacement {
+        case centered
+        case leading
+        case trailing
+
+        func commandBarMinX(
+            in visibleFrame: CGRect,
+            commandBarWidth: CGFloat,
+            horizontalInset: CGFloat
+        ) -> CGFloat {
+            switch self {
+            case .centered:
+                return visibleFrame.midX - commandBarWidth / 2
+            case .leading:
+                return visibleFrame.minX + horizontalInset
+            case .trailing:
+                return visibleFrame.maxX - horizontalInset - commandBarWidth
+            }
+        }
+    }
+
+    private struct CandidatePlacement {
+        let vertical: VerticalPlacement
+        let horizontal: HorizontalPlacement
+    }
+
+    private static let candidatePlacements = [
+        CandidatePlacement(vertical: .bottom, horizontal: .centered),
+        CandidatePlacement(vertical: .top, horizontal: .centered),
+        CandidatePlacement(vertical: .bottom, horizontal: .leading),
+        CandidatePlacement(vertical: .top, horizontal: .leading),
+        CandidatePlacement(vertical: .bottom, horizontal: .trailing),
+        CandidatePlacement(vertical: .top, horizontal: .trailing)
+    ]
 }
