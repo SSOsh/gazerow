@@ -41,6 +41,27 @@ final class CachingScannerTests: XCTestCase {
         XCTAssertEqual(wrapped.bundleScanCallCount, 1)
     }
 
+    func test_scanBundleProgressively는_AX변경후_generation을증가시킨다() async {
+        // given
+        let scanResult = makeScanResult(candidateCount: 1)
+        let wrapped = SpyBundleScanner(bundle: AccessibilityScanBundle.fallback(scanResult: scanResult))
+        let monitor = SpyAccessibilityChangeMonitor(startResult: true)
+        let sut = CachingScanner(wrapped: wrapped, changeMonitor: monitor)
+        let context = makeContext()
+
+        // when
+        let first = await sut.scanBundleProgressively(context: context) { _ in }
+        monitor.sendChange(kind: .layout)
+        let changed = await sut.scanBundleProgressively(context: context) { _ in }
+
+        // then
+        XCTAssertEqual(first.successValue?.generation, .initial)
+        XCTAssertEqual(first.successValue?.isChangeMonitoringActive, true)
+        XCTAssertEqual(changed.successValue?.generation, AccessibilityTreeGeneration(value: 1))
+        XCTAssertEqual(changed.successValue?.isChangeMonitoringActive, true)
+        XCTAssertEqual(wrapped.bundleScanCallCount, 2)
+    }
+
     func test_scanProgressively는_cacheHit이면_부분결과를즉시전달한다() async {
         // given
         let context = makeContext()
@@ -413,7 +434,7 @@ private final class SpyBundleScanner: OverlaySessionBundleProgressiveScanning {
 @MainActor
 private final class SpyAccessibilityChangeMonitor: AccessibilityChangeMonitoring {
     private let startResult: Bool
-    private var onChange: (@MainActor () -> Void)?
+    private var onChange: (@MainActor (AccessibilityChangeMetadata) -> Void)?
     private(set) var startedProcessIdentifiers: [pid_t] = []
     private(set) var stopCallCount = 0
 
@@ -423,7 +444,7 @@ private final class SpyAccessibilityChangeMonitor: AccessibilityChangeMonitoring
 
     func start(
         processIdentifier: pid_t,
-        onChange: @escaping @MainActor () -> Void
+        onChange: @escaping @MainActor (AccessibilityChangeMetadata) -> Void
     ) -> Bool {
         startedProcessIdentifiers.append(processIdentifier)
         self.onChange = startResult ? onChange : nil
@@ -435,9 +456,18 @@ private final class SpyAccessibilityChangeMonitor: AccessibilityChangeMonitoring
         onChange = nil
     }
 
-    func sendChange() {
+    func sendChange(kind: AccessibilityChangeKind = .unknown) {
         let callback = onChange
         onChange = nil
-        callback?()
+        callback?(AccessibilityChangeMetadata(kind: kind))
+    }
+}
+
+private extension Result {
+    var successValue: Success? {
+        guard case .success(let value) = self else {
+            return nil
+        }
+        return value
     }
 }

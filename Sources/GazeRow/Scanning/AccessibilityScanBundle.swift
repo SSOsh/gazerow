@@ -18,6 +18,22 @@ struct AccessibilityScanBundle: Equatable, Sendable {
     let scanResult: AccessibilityScanResult
     let elementIndex: ElementSearchIndex
     let metrics: AccessibilityScanBundleMetrics
+    let generation: AccessibilityTreeGeneration
+    let isChangeMonitoringActive: Bool
+
+    init(
+        scanResult: AccessibilityScanResult,
+        elementIndex: ElementSearchIndex,
+        metrics: AccessibilityScanBundleMetrics,
+        generation: AccessibilityTreeGeneration = .initial,
+        isChangeMonitoringActive: Bool = false
+    ) {
+        self.scanResult = scanResult
+        self.elementIndex = elementIndex
+        self.metrics = metrics
+        self.generation = generation
+        self.isChangeMonitoringActive = isChangeMonitoringActive
+    }
 
     static func fallback(scanResult: AccessibilityScanResult) -> AccessibilityScanBundle {
         let nodes = scanResult.candidates.enumerated().map { index, candidate in
@@ -36,6 +52,19 @@ struct AccessibilityScanBundle: Equatable, Sendable {
                 inspectionCount: scanResult.nodesVisited,
                 childReadCount: 0
             )
+        )
+    }
+
+    func withCacheMetadata(
+        generation: AccessibilityTreeGeneration,
+        isChangeMonitoringActive: Bool
+    ) -> AccessibilityScanBundle {
+        AccessibilityScanBundle(
+            scanResult: scanResult,
+            elementIndex: elementIndex,
+            metrics: metrics,
+            generation: generation,
+            isChangeMonitoringActive: isChangeMonitoringActive
         )
     }
 }

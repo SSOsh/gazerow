@@ -20,6 +20,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
     private var cachedScan: CachedScan?
     private var monitoredProcessIdentifier: pid_t?
     private var isMonitoringChanges = false
+    private var generation = AccessibilityTreeGeneration.initial
 
     init(
         wrapped: any OverlaySessionScanning,
@@ -51,7 +52,9 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         case .success(let scanResult):
             cachedScan = CachedScan(
                 key: key,
-                bundle: AccessibilityScanBundle.fallback(scanResult: scanResult),
+                bundle: bundleWithCurrentCacheMetadata(
+                    AccessibilityScanBundle.fallback(scanResult: scanResult)
+                ),
                 storedAt: now
             )
         case .failure:
@@ -104,8 +107,9 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         } else {
             result = wrapped.scan(context: context).map(AccessibilityScanBundle.fallback)
         }
-        store(result, for: key, at: now)
-        return result
+        let resultWithMetadata = result.map(bundleWithCurrentCacheMetadata)
+        store(resultWithMetadata, for: key, at: now)
+        return resultWithMetadata
     }
 
     /// cache를 즉시 무효화한다.
@@ -142,13 +146,23 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         changeMonitor.stop()
         isMonitoringChanges = changeMonitor.start(
             processIdentifier: processIdentifier,
-            onChange: { [weak self] in
+            onChange: { [weak self] _ in
+                self?.generation = self?.generation.advanced() ?? .initial
                 self?.isMonitoringChanges = false
                 self?.monitoredProcessIdentifier = nil
                 self?.invalidate()
             }
         )
         monitoredProcessIdentifier = isMonitoringChanges ? processIdentifier : nil
+    }
+
+    private func bundleWithCurrentCacheMetadata(
+        _ bundle: AccessibilityScanBundle
+    ) -> AccessibilityScanBundle {
+        bundle.withCacheMetadata(
+            generation: generation,
+            isChangeMonitoringActive: isMonitoringChanges
+        )
     }
 }
 

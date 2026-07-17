@@ -10,7 +10,7 @@ protocol AccessibilityChangeMonitoring: AnyObject {
     /// 대상 프로세스 관찰을 시작한다. 하나 이상의 notification을 등록했을 때 true다.
     func start(
         processIdentifier: pid_t,
-        onChange: @escaping @MainActor () -> Void
+        onChange: @escaping @MainActor (AccessibilityChangeMetadata) -> Void
     ) -> Bool
 
     func stop()
@@ -29,13 +29,13 @@ final class AXAccessibilityChangeMonitor: AccessibilityChangeMonitoring {
     private var runLoopSource: CFRunLoopSource?
     private var registrations: [Registration] = []
     private var processIdentifier: pid_t?
-    private var onChange: (@MainActor () -> Void)?
+    private var onChange: (@MainActor (AccessibilityChangeMetadata) -> Void)?
 
     nonisolated init() {}
 
     func start(
         processIdentifier: pid_t,
-        onChange: @escaping @MainActor () -> Void
+        onChange: @escaping @MainActor (AccessibilityChangeMetadata) -> Void
     ) -> Bool {
         if self.processIdentifier == processIdentifier, observer != nil {
             self.onChange = onChange
@@ -105,10 +105,10 @@ final class AXAccessibilityChangeMonitor: AccessibilityChangeMonitoring {
         onChange = nil
     }
 
-    fileprivate func receiveChange() {
+    fileprivate func receiveChange(notification: String) {
         let callback = onChange
         stop()
-        callback?()
+        callback?(AccessibilityChangeMetadata(kind: Self.changeKind(for: notification)))
     }
 
     private func register(
@@ -160,13 +160,36 @@ final class AXAccessibilityChangeMonitor: AccessibilityChangeMonitoring {
         kAXValueChangedNotification
     ]
 
+    static func changeKind(for notification: String) -> AccessibilityChangeKind {
+        switch notification {
+        case kAXFocusedWindowChangedNotification, kAXMainWindowChangedNotification:
+            .focusedWindow
+        case kAXWindowCreatedNotification:
+            .windowCreated
+        case kAXUIElementDestroyedNotification:
+            .elementDestroyed
+        case kAXMovedNotification, kAXResizedNotification:
+            .geometry
+        case kAXTitleChangedNotification:
+            .title
+        case kAXLayoutChangedNotification:
+            .layout
+        case kAXSelectedChildrenChangedNotification:
+            .selection
+        case kAXValueChangedNotification:
+            .value
+        default:
+            .unknown
+        }
+    }
+
     private struct Registration {
         let element: AXUIElement
         let notification: String
     }
 }
 
-private let accessibilityChangeCallback: AXObserverCallback = { _, _, _, refcon in
+private let accessibilityChangeCallback: AXObserverCallback = { _, _, notification, refcon in
     guard let refcon else {
         return
     }
@@ -174,7 +197,8 @@ private let accessibilityChangeCallback: AXObserverCallback = { _, _, _, refcon 
     let monitor = Unmanaged<AXAccessibilityChangeMonitor>
         .fromOpaque(refcon)
         .takeUnretainedValue()
+    let notificationName = notification as String
     Task { @MainActor in
-        monitor.receiveChange()
+        monitor.receiveChange(notification: notificationName)
     }
 }
