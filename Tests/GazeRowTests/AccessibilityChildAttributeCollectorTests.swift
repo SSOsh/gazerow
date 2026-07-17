@@ -116,6 +116,76 @@ final class AccessibilityChildAttributeCollectorTests: XCTestCase {
         // then
         XCTAssertEqual(result.failureValue, .childrenUnavailable("AXChildren"))
     }
+
+    func test_collect_batch는_모든_attribute를_한번에_읽는다() {
+        // given
+        let sut = AccessibilityChildAttributeCollector<Int>(
+            attributes: ["AXChildren", "AXVisibleChildren", "AXContents"]
+        )
+        var batchRequests: [[String]] = []
+        var fallbackReadCount = 0
+
+        // when
+        let result = sut.collect(
+            readBatch: { attributes in
+                batchRequests.append(attributes)
+                return .success([1, 2, 3])
+            },
+            fallbackReadElements: { _ in
+                fallbackReadCount += 1
+                return .success([])
+            }
+        )
+
+        // then
+        XCTAssertEqual(try? result.get(), [1, 2, 3])
+        XCTAssertEqual(batchRequests, [["AXChildren", "AXVisibleChildren", "AXContents"]])
+        XCTAssertEqual(fallbackReadCount, 0)
+    }
+
+    func test_collect_batch가_실패하면_기존_attribute별_조회로_fallback한다() {
+        // given
+        let sut = AccessibilityChildAttributeCollector<Int>(
+            attributes: ["AXChildren", "AXVisibleChildren"]
+        )
+        var fallbackAttributes: [String] = []
+
+        // when
+        let result = sut.collect(
+            readBatch: { _ in
+                .failure(.childrenUnavailable("batch unsupported"))
+            },
+            fallbackReadElements: { attribute in
+                fallbackAttributes.append(attribute)
+                return attribute == "AXVisibleChildren" ? .success([7]) : .success([])
+            }
+        )
+
+        // then
+        XCTAssertEqual(try? result.get(), [7])
+        XCTAssertEqual(fallbackAttributes, ["AXChildren", "AXVisibleChildren"])
+    }
+
+    func test_collect_batch의_빈결과는_leaf로_처리하고_fallback하지않는다() {
+        // given
+        let sut = AccessibilityChildAttributeCollector<Int>(
+            attributes: ["AXChildren", "AXVisibleChildren"]
+        )
+        var fallbackReadCount = 0
+
+        // when
+        let result = sut.collect(
+            readBatch: { _ in .success([]) },
+            fallbackReadElements: { _ in
+                fallbackReadCount += 1
+                return .success([1])
+            }
+        )
+
+        // then
+        XCTAssertEqual(try? result.get(), [])
+        XCTAssertEqual(fallbackReadCount, 0)
+    }
 }
 
 private extension Result where Failure == AccessibilityScanFailure {

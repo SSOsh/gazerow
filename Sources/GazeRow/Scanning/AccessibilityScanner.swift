@@ -63,7 +63,10 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
 
             nodesVisited += 1
 
-            if let candidate = makeCandidate(from: item.element),
+            if let candidate = makeCandidate(
+                from: item.element,
+                within: context.window.frame
+            ),
                candidateKeys.insert(CandidateKey(candidate)).inserted {
                 candidates.append(candidate)
             }
@@ -97,7 +100,10 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
         dateProvider().timeIntervalSince(startedAt) > configuration.timeout
     }
 
-    private func makeCandidate(from element: Client.Element) -> ClickableCandidate? {
+    private func makeCandidate(
+        from element: Client.Element,
+        within targetFrame: CGRect
+    ) -> ClickableCandidate? {
         let snapshot = client.snapshot(of: element)
         guard let role = snapshot.role,
               !snapshot.isSecureField else {
@@ -124,7 +130,8 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
 
         guard let frame = snapshot.frame,
               frame.width > 0,
-              frame.height > 0 else {
+              frame.height > 0,
+              frame.intersects(targetFrame) else {
             return nil
         }
 

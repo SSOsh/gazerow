@@ -22,9 +22,11 @@ struct CandidateOrdering: Equatable {
     /// 정렬 키는 `(floor(midY / rowBandHeight), midX, frame, role, title, actions)`이며,
     /// 마지막 동률만 원본 index로 stable 하게 유지한다.
     func ordered(_ candidates: [ClickableCandidate]) -> [Int] {
-        candidates.indices.sorted { lhs, rhs in
-            let left = sortKey(for: candidates[lhs])
-            let right = sortKey(for: candidates[rhs])
+        let sortKeys = candidates.map(sortKey)
+
+        return candidates.indices.sorted { lhs, rhs in
+            let left = sortKeys[lhs]
+            let right = sortKeys[rhs]
 
             if left.band != right.band {
                 return left.band < right.band

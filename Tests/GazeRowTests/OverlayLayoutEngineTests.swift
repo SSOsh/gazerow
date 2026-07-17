@@ -303,6 +303,63 @@ final class OverlayLayoutEngineTests: XCTestCase {
         XCTAssertFalse(layout.labels[0].labelFrame.intersects(layout.labels[1].labelFrame))
     }
 
+    func test_makeLayout_대량_centered후보도_모든label과_collisionMetric을_생성한다() {
+        // given
+        let candidates = (0..<675).map { index in
+            let column = index % 45
+            let row = index / 45
+            return makeCandidate(
+                frame: CGRect(
+                    x: CGFloat(column * 50),
+                    y: CGFloat(row * 34),
+                    width: 20,
+                    height: 18
+                )
+            )
+        }
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(
+                labelSize: CGSize(width: 32, height: 22),
+                edgeInset: 0
+            )
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 2_300, height: 600),
+            candidates: candidates
+        )
+
+        // then
+        XCTAssertEqual(layout.labels.count, 675)
+        XCTAssertEqual(Set(layout.labels.map(\.text)).count, 675)
+        XCTAssertEqual(layout.metrics.collisionCount, 0)
+    }
+
+    func test_makeLayout_spatialCollisionIndex도_기존처럼_label당한번만_collision을계수한다() {
+        // given
+        let candidates = [
+            makeCandidate(frame: CGRect(x: 100, y: 100, width: 20, height: 20)),
+            makeCandidate(frame: CGRect(x: 102, y: 102, width: 20, height: 20)),
+            makeCandidate(frame: CGRect(x: 104, y: 104, width: 20, height: 20))
+        ]
+        let sut = OverlayLayoutEngine(
+            configuration: OverlayLayoutConfiguration(
+                labelSize: CGSize(width: 32, height: 22),
+                edgeInset: 0
+            )
+        )
+
+        // when
+        let layout = sut.makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 300, height: 240),
+            candidates: candidates
+        )
+
+        // then
+        XCTAssertEqual(layout.metrics.collisionCount, 2)
+    }
+
     func test_makeLayout_긴_label은_frame폭을_확장한다() {
         // given
         let candidate = makeCandidate(frame: CGRect(x: 140, y: 160, width: 80, height: 40))

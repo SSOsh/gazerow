@@ -44,6 +44,23 @@ struct AccessibilityChildAttributeCollector<Element> {
         return .success([])
     }
 
+    /// child-like 속성을 한 번에 읽고, batch 호출 자체가 실패할 때만 속성별 조회로 폴백한다.
+    ///
+    /// AX API는 지원하지 않는 개별 속성을 결과 배열의 error value로 돌려줄 수 있으므로,
+    /// production batch reader가 유효한 element 배열만 추려 성공으로 반환한다. 전체 batch
+    /// 호출을 지원하지 않는 앱에서는 기존 속성별 수집 경로로 coverage를 유지한다.
+    func collect(
+        readBatch: ([String]) -> Result<[Element], AccessibilityScanFailure>,
+        fallbackReadElements: (String) -> Result<[Element], AccessibilityScanFailure>
+    ) -> Result<[Element], AccessibilityScanFailure> {
+        switch readBatch(attributes) {
+        case .success(let elements):
+            return .success(elements)
+        case .failure:
+            return collect(readElements: fallbackReadElements)
+        }
+    }
+
     private static var defaultAttributes: [String] {
         [
             "AXContents",

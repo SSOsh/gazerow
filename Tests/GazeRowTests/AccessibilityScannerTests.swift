@@ -310,7 +310,11 @@ final class AccessibilityScannerTests: XCTestCase {
         let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
 
         // when
-        let result = sut.scan(context: targetContext)
+        let result = sut.scan(
+            context: targetContext(
+                windowFrame: CGRect(x: 0, y: 0, width: 1_600, height: 1_300)
+            )
+        )
 
         // then
         guard case .success(let scanResult) = result else {
@@ -359,6 +363,79 @@ final class AccessibilityScannerTests: XCTestCase {
             )
         )
         let root = FakeElement(children: [button])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertTrue(scanResult.candidates.isEmpty)
+    }
+
+    func test_scan_대상창밖_candidate는_제외한다() {
+        // given
+        let outsideButton = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.button,
+                title: "Outside",
+                frame: CGRect(x: 900, y: 700, width: 80, height: 24),
+                actions: [AccessibilityAction.press]
+            )
+        )
+        let root = FakeElement(children: [outsideButton])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertTrue(scanResult.candidates.isEmpty)
+        XCTAssertEqual(scanResult.nodesVisited, 2)
+    }
+
+    func test_scan_대상창경계와_일부교차하는_candidate는_수집한다() {
+        // given
+        let partiallyVisibleButton = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.button,
+                title: "Partially visible",
+                frame: CGRect(x: 780, y: 580, width: 80, height: 40),
+                actions: [AccessibilityAction.press]
+            )
+        )
+        let root = FakeElement(children: [partiallyVisibleButton])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let result = sut.scan(context: targetContext)
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidates.map(\.title), ["Partially visible"])
+    }
+
+    func test_scan_크기가_0인_candidate는_창안에있어도_제외한다() {
+        // given
+        let emptyButton = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.button,
+                title: "Empty",
+                frame: CGRect(x: 100, y: 100, width: 0, height: 24),
+                actions: [AccessibilityAction.press]
+            )
+        )
+        let root = FakeElement(children: [emptyButton])
         let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
 
         // when
@@ -589,6 +666,10 @@ final class AccessibilityScannerTests: XCTestCase {
     }
 
     private var targetContext: TargetContext {
+        targetContext(windowFrame: CGRect(x: 0, y: 0, width: 800, height: 600))
+    }
+
+    private func targetContext(windowFrame: CGRect) -> TargetContext {
         TargetContext(
             application: TargetApplication(
                 localizedName: "Finder",
@@ -596,7 +677,7 @@ final class AccessibilityScannerTests: XCTestCase {
                 processIdentifier: 100
             ),
             window: TargetWindow(
-                frame: CGRect(x: 0, y: 0, width: 800, height: 600),
+                frame: windowFrame,
                 title: "Finder"
             ),
             resolvedAt: Date(timeIntervalSince1970: 1_788_748_400)

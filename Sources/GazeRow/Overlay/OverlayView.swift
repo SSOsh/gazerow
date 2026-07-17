@@ -28,6 +28,7 @@ struct OverlayView: View {
     var body: some View {
         let focusStyle = QueryFocusStyle(scope: status.activeScope)
         let highlightFrame = localHighlightFrame
+        let renderingStrategy = OverlayRenderingStrategy.resolve(labelCount: layout.labels.count)
         ZStack(alignment: .topLeading) {
             if showsBoundary {
                 Rectangle()
@@ -35,14 +36,23 @@ struct OverlayView: View {
                     .frame(width: layout.localBounds.width, height: layout.localBounds.height)
             }
 
-            ForEach(layout.labels) { label in
-                OverlayTargetMarkerView(
-                    label: label,
-                    isFocused: label.id == focusedLabelID,
+            if renderingStrategy == .canvas {
+                OverlayTargetMarkerCanvas(
+                    labels: layout.labels,
+                    focusedLabelID: focusedLabelID,
                     appearance: appearance,
                     focusStyle: focusStyle
                 )
-                .frame(width: layout.localBounds.width, height: layout.localBounds.height)
+            } else {
+                ForEach(layout.labels) { label in
+                    OverlayTargetMarkerView(
+                        label: label,
+                        isFocused: label.id == focusedLabelID,
+                        appearance: appearance,
+                        focusStyle: focusStyle
+                    )
+                    .frame(width: layout.localBounds.width, height: layout.localBounds.height)
+                }
             }
 
             if let highlightFrame {
@@ -51,20 +61,30 @@ struct OverlayView: View {
                     .position(x: highlightFrame.midX, y: highlightFrame.midY)
             }
 
-            ForEach(layout.labels) { label in
-                OverlayLabelView(
-                    label: label,
-                    isFocused: label.id == focusedLabelID,
+            if renderingStrategy == .canvas {
+                OverlayLabelCanvas(
+                    labels: layout.labels,
+                    focusedLabelID: focusedLabelID,
+                    status: status,
                     appearance: appearance,
-                    focusStyle: focusStyle,
-                    labelOpacity: OverlayLabelVisibility.opacity(
-                        for: label,
-                        focusedLabelID: focusedLabelID,
-                        status: status
-                    )
+                    focusStyle: focusStyle
                 )
+            } else {
+                ForEach(layout.labels) { label in
+                    OverlayLabelView(
+                        label: label,
+                        isFocused: label.id == focusedLabelID,
+                        appearance: appearance,
+                        focusStyle: focusStyle,
+                        labelOpacity: OverlayLabelVisibility.opacity(
+                            for: label,
+                            focusedLabelID: focusedLabelID,
+                            status: status
+                        )
+                    )
                     .frame(width: label.labelFrame.width, height: label.labelFrame.height)
                     .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
+                }
             }
 
         }
@@ -82,6 +102,137 @@ struct OverlayView: View {
         let localFrame = OverlayCoordinateMapper(targetFrame: layout.targetFrame)
             .mapScreenFrameToLocal(highlightFrame)
         return localFrame.intersection(layout.localBounds).isNull ? nil : localFrame
+    }
+}
+
+/// 대량 target marker를 하나의 Canvas에서 그린다.
+private struct OverlayTargetMarkerCanvas: View {
+    let labels: [OverlayLabel]
+    let focusedLabelID: Int?
+    let appearance: OverlayAppearance
+    let focusStyle: QueryFocusStyle
+
+    var body: some View {
+        Canvas { context, _ in
+            for label in labels {
+                drawMarker(
+                    label,
+                    isFocused: label.id == focusedLabelID,
+                    in: &context
+                )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func drawMarker(
+        _ label: OverlayLabel,
+        isFocused: Bool,
+        in context: inout GraphicsContext
+    ) {
+        let targetFrame = label.candidateFrame.insetBy(dx: -2, dy: -2)
+        let cornerRadius = min(8, max(4, min(targetFrame.width, targetFrame.height) / 4))
+        let targetPath = Path(roundedRect: targetFrame, cornerRadius: cornerRadius)
+        if !isFocused {
+            context.fill(
+                targetPath,
+                with: .color(Color.accentColor.opacity(appearance.markerFillOpacity))
+            )
+        }
+        context.stroke(
+            targetPath,
+            with: .color(markerStrokeColor(isFocused: isFocused)),
+            lineWidth: isFocused ? 2 : 1
+        )
+
+        let dotSize: CGFloat = isFocused ? 8 : 5
+        let dotFrame = CGRect(
+            x: label.anchorPoint.x - dotSize / 2,
+            y: label.anchorPoint.y - dotSize / 2,
+            width: dotSize,
+            height: dotSize
+        )
+        let dotPath = Path(ellipseIn: dotFrame)
+        context.fill(dotPath, with: .color(markerDotColor(isFocused: isFocused)))
+        context.stroke(
+            dotPath,
+            with: .color(Color.white.opacity(isFocused ? 0.95 : 0.65)),
+            lineWidth: 1
+        )
+    }
+
+    private func markerStrokeColor(isFocused: Bool) -> Color {
+        isFocused ? focusStyle.markerColor.opacity(0.98) : Color.accentColor.opacity(0.42)
+    }
+
+    private func markerDotColor(isFocused: Bool) -> Color {
+        isFocused ? focusStyle.markerColor.opacity(1) : Color.white.opacity(0.7)
+    }
+}
+
+/// 대량 label background와 text를 하나의 Canvas에서 그린다.
+private struct OverlayLabelCanvas: View {
+    let labels: [OverlayLabel]
+    let focusedLabelID: Int?
+    let status: OverlayInteractionStatus
+    let appearance: OverlayAppearance
+    let focusStyle: QueryFocusStyle
+
+    var body: some View {
+        Canvas { context, _ in
+            for label in labels {
+                drawLabel(
+                    label,
+                    isFocused: label.id == focusedLabelID,
+                    in: &context
+                )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func drawLabel(
+        _ label: OverlayLabel,
+        isFocused: Bool,
+        in context: inout GraphicsContext
+    ) {
+        let opacity = OverlayLabelVisibility.opacity(
+            for: label,
+            focusedLabelID: focusedLabelID,
+            status: status
+        )
+        let frame = scaledFrame(label.labelFrame, isFocused: isFocused)
+        let path = Path(roundedRect: frame, cornerRadius: 5)
+
+        context.drawLayer { layer in
+            layer.opacity = opacity
+            layer.fill(path, with: .color(labelBackgroundColor(isFocused: isFocused)))
+            layer.stroke(
+                path,
+                with: .color(Color.white.opacity(isFocused ? 1 : 0.9)),
+                lineWidth: isFocused ? 2 : 1
+            )
+            let text = Text(label.displayText)
+                .font(.system(size: isFocused ? 16.2 : 15, weight: .heavy, design: .monospaced))
+                .foregroundStyle(Color.white.opacity(appearance.labelTextOpacity))
+            layer.draw(layer.resolve(text), at: CGPoint(x: frame.midX, y: frame.midY), anchor: .center)
+        }
+    }
+
+    private func scaledFrame(_ frame: CGRect, isFocused: Bool) -> CGRect {
+        guard isFocused else {
+            return frame
+        }
+
+        let widthDelta = frame.width * 0.08
+        let heightDelta = frame.height * 0.08
+        return frame.insetBy(dx: -widthDelta / 2, dy: -heightDelta / 2)
+    }
+
+    private func labelBackgroundColor(isFocused: Bool) -> Color {
+        isFocused
+            ? focusStyle.markerColor.opacity(min(1.0, appearance.labelBackgroundOpacity + 0.16))
+            : Color.accentColor.opacity(appearance.labelBackgroundOpacity)
     }
 }
 

@@ -94,6 +94,24 @@ struct OverlayLayout: Equatable {
     let displayInfo: OverlayDisplayInfo
 }
 
+/// label 수에 따라 overlay 렌더링 구현을 선택한다.
+///
+/// 소규모 layout은 기존 SwiftUI view tree로 시각적 동작을 유지하고, 대규모
+/// layout은 Canvas batch drawing으로 label당 view subtree 생성을 피한다.
+///
+/// @author suho.do
+/// @since 2026-07-17
+enum OverlayRenderingStrategy: Equatable {
+    static let canvasThreshold = 200
+
+    case viewTree
+    case canvas
+
+    static func resolve(labelCount: Int) -> OverlayRenderingStrategy {
+        labelCount >= canvasThreshold ? .canvas : .viewTree
+    }
+}
+
 /// overlay 품질 계측 값.
 ///
 /// @author suho.do

@@ -242,14 +242,43 @@ struct AXAccessibilityElementClient: AccessibilityElementClient {
     }
 
     func children(of element: AXUIElement) -> Result<[AXUIElement], AccessibilityScanFailure> {
-        childAttributeCollector.collect { attribute in
-            copyChildElements(attribute, from: element)
-        }.map { elements in
+        childAttributeCollector.collect(
+            readBatch: { attributes in
+                copyChildElements(attributes, from: element)
+            },
+            fallbackReadElements: { attribute in
+                copyChildElements(attribute, from: element)
+            }
+        ).map { elements in
             AccessibilityElementDeduplicator<AXUIElement> { element in
                 AnyHashable(CFHash(element))
             }
             .deduplicated(elements)
         }
+    }
+
+    /// 여러 child-like AX 속성을 한 IPC로 읽어 유효한 element 배열만 합친다.
+    private func copyChildElements(
+        _ attributes: [String],
+        from element: AXUIElement
+    ) -> Result<[AXUIElement], AccessibilityScanFailure> {
+        var values: CFArray?
+        let error = AXUIElementCopyMultipleAttributeValues(
+            element,
+            attributes as CFArray,
+            AXCopyMultipleAttributeOptions(rawValue: 0),
+            &values
+        )
+
+        guard error == .success,
+              let valueArray = values as? [AnyObject] else {
+            return .failure(.childrenUnavailable(error.localizedDebugDescription))
+        }
+
+        let elements = valueArray.flatMap { value -> [AXUIElement] in
+            value as? [AXUIElement] ?? []
+        }
+        return .success(elements)
     }
 
     private func copyChildElements(

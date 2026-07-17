@@ -21,6 +21,14 @@ struct OverlayLayoutEngine {
         let labelText = resolveLabelText(candidates: candidates, labels: labels)
         let labelPlacement = effectiveLabelPlacement(candidateCount: candidates.count)
         var placedLabels: [OverlayLabel] = []
+        placedLabels.reserveCapacity(candidates.count)
+        var placedFrames: [CGRect] = []
+        if labelPlacement == .adaptive {
+            placedFrames.reserveCapacity(candidates.count)
+        }
+        var collisionIndex = LabelCollisionIndex(
+            cellSize: max(configuration.labelSize.width, configuration.labelSize.height)
+        )
         var collisionCount = 0
         var occlusionCount = 0
 
@@ -30,14 +38,15 @@ struct OverlayLayoutEngine {
             let labelFrame = placeLabelFrame(
                 over: candidateFrame,
                 labelSize: labelSize(for: text),
-                placed: placedLabels.map(\.labelFrame),
+                placed: placedFrames,
                 in: mapper.localBounds,
                 placement: labelPlacement
             )
 
-            if placedLabels.contains(where: { $0.labelFrame.intersects(labelFrame) }) {
+            if collisionIndex.intersects(labelFrame) {
                 collisionCount += 1
             }
+            collisionIndex.insert(labelFrame)
 
             if labelFrame.intersects(candidateFrame) {
                 occlusionCount += 1
@@ -52,6 +61,9 @@ struct OverlayLayoutEngine {
                     anchorPoint: CGPoint(x: candidateFrame.midX, y: candidateFrame.midY)
                 )
             )
+            if labelPlacement == .adaptive {
+                placedFrames.append(labelFrame)
+            }
         }
 
         return OverlayLayout(
@@ -197,5 +209,57 @@ struct OverlayLayoutEngine {
             width: frame.width,
             height: frame.height
         )
+    }
+}
+
+/// label frame collision을 인접 공간 bucket만 조회해 계산하는 index.
+///
+/// 각 label마다 이전 label 전체를 선형 검색하지 않아 centered 대량 layout을
+/// 후보 수에 가깝게 확장한다. 실제 교차 여부는 CGRect로 재확인하므로 bucket
+/// 경계에 걸친 frame도 기존 metric과 동일하게 처리한다.
+private struct LabelCollisionIndex {
+    private let cellSize: CGFloat
+    private var frames: [CGRect] = []
+    private var frameIndicesByCell: [Cell: [Int]] = [:]
+
+    init(cellSize: CGFloat) {
+        self.cellSize = max(1, cellSize)
+    }
+
+    func intersects(_ frame: CGRect) -> Bool {
+        cells(for: frame).contains { cell in
+            frameIndicesByCell[cell]?.contains { frameIndex in
+                frames[frameIndex].intersects(frame)
+            } == true
+        }
+    }
+
+    mutating func insert(_ frame: CGRect) {
+        let frameIndex = frames.count
+        frames.append(frame)
+        for cell in cells(for: frame) {
+            frameIndicesByCell[cell, default: []].append(frameIndex)
+        }
+    }
+
+    private func cells(for frame: CGRect) -> [Cell] {
+        let minColumn = Int((frame.minX / cellSize).rounded(.down))
+        let maxColumn = Int((frame.maxX / cellSize).rounded(.down))
+        let minRow = Int((frame.minY / cellSize).rounded(.down))
+        let maxRow = Int((frame.maxY / cellSize).rounded(.down))
+        var result: [Cell] = []
+        result.reserveCapacity((maxColumn - minColumn + 1) * (maxRow - minRow + 1))
+
+        for column in minColumn...maxColumn {
+            for row in minRow...maxRow {
+                result.append(Cell(column: column, row: row))
+            }
+        }
+        return result
+    }
+
+    private struct Cell: Hashable {
+        let column: Int
+        let row: Int
     }
 }
