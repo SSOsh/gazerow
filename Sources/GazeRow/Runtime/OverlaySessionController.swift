@@ -30,6 +30,7 @@ final class OverlaySessionController {
     private let languageProvider: () -> AppLanguage
     private let activationTracer: any OverlayActivationTracing
     private let clickResultObserver: @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void
+    private let sessionReducer = OverlaySessionReducer()
     private(set) var activeSession: OverlaySessionState?
     private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
     private var activeActivationID: UUID?
@@ -429,20 +430,12 @@ final class OverlaySessionController {
             statusMessage = feedback.message
             statusTone = feedback.tone
         case .appendQuery(let grapheme):
-            session.pendingSecondConfirm = nil
-            appendQuery(grapheme, to: &session)
-            session.queryInput.lastScope = session.queryInput.pinnedScope ?? .elements
+            sessionReducer.appendQuery(grapheme, to: &session)
             prepareIndex(for: session.queryInput.lastScope, session: &session)
             resolveQueryAndPresent(&session)
             return nil
         case .deleteQueryCharacter:
-            session.pendingSecondConfirm = nil
-            if !session.queryInput.buffer.isEmpty {
-                session.queryInput.buffer.removeLast()
-            } else {
-                session.focusEngine.clearLabelBuffer()
-            }
-            if !session.queryInput.buffer.isEmpty {
+            if sessionReducer.deleteInput(from: &session) {
                 prepareIndex(for: session.queryInput.lastScope, session: &session)
                 resolveQueryAndPresent(&session)
                 return nil
@@ -450,30 +443,21 @@ final class OverlaySessionController {
             event = nil
             statusMessage = content.overlayInputClearedText
         case .clearQueryBuffer:
-            session.pendingSecondConfirm = nil
-            session.queryInput = QueryInputState(lastScope: session.queryInput.lastScope)
-            session.focusEngine.clearLabelBuffer()
-            session.elementMatches = []
-            session.elementMatchIndex = 0
+            sessionReducer.clearQuery(in: &session)
             event = nil
             statusMessage = content.overlayInputClearedText
         case .clearLabelBuffer:
-            session.pendingSecondConfirm = nil
-            session.focusEngine.clearLabelBuffer()
-            session.queryInput.buffer = ""
-            session.queryInput.pinnedScope = nil
+            sessionReducer.clearLabelInput(in: &session)
             event = nil
             statusMessage = content.overlayInputClearedText
         case .pinScope(let scope):
-            session.pendingSecondConfirm = nil
-            session.queryInput.pinnedScope = scope
-            session.queryInput.lastScope = scope
+            sessionReducer.pinScope(scope, in: &session)
             prepareIndex(for: scope, session: &session)
             event = nil
             statusMessage = content.overlayPinnedText(scope)
         case .selectScope(let scope):
-            session.pendingSecondConfirm = nil
-            selectScope(scope, session: &session)
+            sessionReducer.selectScope(scope, in: &session)
+            prepareIndex(for: scope, session: &session)
             if session.queryInput.buffer.isEmpty {
                 event = nil
                 statusMessage = scope == .labels ? content.overlayLabelsSelectedText : content.overlayPinnedText(scope)
@@ -482,15 +466,15 @@ final class OverlaySessionController {
                 return nil
             }
         case .cycleMatch(let forward):
-            session.pendingSecondConfirm = nil
-            if shouldCycleQueryMatches(session, scope: .elements) {
+            sessionReducer.clearSecondConfirm(in: &session)
+            if sessionReducer.shouldCycleQueryMatches(session, scope: .elements) {
                 ensureSearchableElementIndexIfNeeded(session: &session)
-                cycleElementMatch(forward: forward, session: &session)
+                sessionReducer.cycleElementMatch(forward: forward, in: &session)
                 resolveQueryAndPresent(&session)
                 return nil
-            } else if shouldCycleQueryMatches(session, scope: .windows) {
+            } else if sessionReducer.shouldCycleQueryMatches(session, scope: .windows) {
                 ensureWindowIndexIfNeeded(session: &session)
-                cycleWindowMatch(forward: forward, session: &session)
+                sessionReducer.cycleWindowMatch(forward: forward, in: &session)
                 resolveQueryAndPresent(&session)
                 return nil
             } else {
@@ -903,14 +887,6 @@ final class OverlaySessionController {
         session.windowIndex = windowSearchIndexProvider()
     }
 
-    private func appendQuery(_ grapheme: String, to session: inout OverlaySessionState) {
-        if session.queryInput.buffer.isEmpty || grapheme.count > 1 {
-            session.queryInput.buffer = grapheme
-        } else {
-            session.queryInput.buffer.append(grapheme)
-        }
-    }
-
     /// query buffer 재해석 결과를 세션에 반영하고 overlay 상태를 즉시 갱신한다.
     ///
     /// appendQuery/delete/selectScope/cycleMatch 경로가 공유하던 동일 패턴을 한곳으로 모은다.
@@ -957,33 +933,6 @@ final class OverlaySessionController {
         return resolution
     }
 
-    private func cycleElementMatch(forward: Bool, session: inout OverlaySessionState) {
-        guard !session.elementMatches.isEmpty else {
-            return
-        }
-
-        let delta = forward ? 1 : -1
-        session.elementMatchIndex = (
-            session.elementMatchIndex + delta + session.elementMatches.count
-        ) % session.elementMatches.count
-    }
-
-    private func cycleWindowMatch(forward: Bool, session: inout OverlaySessionState) {
-        guard !session.windowMatches.isEmpty else {
-            return
-        }
-
-        let delta = forward ? 1 : -1
-        session.windowMatchIndex = (
-            session.windowMatchIndex + delta + session.windowMatches.count
-        ) % session.windowMatches.count
-    }
-
-    private func shouldCycleQueryMatches(_ session: OverlaySessionState, scope: QueryScope) -> Bool {
-        !session.queryInput.buffer.isEmpty
-            && (session.queryInput.pinnedScope ?? session.queryInput.lastScope) == scope
-    }
-
     private func prepareIndex(for scope: QueryScope, session: inout OverlaySessionState) {
         switch scope {
         case .labels:
@@ -992,22 +941,6 @@ final class OverlaySessionController {
             ensureSearchableElementIndexIfNeeded(session: &session)
         case .windows:
             ensureWindowIndexIfNeeded(session: &session)
-        }
-    }
-
-    private func selectScope(_ scope: QueryScope, session: inout OverlaySessionState) {
-        switch scope {
-        case .labels:
-            session.queryInput = QueryInputState(lastScope: .labels)
-            session.elementMatches = []
-            session.elementMatchIndex = 0
-            session.windowMatches = []
-            session.windowMatchIndex = 0
-            session.focusEngine.clearLabelBuffer()
-        case .elements, .windows:
-            session.queryInput.pinnedScope = scope
-            session.queryInput.lastScope = scope
-            prepareIndex(for: scope, session: &session)
         }
     }
 
