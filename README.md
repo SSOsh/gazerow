@@ -10,8 +10,32 @@ focus를 맞춘 뒤 키로 확인하면 마우스 없이 클릭됩니다. (Homer
 - macOS 손쉬운 사용(Accessibility) 트리를 읽어 동작하며, 모든 데이터는 로컬에만 있습니다.
 - 접근성/보조공학 제품이나 의료·안전 필수 용도로 설계된 제품이 아닙니다.
 
-> **개발 진행 중**입니다. 아직 정식 배포판은 없으며, 현재는 소스에서 직접 빌드해
-> 사용합니다. 앱 지원 범위와 동작은 계속 바뀔 수 있습니다.
+> **개발 진행 중**입니다. 무료 베타 ZIP은 Apple Developer ID 서명과 공증을 받지
+> 않았습니다. 출처를 신뢰할 수 있을 때만 아래 보안 예외 절차로 실행하세요.
+
+---
+
+## 무료 베타 설치
+
+무료 베타는 Xcode나 터미널 없이 실행할 수 있는 Universal `gazerow.app`을 포함하며
+Apple Silicon과 Intel Mac을 모두 지원합니다.
+
+1. [GitHub Releases](https://github.com/SSOsh/gazerow/releases)에서
+   `gazerow-*-macos-universal.zip`을 내려받아 압축을 풉니다.
+2. `gazerow.app`을 **응용 프로그램(Applications)** 폴더로 옮깁니다.
+3. 앱을 더블클릭해 한 번 실행을 시도합니다. 미확인 개발자 경고로 실행이 차단됩니다.
+4. **시스템 설정 → 개인정보 보호 및 보안 → 보안**에서 gazerow의
+   **확인 없이 열기(Open Anyway)**를 선택합니다.
+5. gazerow를 다시 실행하고 앱 안내에 따라 **손쉬운 사용 권한**을 허용합니다.
+
+> Apple 공증을 받지 않은 무료 베타이므로 macOS의 경고는 정상입니다. ZIP과 함께
+> 제공되는 `.sha256` 파일로 무결성을 확인할 수 있습니다. 새 베타의 ad-hoc 서명이
+> 달라지면 손쉬운 사용 권한을 다시 허용해야 할 수 있습니다.
+
+```bash
+# 선택 사항: ZIP과 .sha256 파일을 같은 폴더에 둔 뒤 무결성 확인
+shasum -a 256 -c gazerow-0.1.0-beta.1-macos-universal.zip.sha256
+```
 
 ---
 
@@ -145,9 +169,9 @@ gazerow에 손쉬운 사용 권한이 있을 때만 동작합니다.
 | 필요 권한 | 손쉬운 사용(Accessibility) |
 | 언어 | 한국어 / English |
 
-현재는 소스에서 직접 빌드해 실행합니다. Swift Package Manager 기반이며
-**Xcode 15 이상(Swift 5.9 이상) toolchain**이 필요합니다. macOS 14와 SwiftUI
-Observation API를 사용하므로 Xcode 14 이하는 지원 대상이 아닙니다.
+베타 ZIP 사용에는 Xcode가 필요하지 않습니다. 소스에서 직접 빌드할 때는 Swift
+Package Manager 기반으로 **Xcode 15 이상(Swift 5.9 이상) toolchain**이 필요합니다.
+macOS 14와 SwiftUI Observation API를 사용하므로 Xcode 14 이하는 지원 대상이 아닙니다.
 
 ```bash
 # Xcode 라이선스 최초 1회 동의 (필요 시)
@@ -165,6 +189,9 @@ scripts/run_local_app.sh
 
 # 실행 중인 기존 gazerow를 정상 종료한 뒤 새 빌드로 교체
 scripts/run_local_app.sh --replace-running
+
+# 무료 Universal 베타 ZIP과 SHA-256 체크섬 생성
+scripts/package_beta_release.sh
 ```
 
 > **주의**: 여러 Xcode 버전이 설치되어 있으면 위처럼 `DEVELOPER_DIR`로 원하는
