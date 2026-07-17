@@ -294,6 +294,63 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_show는_하단입력label과겹치면_commandPanel을상단으로옮긴다() {
+        // given
+        let screen = OverlayScreenDescriptor(
+            frame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            scaleFactor: 2
+        )
+        let sut = OverlayWindowController(
+            screenFrameProvider: { [screen.frame] },
+            screenDescriptorProvider: { [screen] },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        let layout = makeLayout(
+            targetFrame: screen.frame,
+            localBounds: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            labelFrame: CGRect(x: 700, y: 820, width: 32, height: 22)
+        )
+
+        // when
+        sut.show(layout: layout)
+
+        // then
+        XCTAssertEqual(sut.commandBarPanelFrame, CGRect(x: 380, y: 812, width: 680, height: 72))
+
+        sut.close()
+    }
+
+    func test_show는_initialStatus가_failure이면_message높이로배치한다() {
+        // given
+        let screen = OverlayScreenDescriptor(
+            frame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            scaleFactor: 2
+        )
+        let sut = OverlayWindowController(
+            screenFrameProvider: { [screen.frame] },
+            screenDescriptorProvider: { [screen] },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+
+        // when
+        sut.show(
+            layout: makeLayout(),
+            initialStatus: OverlayInteractionStatus(phase: .failure),
+            onPresentationEvent: { _ in }
+        )
+
+        // then
+        XCTAssertEqual(sut.commandBarPanelFrame, CGRect(x: 380, y: 16, width: 680, height: 88))
+
+        sut.close()
+    }
+
     func test_OverlayKeyboardEventTapContext_매핑되지_않는_keyDown은_통과시킨다() {
         // given
         let sut = OverlayKeyboardEventTapContext { _ in }
@@ -485,17 +542,19 @@ final class OverlayWindowControllerTests: XCTestCase {
     }
 
     private func makeLayout(
-        targetFrame: CGRect = CGRect(x: 0, y: 0, width: 200, height: 120)
+        targetFrame: CGRect = CGRect(x: 0, y: 0, width: 200, height: 120),
+        localBounds: CGRect = CGRect(x: 0, y: 0, width: 200, height: 120),
+        labelFrame: CGRect = CGRect(x: 20, y: 20, width: 32, height: 22)
     ) -> OverlayLayout {
         OverlayLayout(
             targetFrame: targetFrame,
-            localBounds: CGRect(x: 0, y: 0, width: 200, height: 120),
+            localBounds: localBounds,
             labels: [
                 OverlayLabel(
                     id: 0,
                     text: "AA",
                     candidateFrame: CGRect(x: 20, y: 20, width: 30, height: 20),
-                    labelFrame: CGRect(x: 20, y: 20, width: 32, height: 22),
+                    labelFrame: labelFrame,
                     anchorPoint: CGPoint(x: 35, y: 30)
                 )
             ],

@@ -14,6 +14,7 @@ final class OverlayWindowController {
     private var commandBarHostingView: NSHostingView<OverlayCommandBarPanelView>?
     private var currentLayout: OverlayLayout?
     private var currentCommandBarVisibleFrame: CGRect?
+    private var currentCommandBarAvoidingFrames: [CGRect] = []
     private var currentStatus = OverlayInteractionStatus()
     private let layoutEngine: OverlayLayoutEngine
     private let commandBarLayoutEngine: OverlayCommandBarLayoutEngine
@@ -155,7 +156,12 @@ final class OverlayWindowController {
             containing: targetPanelFrame,
             in: screenDescriptorProvider()
         )
-        let commandLayout = commandBarLayout(for: currentStatus, visibleFrame: targetScreen.visibleFrame)
+        let avoidingFrames = commandBarAvoidingFrames(for: layout, mapper: mapper)
+        let commandLayout = commandBarLayout(
+            for: initialStatus,
+            visibleFrame: targetScreen.visibleFrame,
+            avoidingFrames: avoidingFrames
+        )
         let targetPanel = makePanel(frame: targetPanelFrame)
         let commandBarPanel = makePanel(frame: commandLayout.panelFrame)
 
@@ -172,6 +178,7 @@ final class OverlayWindowController {
         self.targetPanel = targetPanel
         self.commandBarPanel = commandBarPanel
         currentCommandBarVisibleFrame = targetScreen.visibleFrame
+        currentCommandBarAvoidingFrames = avoidingFrames
         currentLayout = layout
         currentStatus = initialStatus
         render(layout: layout, status: currentStatus)
@@ -245,6 +252,7 @@ final class OverlayWindowController {
         commandBarHostingView = nil
         currentLayout = nil
         currentCommandBarVisibleFrame = nil
+        currentCommandBarAvoidingFrames = []
         currentStatus = OverlayInteractionStatus()
     }
 
@@ -298,7 +306,8 @@ final class OverlayWindowController {
 
         let commandLayout = commandBarLayout(
             for: status,
-            visibleFrame: currentCommandBarVisibleFrame
+            visibleFrame: currentCommandBarVisibleFrame,
+            avoidingFrames: currentCommandBarAvoidingFrames
         )
         commandBarPanel.setFrame(commandLayout.panelFrame, display: false)
         let commandBarView = OverlayCommandBarPanelView(
@@ -369,13 +378,28 @@ final class OverlayWindowController {
 
     private func commandBarLayout(
         for status: OverlayInteractionStatus,
-        visibleFrame: CGRect
+        visibleFrame: CGRect,
+        avoidingFrames: [CGRect]
     ) -> OverlayCommandBarLayout {
         commandBarLayoutEngine.makeLayout(
             visibleFrame: visibleFrame,
             showsWindowPreviews: !status.windowMatchPreviews.isEmpty,
-            showsMessage: status.phase == .awaitingRiskConfirmation || status.phase == .failure
+            showsMessage: status.phase == .awaitingRiskConfirmation || status.phase == .failure,
+            avoidingFrames: avoidingFrames
         )
+    }
+
+    private func commandBarAvoidingFrames(
+        for layout: OverlayLayout,
+        mapper: OverlayScreenFrameMapper
+    ) -> [CGRect] {
+        layout.labels.map { label in
+            let screenFrame = label.labelFrame.offsetBy(
+                dx: layout.targetFrame.minX,
+                dy: layout.targetFrame.minY
+            )
+            return mapper.appKitFrame(fromAXFrame: screenFrame)
+        }
     }
 
     private static func defaultScreenDescriptors() -> [OverlayScreenDescriptor] {
