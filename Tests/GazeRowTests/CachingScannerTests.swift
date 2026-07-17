@@ -41,6 +41,70 @@ final class CachingScannerTests: XCTestCase {
         XCTAssertEqual(wrapped.bundleScanCallCount, 1)
     }
 
+    func test_scan은_cacheHit과miss사유를_비식별event로기록한다() {
+        // given
+        var now = Date(timeIntervalSince1970: 1_000)
+        var events: [AccessibilityScanCacheEvent] = []
+        let sut = CachingScanner(
+            wrapped: SpyScanner(
+                results: [
+                    .success(makeScanResult(candidateCount: 1)),
+                    .success(makeScanResult(candidateCount: 2))
+                ]
+            ),
+            timeToLive: 0.5,
+            cacheEventRecorder: { events.append($0) },
+            dateProvider: { now }
+        )
+        let context = makeContext()
+
+        // when
+        _ = sut.scan(context: context)
+        _ = sut.scan(context: context)
+        now = now.addingTimeInterval(0.6)
+        _ = sut.scan(context: context)
+
+        // then
+        XCTAssertEqual(events, [.miss(.empty), .hit, .miss(.expired)])
+        XCTAssertEqual(events.map(\.code), ["miss_empty", "hit", "miss_expired"])
+    }
+
+    func test_invalidate와_AX변경은_각각의비식별사유를기록한다() {
+        // given
+        var events: [AccessibilityScanCacheEvent] = []
+        let monitor = SpyAccessibilityChangeMonitor(startResult: true)
+        let sut = CachingScanner(
+            wrapped: SpyScanner(
+                results: [
+                    .success(makeScanResult(candidateCount: 1)),
+                    .success(makeScanResult(candidateCount: 1))
+                ]
+            ),
+            changeMonitor: monitor,
+            cacheEventRecorder: { events.append($0) }
+        )
+        let context = makeContext()
+
+        // when
+        _ = sut.scan(context: context)
+        sut.invalidate()
+        _ = sut.scan(context: context)
+        monitor.sendChange(kind: .layout)
+
+        // then
+        XCTAssertTrue(events.contains(.invalidated(.manual)))
+        XCTAssertTrue(events.contains(.invalidated(.accessibilityChange(.layout))))
+        XCTAssertEqual(
+            events.filter {
+                if case .invalidated = $0 {
+                    return true
+                }
+                return false
+            }.map(\.code),
+            ["invalidated_manual", "invalidated_ax_layout"]
+        )
+    }
+
     func test_scanBundleProgressively는_AX변경후_generation을증가시킨다() async {
         // given
         let scanResult = makeScanResult(candidateCount: 1)

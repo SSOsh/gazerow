@@ -18,6 +18,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
     private let dateProvider: () -> Date
     private let changeMonitor: (any AccessibilityChangeMonitoring)?
     private let generationStore: AccessibilityTreeGenerationStore
+    private let cacheEventRecorder: (AccessibilityScanCacheEvent) -> Void
     private var cachedScan: CachedScan?
     private var monitoredProcessIdentifier: pid_t?
     private var isMonitoringChanges = false
@@ -28,6 +29,11 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         monitoredTimeToLive: TimeInterval = 3,
         changeMonitor: (any AccessibilityChangeMonitoring)? = nil,
         generationStore: AccessibilityTreeGenerationStore = AccessibilityTreeGenerationStore(),
+        cacheEventRecorder: @escaping (AccessibilityScanCacheEvent) -> Void = { event in
+            AppLogger.overlay.info(
+                "AX scan cache event=\(event.code, privacy: .public)"
+            )
+        },
         dateProvider: @escaping () -> Date = Date.init
     ) {
         self.wrapped = wrapped
@@ -35,6 +41,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         self.monitoredTimeToLive = max(self.timeToLive, monitoredTimeToLive)
         self.changeMonitor = changeMonitor
         self.generationStore = generationStore
+        self.cacheEventRecorder = cacheEventRecorder
         self.dateProvider = dateProvider
     }
 
@@ -46,8 +53,10 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         if let cachedScan,
            cachedScan.key == key,
            now.timeIntervalSince(cachedScan.storedAt) <= effectiveTimeToLive {
+            cacheEventRecorder(.hit)
             return .success(cachedScan.bundle.scanResult)
         }
+        cacheEventRecorder(.miss(cacheMissReason(for: key, at: now)))
 
         let result = wrapped.scan(context: context)
         switch result {
@@ -61,7 +70,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
                 storedAt: now
             )
         case .failure:
-            cachedScan = nil
+            invalidateCache(reason: .scanFailure)
         }
         return result
     }
@@ -85,6 +94,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         if let cachedScan,
            cachedScan.key == key,
            now.timeIntervalSince(cachedScan.storedAt) <= effectiveTimeToLive {
+            cacheEventRecorder(.hit)
             let scanResult = cachedScan.bundle.scanResult
             onProgress(
                 AccessibilityScanProgress(
@@ -94,6 +104,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
             )
             return .success(cachedScan.bundle)
         }
+        cacheEventRecorder(.miss(cacheMissReason(for: key, at: now)))
 
         let result: Result<AccessibilityScanBundle, AccessibilityScanFailure>
         if let bundleScanner = wrapped as? any OverlaySessionBundleProgressiveScanning {
@@ -122,7 +133,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
 
     /// cache를 즉시 무효화한다.
     func invalidate() {
-        cachedScan = nil
+        invalidateCache(reason: .manual)
     }
 
     private func store(
@@ -134,7 +145,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         case .success(let bundle):
             cachedScan = CachedScan(key: key, bundle: bundle, storedAt: date)
         case .failure:
-            cachedScan = nil
+            invalidateCache(reason: .scanFailure)
         }
     }
 
@@ -164,7 +175,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
                 self.generationStore.recordChange(metadata, for: processIdentifier)
                 self.isMonitoringChanges = false
                 self.monitoredProcessIdentifier = nil
-                self.invalidate()
+                self.invalidateCache(reason: .accessibilityChange(metadata.kind))
             }
         )
         monitoredProcessIdentifier = isMonitoringChanges ? processIdentifier : nil
@@ -180,6 +191,26 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
             generation: snapshot.generation,
             isChangeMonitoringActive: snapshot.isChangeMonitoringActive
         )
+    }
+
+    private func cacheMissReason(
+        for key: ScanCacheKey,
+        at date: Date
+    ) -> AccessibilityScanCacheMissReason {
+        guard let cachedScan else {
+            return .empty
+        }
+        guard cachedScan.key == key else {
+            return .targetChanged
+        }
+        return date.timeIntervalSince(cachedScan.storedAt) > effectiveTimeToLive
+            ? .expired
+            : .empty
+    }
+
+    private func invalidateCache(reason: AccessibilityScanCacheInvalidationReason) {
+        cachedScan = nil
+        cacheEventRecorder(.invalidated(reason))
     }
 }
 
