@@ -45,4 +45,58 @@ final class AccessibilityTreeGenerationTests: XCTestCase {
             .unknown
         )
     }
+
+    @MainActor
+    func test_store는_process별_generation과monitor상태를분리한다() {
+        // given
+        let sut = AccessibilityTreeGenerationStore()
+        sut.setMonitoringActive(true, for: 100)
+
+        // when
+        let changed = sut.recordChange(
+            AccessibilityChangeMetadata(kind: .layout),
+            for: 100
+        )
+
+        // then
+        XCTAssertEqual(
+            changed,
+            AccessibilityTreeGenerationSnapshot(
+                generation: AccessibilityTreeGeneration(value: 1),
+                isChangeMonitoringActive: false,
+                lastChangeKind: .layout
+            )
+        )
+        XCTAssertEqual(
+            sut.snapshot(for: 200),
+            AccessibilityTreeGenerationSnapshot(
+                generation: .initial,
+                isChangeMonitoringActive: false,
+                lastChangeKind: nil
+            )
+        )
+    }
+
+    @MainActor
+    func test_store는_monitor재시작시_generation과마지막변경종류를유지한다() {
+        // given
+        let sut = AccessibilityTreeGenerationStore()
+        _ = sut.recordChange(
+            AccessibilityChangeMetadata(kind: .geometry),
+            for: 100
+        )
+
+        // when
+        sut.setMonitoringActive(true, for: 100)
+
+        // then
+        XCTAssertEqual(
+            sut.snapshot(for: 100),
+            AccessibilityTreeGenerationSnapshot(
+                generation: AccessibilityTreeGeneration(value: 1),
+                isChangeMonitoringActive: true,
+                lastChangeKind: .geometry
+            )
+        )
+    }
 }

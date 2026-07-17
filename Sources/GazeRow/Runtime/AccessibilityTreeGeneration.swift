@@ -44,3 +44,57 @@ enum AccessibilityChangeKind: String, Equatable, Sendable {
 struct AccessibilityChangeMetadata: Equatable, Sendable {
     let kind: AccessibilityChangeKind
 }
+
+/// 프로세스별 AX tree generation과 observer 상태 snapshot.
+///
+/// @author suho.do
+/// @since 2026-07-17
+struct AccessibilityTreeGenerationSnapshot: Equatable, Sendable {
+    let generation: AccessibilityTreeGeneration
+    let isChangeMonitoringActive: Bool
+    let lastChangeKind: AccessibilityChangeKind?
+}
+
+/// scanner와 click revalidator가 공유하는 프로세스별 AX tree 상태 저장소.
+///
+/// @author suho.do
+/// @since 2026-07-17
+@MainActor
+final class AccessibilityTreeGenerationStore {
+    private var snapshots: [pid_t: AccessibilityTreeGenerationSnapshot] = [:]
+
+    func snapshot(for processIdentifier: pid_t) -> AccessibilityTreeGenerationSnapshot {
+        snapshots[processIdentifier] ?? AccessibilityTreeGenerationSnapshot(
+            generation: .initial,
+            isChangeMonitoringActive: false,
+            lastChangeKind: nil
+        )
+    }
+
+    func setMonitoringActive(
+        _ isActive: Bool,
+        for processIdentifier: pid_t
+    ) {
+        let current = snapshot(for: processIdentifier)
+        snapshots[processIdentifier] = AccessibilityTreeGenerationSnapshot(
+            generation: current.generation,
+            isChangeMonitoringActive: isActive,
+            lastChangeKind: current.lastChangeKind
+        )
+    }
+
+    @discardableResult
+    func recordChange(
+        _ metadata: AccessibilityChangeMetadata,
+        for processIdentifier: pid_t
+    ) -> AccessibilityTreeGenerationSnapshot {
+        let current = snapshot(for: processIdentifier)
+        let changed = AccessibilityTreeGenerationSnapshot(
+            generation: current.generation.advanced(),
+            isChangeMonitoringActive: false,
+            lastChangeKind: metadata.kind
+        )
+        snapshots[processIdentifier] = changed
+        return changed
+    }
+}

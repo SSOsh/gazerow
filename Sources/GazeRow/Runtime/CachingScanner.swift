@@ -17,22 +17,24 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
     private let monitoredTimeToLive: TimeInterval
     private let dateProvider: () -> Date
     private let changeMonitor: (any AccessibilityChangeMonitoring)?
+    private let generationStore: AccessibilityTreeGenerationStore
     private var cachedScan: CachedScan?
     private var monitoredProcessIdentifier: pid_t?
     private var isMonitoringChanges = false
-    private var generation = AccessibilityTreeGeneration.initial
 
     init(
         wrapped: any OverlaySessionScanning,
         timeToLive: TimeInterval = 0.5,
         monitoredTimeToLive: TimeInterval = 3,
         changeMonitor: (any AccessibilityChangeMonitoring)? = nil,
+        generationStore: AccessibilityTreeGenerationStore = AccessibilityTreeGenerationStore(),
         dateProvider: @escaping () -> Date = Date.init
     ) {
         self.wrapped = wrapped
         self.timeToLive = max(0, timeToLive)
         self.monitoredTimeToLive = max(self.timeToLive, monitoredTimeToLive)
         self.changeMonitor = changeMonitor
+        self.generationStore = generationStore
         self.dateProvider = dateProvider
     }
 
@@ -53,7 +55,8 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
             cachedScan = CachedScan(
                 key: key,
                 bundle: bundleWithCurrentCacheMetadata(
-                    AccessibilityScanBundle.fallback(scanResult: scanResult)
+                    AccessibilityScanBundle.fallback(scanResult: scanResult),
+                    processIdentifier: context.application.processIdentifier
                 ),
                 storedAt: now
             )
@@ -107,7 +110,12 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         } else {
             result = wrapped.scan(context: context).map(AccessibilityScanBundle.fallback)
         }
-        let resultWithMetadata = result.map(bundleWithCurrentCacheMetadata)
+        let resultWithMetadata = result.map {
+            bundleWithCurrentCacheMetadata(
+                $0,
+                processIdentifier: context.application.processIdentifier
+            )
+        }
         store(resultWithMetadata, for: key, at: now)
         return resultWithMetadata
     }
@@ -143,25 +151,34 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
             return
         }
 
+        if let monitoredProcessIdentifier {
+            generationStore.setMonitoringActive(false, for: monitoredProcessIdentifier)
+        }
         changeMonitor.stop()
         isMonitoringChanges = changeMonitor.start(
             processIdentifier: processIdentifier,
-            onChange: { [weak self] _ in
-                self?.generation = self?.generation.advanced() ?? .initial
-                self?.isMonitoringChanges = false
-                self?.monitoredProcessIdentifier = nil
-                self?.invalidate()
+            onChange: { [weak self] metadata in
+                guard let self else {
+                    return
+                }
+                self.generationStore.recordChange(metadata, for: processIdentifier)
+                self.isMonitoringChanges = false
+                self.monitoredProcessIdentifier = nil
+                self.invalidate()
             }
         )
         monitoredProcessIdentifier = isMonitoringChanges ? processIdentifier : nil
+        generationStore.setMonitoringActive(isMonitoringChanges, for: processIdentifier)
     }
 
     private func bundleWithCurrentCacheMetadata(
-        _ bundle: AccessibilityScanBundle
+        _ bundle: AccessibilityScanBundle,
+        processIdentifier: pid_t
     ) -> AccessibilityScanBundle {
-        bundle.withCacheMetadata(
-            generation: generation,
-            isChangeMonitoringActive: isMonitoringChanges
+        let snapshot = generationStore.snapshot(for: processIdentifier)
+        return bundle.withCacheMetadata(
+            generation: snapshot.generation,
+            isChangeMonitoringActive: snapshot.isChangeMonitoringActive
         )
     }
 }
