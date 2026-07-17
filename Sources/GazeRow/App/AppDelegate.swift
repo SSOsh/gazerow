@@ -243,11 +243,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showSupportDonation() {
         NSApp.activate(ignoringOtherApps: true)
 
+        let content = localizedContent
         let alert = NSAlert()
-        alert.messageText = localizedContent.supportDonationTitle
-        alert.informativeText = localizedContent.supportDonationMessage
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
+        alert.messageText = content.supportDonationTitle
+        alert.informativeText = content.supportDonationMessage
+        alert.addButton(withTitle: content.supportDonationCopyButton)
+        alert.addButton(withTitle: content.supportDonationCloseButton)
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            let copied = SupportDonationClipboard().copyAccountNumber()
+            AppLogger.lifecycle.info("support donation account copied success=\(copied, privacy: .public)")
+        }
 
         AppLogger.lifecycle.info("support donation opened")
     }

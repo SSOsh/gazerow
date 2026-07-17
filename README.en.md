@@ -182,7 +182,8 @@ button in Settings or the launch option above to open the permission flow.
 ## Support
 
 If gazerow helps your workflow, support development via **Support gazerow** in the
-menu bar. (Account details to be added later.)
+menu bar. Choose **Copy Account Number** to copy the KakaoBank account
+`3333-26-7184989` to the clipboard.
 
 ---
 

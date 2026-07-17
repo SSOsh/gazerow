@@ -100,6 +100,8 @@ enum AppContent {
         let supportDonationMenuTitle: String
         let supportDonationTitle: String
         let supportDonationMessage: String
+        let supportDonationCopyButton: String
+        let supportDonationCloseButton: String
         let queryScopeWindows: String
         let queryScopeElements: String
         let queryScopeLabels: String
@@ -613,11 +615,17 @@ enum AppContent {
     /// 후원 안내 alert 제목.
     static let supportDonationTitle = "Support gazerow"
 
+    /// 후원 계좌 은행명.
+    static let supportDonationBankName = "카카오뱅크"
+
+    /// 클립보드에 복사할 후원 계좌번호.
+    static let supportDonationAccountNumber = "3333-26-7184989"
+
     /// 후원 안내 alert 본문.
     static let supportDonationMessage = """
     gazerow가 작업 흐름에 도움이 됐다면 커피값 후원으로 개발을 응원해 주세요.
 
-    계좌번호는 추후 추가 예정입니다.
+    \(supportDonationBankName) \(supportDonationAccountNumber)
     """
 
     // MARK: - Shortcuts
@@ -736,6 +744,8 @@ enum AppContent {
         supportDonationMenuTitle: supportDonationMenuTitle,
         supportDonationTitle: supportDonationTitle,
         supportDonationMessage: supportDonationMessage,
+        supportDonationCopyButton: "Copy Account Number",
+        supportDonationCloseButton: "Close",
         queryScopeWindows: "Windows",
         queryScopeElements: "Elements",
         queryScopeLabels: "Labels",
@@ -843,6 +853,8 @@ enum AppContent {
         supportDonationMenuTitle: "gazerow 후원",
         supportDonationTitle: "gazerow 후원",
         supportDonationMessage: supportDonationMessage,
+        supportDonationCopyButton: "계좌번호 복사",
+        supportDonationCloseButton: "닫기",
         queryScopeWindows: "창",
         queryScopeElements: "요소",
         queryScopeLabels: "라벨",
