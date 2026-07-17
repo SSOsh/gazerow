@@ -97,6 +97,28 @@ final class InteractionEventTests: XCTestCase {
         XCTAssertNil(record.matched)
     }
 
+    func test_clickCompleted는_실행방식과_대상검증코드만_기록한다() throws {
+        // given
+        let event = InteractionEvent(
+            timestamp: Date(timeIntervalSince1970: 0),
+            kind: .clickCompleted(risk: "safeNavigation", success: true),
+            windowTitleHash: "abc123",
+            clickMethod: "coordinateFallback",
+            targetMatchResult: "matched"
+        )
+
+        // when
+        let record = InteractionLogRecord(event: event)
+        let json = try encodeToJSON(record)
+
+        // then
+        XCTAssertEqual(record.clickMethod, "coordinateFallback")
+        XCTAssertEqual(record.targetMatchResult, "matched")
+        XCTAssertFalse(json.contains("selectedCandidateTitle"))
+        XCTAssertFalse(json.contains("targetTitle"))
+        XCTAssertFalse(json.contains("typedLabel"))
+    }
+
     func test_windowTitleHash_전달() {
         // given
         let event = makeEvent(.focusChanged(method: "keyboard"), hash: "deadbeef")

@@ -508,6 +508,40 @@ final class ClickExecutorTests: XCTestCase {
         XCTAssertEqual(client.clickedPoint, target.centerPoint)
     }
 
+    func test_execute_overlayConfirm설정은_웹입력을_AX_focus시도후_좌표클릭한다() {
+        // given
+        let target = ClickTarget(
+            element: 1,
+            role: AccessibilityRole.searchField,
+            title: "Search the web",
+            frame: CGRect(x: 50, y: 80, width: 240, height: 34),
+            actions: []
+        )
+        let client = FakeClickExecutionClient(
+            axPressResult: .failure("should not be used"),
+            coordinateClickResult: .success,
+            setFocusResult: .failure("focus failed")
+        )
+        let sut = ClickExecutor(
+            client: client,
+            configuration: .overlayConfirmedClick
+        )
+
+        // when
+        let result = sut.execute(ClickExecutionRequest(target: target))
+
+        // then
+        assertSuccess(
+            result,
+            method: .coordinateFallback,
+            riskClass: .unknownRisk,
+            fallbackUsed: true
+        )
+        XCTAssertEqual(client.setFocusCount, 1)
+        XCTAssertTrue(client.didCoordinateClick)
+        XCTAssertEqual(client.clickedPoint, target.centerPoint)
+    }
+
     func test_execute_focus실패시_좌표클릭_fallback() {
         // given
         let target = ClickTarget(

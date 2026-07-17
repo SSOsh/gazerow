@@ -9,7 +9,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_requestAccessibility_인자가있으면_true() {
         // given
-        let arguments = ["GazeRow", "--request-accessibility"]
+        let arguments = ["gazerow", "--request-accessibility"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -20,7 +20,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_requestAccessibility_인자가없으면_false() {
         // given
-        let arguments = ["GazeRow"]
+        let arguments = ["gazerow"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -31,7 +31,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_showOverlayOnLaunch_인자가있으면_true() {
         // given
-        let arguments = ["GazeRow", "--show-overlay-on-launch"]
+        let arguments = ["gazerow", "--show-overlay-on-launch"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -42,7 +42,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_showOverlayOnLaunch_인자가없으면_false() {
         // given
-        let arguments = ["GazeRow"]
+        let arguments = ["gazerow"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -53,7 +53,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_targetBundleId_값이있으면_반환() {
         // given
-        let arguments = ["GazeRow", "--target-bundle-id", "com.apple.finder"]
+        let arguments = ["gazerow", "--target-bundle-id", "com.apple.finder"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -64,7 +64,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_targetBundleId_값이없으면_nil() {
         // given
-        let arguments = ["GazeRow", "--target-bundle-id"]
+        let arguments = ["gazerow", "--target-bundle-id"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -75,7 +75,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_targetBundleId_다음값이다른옵션이면_nil() {
         // given
-        let arguments = ["GazeRow", "--target-bundle-id", "--show-overlay-on-launch"]
+        let arguments = ["gazerow", "--target-bundle-id", "--show-overlay-on-launch"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -86,7 +86,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_printOverlayLabelMap_인자가있으면_true() {
         // given
-        let arguments = ["GazeRow", "--print-overlay-label-map"]
+        let arguments = ["gazerow", "--print-overlay-label-map"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -97,7 +97,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_printHotKeyRegistration_인자가있으면_true() {
         // given
-        let arguments = ["GazeRow", "--print-hotkey-registration"]
+        let arguments = ["gazerow", "--print-hotkey-registration"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -108,7 +108,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_isHotKeyRegistrationProbeOnly_printHotKeyRegistration만_있으면_true() {
         // given
-        let arguments = ["GazeRow", "--print-hotkey-registration"]
+        let arguments = ["gazerow", "--print-hotkey-registration"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -119,7 +119,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_isHotKeyRegistrationProbeOnly_다른평가옵션이_있으면_false() {
         // given
-        let arguments = ["GazeRow", "--print-hotkey-registration", "--show-overlay-on-launch"]
+        let arguments = ["gazerow", "--print-hotkey-registration", "--show-overlay-on-launch"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -130,7 +130,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_printOverlayLabelMap_인자가없으면_false() {
         // given
-        let arguments = ["GazeRow"]
+        let arguments = ["gazerow"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -141,7 +141,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_clickOverlayLabel_값이있으면_반환() {
         // given
-        let arguments = ["GazeRow", "--click-overlay-label", "AK"]
+        let arguments = ["gazerow", "--click-overlay-label", "AK"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -152,7 +152,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_clickOverlayLabel_값이없으면_nil() {
         // given
-        let arguments = ["GazeRow", "--click-overlay-label"]
+        let arguments = ["gazerow", "--click-overlay-label"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -163,7 +163,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_clickOverlayLabel_다음값이다른옵션이면_nil() {
         // given
-        let arguments = ["GazeRow", "--click-overlay-label", "--show-overlay-on-launch"]
+        let arguments = ["gazerow", "--click-overlay-label", "--show-overlay-on-launch"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -174,7 +174,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_queryText_값이있으면_반환() {
         // given
-        let arguments = ["GazeRow", "--query-type-text", "--query-text", "explorer"]
+        let arguments = ["gazerow", "--query-type-text", "--query-text", "explorer"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -185,7 +185,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_queryText_값이없으면_nil() {
         // given
-        let arguments = ["GazeRow", "--query-text"]
+        let arguments = ["gazerow", "--query-text"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -196,7 +196,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_queryScopePin_올바른값이면_scope를_반환() {
         // given
-        let arguments = ["GazeRow", "--query-scope-pin", "windows"]
+        let arguments = ["gazerow", "--query-scope-pin", "windows"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -207,7 +207,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_queryScopePin_알수없는값이면_nil() {
         // given
-        let arguments = ["GazeRow", "--query-scope-pin", "unknown"]
+        let arguments = ["gazerow", "--query-scope-pin", "unknown"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -218,7 +218,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_init_performQueryConfirm_인자가있으면_true() {
         // given
-        let arguments = ["GazeRow", "--perform-query-confirm"]
+        let arguments = ["gazerow", "--perform-query-confirm"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)
@@ -229,7 +229,7 @@ final class AppLaunchOptionsTests: XCTestCase {
 
     func test_isHotKeyRegistrationProbeOnly_query옵션이_있으면_false() {
         // given
-        let arguments = ["GazeRow", "--print-hotkey-registration", "--query-text", "finder"]
+        let arguments = ["gazerow", "--print-hotkey-registration", "--query-text", "finder"]
 
         // when
         let sut = AppLaunchOptions(arguments: arguments)

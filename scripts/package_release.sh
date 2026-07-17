@@ -30,6 +30,7 @@ APP_DIR="${APP_DIR:-${ROOT_DIR}/.build/release-app/gazerow.app}"
 ENTITLEMENTS="${ENTITLEMENTS:-${ROOT_DIR}/scripts/GazeRow.entitlements}"
 MARKETING_VERSION="${MARKETING_VERSION:-0.1.0}"
 BUILD_VERSION="${BUILD_VERSION:-1}"
+APP_ICON="${APP_ICON:-${ROOT_DIR}/Assets/AppIcon.icns}"
 
 # 자격증명이 없으면 지어내지 않고 안내 후 중단한다.
 if [[ -z "${SIGNING_IDENTITY:-}" ]]; then
@@ -55,6 +56,12 @@ if [[ ! -f "${ENTITLEMENTS}" ]]; then
   exit 1
 fi
 
+if [[ ! -f "${APP_ICON}" ]]; then
+  echo "App icon not found: ${APP_ICON}" >&2
+  echo "Regenerate it with: DEVELOPER_DIR=${DEVELOPER_DIR} scripts/generate_app_icon.swift" >&2
+  exit 1
+fi
+
 cd "${ROOT_DIR}"
 export DEVELOPER_DIR
 
@@ -74,6 +81,7 @@ echo "==> Assembling app bundle: ${APP_DIR}"
 rm -rf "${APP_DIR}"
 mkdir -p "${APP_DIR}/Contents/MacOS" "${APP_DIR}/Contents/Resources"
 cp "${EXECUTABLE_PATH}" "${APP_DIR}/Contents/MacOS/gazerow"
+cp "${APP_ICON}" "${APP_DIR}/Contents/Resources/AppIcon.icns"
 chmod +x "${APP_DIR}/Contents/MacOS/gazerow"
 
 cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
@@ -87,6 +95,8 @@ cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
   <string>gazerow</string>
   <key>CFBundleIdentifier</key>
   <string>${BUNDLE_ID}</string>
+  <key>CFBundleIconFile</key>
+  <string>AppIcon</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>

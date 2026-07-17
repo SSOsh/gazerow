@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 
 /// overlay label 배치 설정.
@@ -24,6 +25,8 @@ struct OverlayLayoutConfiguration: Equatable {
     let rowBandHeight: CGFloat
     let labelPlacement: LabelPlacement
     let labelStrategy: LabelStrategy
+    let usesAdaptivePlacementForDenseLayouts: Bool
+    let denseCandidateThreshold: Int
 
     init(
         labelSize: CGSize = CGSize(width: 32, height: 22),
@@ -33,7 +36,9 @@ struct OverlayLayoutConfiguration: Equatable {
         ordersLabelsSpatially: Bool = true,
         rowBandHeight: CGFloat = 24,
         labelPlacement: LabelPlacement = .centered,
-        labelStrategy: LabelStrategy = .prefixFree
+        labelStrategy: LabelStrategy = .prefixFree,
+        usesAdaptivePlacementForDenseLayouts: Bool = false,
+        denseCandidateThreshold: Int = 24
     ) {
         self.labelSize = labelSize
         self.labelSpacing = max(0, labelSpacing)
@@ -43,6 +48,8 @@ struct OverlayLayoutConfiguration: Equatable {
         self.rowBandHeight = max(1, rowBandHeight)
         self.labelPlacement = labelPlacement
         self.labelStrategy = labelStrategy
+        self.usesAdaptivePlacementForDenseLayouts = usesAdaptivePlacementForDenseLayouts
+        self.denseCandidateThreshold = max(2, denseCandidateThreshold)
     }
 }
 
@@ -69,6 +76,10 @@ struct OverlayLabel: Equatable, Identifiable {
     let candidateFrame: CGRect
     let labelFrame: CGRect
     let anchorPoint: CGPoint
+
+    var displayText: String {
+        text.uppercased()
+    }
 }
 
 /// target window overlay layout.
@@ -102,6 +113,36 @@ struct OverlayLayoutMetrics: Equatable {
 ///
 /// @author suho.do
 /// @since 2026-07-03
+enum OverlayInteractionPhase: Equatable {
+    case idle
+    case typing
+    case matching
+    case noMatches
+    case awaitingRiskConfirmation
+    case success
+    case failure
+}
+
+/// overlay focus가 사용자의 명시적 입력에서 비롯됐는지 나타낸다.
+///
+/// @author suho.do
+/// @since 2026-07-14
+enum OverlayFocusOrigin: Equatable {
+    case initial
+    case label
+    case keyboard
+    case gaze
+    case query
+
+    var isExplicit: Bool {
+        self != .initial
+    }
+}
+
+/// overlay의 현재 입력/실행 상태.
+///
+/// @author suho.do
+/// @since 2026-07-13
 struct OverlayInteractionStatus: Equatable {
     let focusedLabel: String?
     let typedLabelBuffer: String
@@ -111,10 +152,17 @@ struct OverlayInteractionStatus: Equatable {
     let matchCount: Int
     let matchIndex: Int
     let focusedDisplayName: String?
+    /// elements scope에서 gaze로 element를 겨냥 중임을 나타낸다.
+    /// 검색 매칭(matchCount)과 구분해 요약 문구를 분기하기 위한 플래그다.
+    let isGazeTargeting: Bool
     let highlightFrame: CGRect?
     let enterActionHint: String
+    let windowMatchPreviews: [OverlayWindowMatchPreview]
     let message: String?
     let tone: Tone
+    let phase: OverlayInteractionPhase
+    let requiresSecondConfirm: Bool
+    let hasExplicitFocus: Bool
 
     init(
         focusedLabel: String? = nil,
@@ -125,10 +173,15 @@ struct OverlayInteractionStatus: Equatable {
         matchCount: Int = 0,
         matchIndex: Int = 0,
         focusedDisplayName: String? = nil,
+        isGazeTargeting: Bool = false,
         highlightFrame: CGRect? = nil,
         enterActionHint: String = "click",
+        windowMatchPreviews: [OverlayWindowMatchPreview] = [],
         message: String? = nil,
-        tone: Tone = .neutral
+        tone: Tone = .neutral,
+        phase: OverlayInteractionPhase = .idle,
+        requiresSecondConfirm: Bool = false,
+        hasExplicitFocus: Bool = false
     ) {
         self.focusedLabel = focusedLabel
         self.typedLabelBuffer = typedLabelBuffer
@@ -138,10 +191,15 @@ struct OverlayInteractionStatus: Equatable {
         self.matchCount = max(0, matchCount)
         self.matchIndex = max(0, matchIndex)
         self.focusedDisplayName = focusedDisplayName
+        self.isGazeTargeting = isGazeTargeting
         self.highlightFrame = highlightFrame
         self.enterActionHint = enterActionHint
+        self.windowMatchPreviews = windowMatchPreviews
         self.message = message
         self.tone = tone
+        self.phase = phase
+        self.requiresSecondConfirm = requiresSecondConfirm
+        self.hasExplicitFocus = hasExplicitFocus
     }
 
     var displayBuffer: String {
@@ -156,32 +214,83 @@ struct OverlayInteractionStatus: Equatable {
     }
 }
 
-/// overlay 하단 상태바의 폭·위치를 창 크기에 맞춰 계산한다.
-///
-/// 큰 창에서는 기존과 동일하게 하단에 고정하되, 상태바(2줄)를 담기 어려운 작은 창에서는
-/// 세로 중앙에 배치해 상태바가 창 밖으로 이탈하거나 후보 위로 밀려나는 것을 막는다.
+/// overlay label의 시각적 우선순위를 계산한다.
 ///
 /// @author suho.do
-/// @since 2026-07-10
-struct OverlayStatusBarLayout: Equatable {
-    let width: CGFloat
-    let centerX: CGFloat
-    let centerY: CGFloat
+/// @since 2026-07-14
+enum OverlayLabelVisibility {
+    static let dimmedOpacity = 0.16
+
+    static func opacity(
+        for label: OverlayLabel,
+        focusedLabelID: Int?,
+        status: OverlayInteractionStatus
+    ) -> Double {
+        guard status.activeScope != .windows else {
+            return 0.25
+        }
+
+        if !status.typedLabelBuffer.isEmpty,
+           !label.text.hasPrefix(status.typedLabelBuffer.uppercased()) {
+            return dimmedOpacity
+        }
+
+        if status.hasExplicitFocus,
+           label.id != focusedLabelID {
+            return dimmedOpacity
+        }
+
+        return 1
+    }
+}
+
+/// windows scope 매칭 후보를 overlay에 표시하기 위한 preview.
+///
+/// @author suho.do
+/// @since 2026-07-13
+struct OverlayWindowMatchPreview: Equatable, Identifiable {
+    let id: Int
+    let appName: String
+    let displayName: String
+    let ordinal: Int
+    let isFocused: Bool
+    let appIcon: NSImage?
 
     init(
-        bounds: CGRect,
-        estimatedHeight: CGFloat = 44,
-        horizontalInset: CGFloat = 8,
-        bottomInset: CGFloat = 34,
-        maxWidth: CGFloat = 420
+        id: Int,
+        appName: String,
+        displayName: String,
+        ordinal: Int,
+        isFocused: Bool,
+        appIcon: NSImage? = nil
     ) {
-        let available = max(0, bounds.width - horizontalInset * 2)
-        let resolvedWidth = min(available, maxWidth)
-        self.width = resolvedWidth
-        self.centerX = horizontalInset + resolvedWidth / 2
-        self.centerY = bounds.height >= estimatedHeight + bottomInset
-            ? bounds.height - bottomInset
-            : bounds.height / 2
+        self.id = id
+        self.appName = appName
+        self.displayName = displayName
+        self.ordinal = max(1, ordinal)
+        self.isFocused = isFocused
+        self.appIcon = appIcon
+    }
+
+    static func == (lhs: OverlayWindowMatchPreview, rhs: OverlayWindowMatchPreview) -> Bool {
+        lhs.id == rhs.id
+            && lhs.appName == rhs.appName
+            && lhs.displayName == rhs.displayName
+            && lhs.ordinal == rhs.ordinal
+            && lhs.isFocused == rhs.isFocused
+    }
+
+    var hasAppIcon: Bool {
+        appIcon != nil
+    }
+
+    var detailText: String {
+        let prefix = "\(appName) — "
+        if displayName.hasPrefix(prefix) {
+            return String(displayName.dropFirst(prefix.count))
+        }
+
+        return displayName == appName ? "" : displayName
     }
 }
 

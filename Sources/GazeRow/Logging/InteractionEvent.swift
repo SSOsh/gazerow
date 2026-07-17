@@ -7,6 +7,7 @@ import Foundation
 /// - Important: raw window title, text value 등 원문은 담지 않는다.
 ///   window title은 `windowTitleHash`(session salt 기반 SHA256)만 기록한다.
 ///   click 위험은 class 코드(문자열)만 기록하고 원문 텍스트는 금지한다.
+///   click method와 target match 결과도 허용된 코드값만 기록한다.
 ///
 /// - Note: click 로그 종류(`InteractionEventKind`)는 코덱스 `ClickModels`의
 ///   타입에 결합하지 않고, 자체 문자열 코드로만 정의한다(병행 개발 분리).
@@ -25,14 +26,24 @@ struct InteractionEvent: Equatable {
     /// 창 정보가 없으면 `nil`.
     let windowTitleHash: String?
 
+    /// 완료된 click의 실행 방식 코드. 해당 없으면 `nil`.
+    let clickMethod: String?
+
+    /// 완료된 click의 대상 검증 결과 코드. 해당 없으면 `nil`.
+    let targetMatchResult: String?
+
     init(
         timestamp: Date,
         kind: InteractionEventKind,
-        windowTitleHash: String? = nil
+        windowTitleHash: String? = nil,
+        clickMethod: String? = nil,
+        targetMatchResult: String? = nil
     ) {
         self.timestamp = timestamp
         self.kind = kind
         self.windowTitleHash = windowTitleHash
+        self.clickMethod = clickMethod
+        self.targetMatchResult = targetMatchResult
     }
 }
 
@@ -100,6 +111,12 @@ struct InteractionLogRecord: Encodable, Equatable {
     /// label jump 매칭 여부. 해당 없으면 `nil`.
     let matched: Bool?
 
+    /// 완료된 click의 실행 방식 코드. 해당 없으면 `nil`.
+    let clickMethod: String?
+
+    /// 완료된 click의 대상 검증 결과 코드. 해당 없으면 `nil`.
+    let targetMatchResult: String?
+
     /// window title hash. 없으면 `nil`.
     let windowTitleHash: String?
 
@@ -116,6 +133,8 @@ struct InteractionLogRecord: Encodable, Equatable {
         self.timestamp = Self.makeTimestampFormatter().string(from: event.timestamp)
         self.type = event.kind.typeCode
         self.windowTitleHash = event.windowTitleHash
+        self.clickMethod = event.clickMethod
+        self.targetMatchResult = event.targetMatchResult
 
         switch event.kind {
         case let .focusChanged(method):

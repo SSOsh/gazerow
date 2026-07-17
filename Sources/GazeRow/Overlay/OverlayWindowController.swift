@@ -8,28 +8,34 @@ import SwiftUI
 /// @since 2026-07-02
 @MainActor
 final class OverlayWindowController {
-    private var panel: OverlayPanel?
+    private var targetPanel: OverlayPanel?
+    private var commandBarPanel: OverlayPanel?
+    private var targetHostingView: NSHostingView<OverlayView>?
+    private var commandBarHostingView: NSHostingView<OverlayCommandBarPanelView>?
     private var currentLayout: OverlayLayout?
+    private var currentCommandBarVisibleFrame: CGRect?
     private var currentStatus = OverlayInteractionStatus()
     private let layoutEngine: OverlayLayoutEngine
+    private let commandBarLayoutEngine: OverlayCommandBarLayoutEngine
     private let displayInfoProvider: @MainActor (CGRect) -> OverlayDisplayInfo
     private let screenFrameProvider: @MainActor () -> [CGRect]
+    private let screenDescriptorProvider: @MainActor () -> [OverlayScreenDescriptor]
     private let applicationActivator: @MainActor () -> Void
     private let keyboardEventTapFactory: @MainActor (
         @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
     ) -> any OverlayKeyboardEventTapping
     /// 렌더 시점마다 최신 appearance 설정을 읽어 오도록 provider로 주입한다.
     private let appearanceProvider: @MainActor () -> OverlayAppearance
-    /// 렌더 시점마다 최신 언어 설정을 읽어 overlay 문구를 로컬라이즈한다.
-    private let contentProvider: @MainActor () -> AppContent.Localized
     private var keyboardEventTap: (any OverlayKeyboardEventTapping)?
 
     nonisolated init(
         layoutEngine: OverlayLayoutEngine = OverlayLayoutEngine(),
+        commandBarLayoutEngine: OverlayCommandBarLayoutEngine = OverlayCommandBarLayoutEngine(),
         displayInfoProvider: @escaping @MainActor (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo,
         screenFrameProvider: @escaping @MainActor () -> [CGRect] = {
             NSScreen.screens.map(\.frame)
         },
+        screenDescriptorProvider: @escaping @MainActor () -> [OverlayScreenDescriptor] = OverlayWindowController.defaultScreenDescriptors,
         applicationActivator: @escaping @MainActor () -> Void = {
             NSApp.activate(ignoringOtherApps: true)
         },
@@ -40,22 +46,40 @@ final class OverlayWindowController {
         },
         appearanceProvider: @escaping @MainActor () -> OverlayAppearance = {
             OverlayAppearanceSettings().appearance
-        },
-        contentProvider: @escaping @MainActor () -> AppContent.Localized = {
-            AppContent.localized(for: AppLanguageSettings().selectedLanguage)
         }
     ) {
         self.layoutEngine = layoutEngine
+        self.commandBarLayoutEngine = commandBarLayoutEngine
         self.displayInfoProvider = displayInfoProvider
         self.screenFrameProvider = screenFrameProvider
+        self.screenDescriptorProvider = screenDescriptorProvider
         self.applicationActivator = applicationActivator
         self.keyboardEventTapFactory = keyboardEventTapFactory
         self.appearanceProvider = appearanceProvider
-        self.contentProvider = contentProvider
     }
 
     var isVisible: Bool {
-        panel?.isVisible == true
+        targetPanel?.isVisible == true && commandBarPanel?.isVisible == true
+    }
+
+    var isTargetPanelVisible: Bool {
+        targetPanel?.isVisible == true
+    }
+
+    var isCommandBarPanelVisible: Bool {
+        commandBarPanel?.isVisible == true
+    }
+
+    var commandBarPanelFrame: CGRect? {
+        commandBarPanel?.frame
+    }
+
+    var targetHostingViewIdentifier: ObjectIdentifier? {
+        targetHostingView.map(ObjectIdentifier.init)
+    }
+
+    var commandBarHostingViewIdentifier: ObjectIdentifier? {
+        commandBarHostingView.map(ObjectIdentifier.init)
     }
 
     /// 표시 중인 overlay panel이 앱 비활성 상태에서도 유지되는지 여부.
@@ -63,11 +87,7 @@ final class OverlayWindowController {
     /// LSUIElement 앱은 overlay 표시 시 자기 앱을 활성화하지 않으므로, panel이
     /// `hidesOnDeactivate`로 자동 숨김되면 화면에 나타나지 않는다.
     var persistsWhileAppInactive: Bool {
-        panel?.hidesOnDeactivate == false
-    }
-
-    var acceptsMouseInput: Bool {
-        panel?.ignoresMouseEvents == false
+        targetPanel?.hidesOnDeactivate == false && commandBarPanel?.hidesOnDeactivate == false
     }
 
     func show(
@@ -75,67 +95,105 @@ final class OverlayWindowController {
         candidates: [ClickableCandidate],
         labels: [String] = [],
         onEscape: @escaping () -> Void = {},
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in },
-        onScopeSelection: @MainActor @escaping (QueryScope) -> Void = { _ in }
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) -> OverlayLayout {
-        let layout = layoutEngine.makeLayout(
+        let layout = makeLayout(
             targetFrame: targetFrame,
             candidates: candidates,
-            labels: labels,
-            displayInfo: displayInfoProvider(targetFrame)
+            labels: labels
         )
 
         show(
             layout: layout,
             onEscape: onEscape,
-            onKeyboardCommand: onKeyboardCommand,
-            onScopeSelection: onScopeSelection
+            onKeyboardCommand: onKeyboardCommand
         )
         return layout
+    }
+
+    func makeLayout(
+        targetFrame: CGRect,
+        candidates: [ClickableCandidate],
+        labels: [String] = []
+    ) -> OverlayLayout {
+        layoutEngine.makeLayout(
+            targetFrame: targetFrame,
+            candidates: candidates,
+            labels: labels,
+            displayInfo: displayInfoProvider(targetFrame)
+        )
     }
 
     func show(
         layout: OverlayLayout,
         onEscape: @escaping () -> Void = {},
-        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in },
-        onScopeSelection: @MainActor @escaping (QueryScope) -> Void = { _ in }
+        onKeyboardCommand: @MainActor @escaping (FocusKeyboardCommand) -> Void = { _ in }
     ) {
-        close()
-        let panelFrame = OverlayScreenFrameMapper(
-            screenFrames: screenFrameProvider()
-        ).appKitFrame(fromAXFrame: layout.targetFrame)
-
-        let panel = OverlayPanel(
-            contentRect: panelFrame,
-            styleMask: [.borderless],
-            backing: .buffered,
-            defer: false
+        _ = show(
+            layout: layout,
+            initialStatus: OverlayInteractionStatus(),
+            onEscape: onEscape,
+            onKeyboardCommand: { capturedCommand in
+                onKeyboardCommand(capturedCommand.command)
+            },
+            onPresentationEvent: { _ in }
         )
-        panel.onEscape = { [weak self] in
+    }
+
+    @discardableResult
+    func show(
+        layout: OverlayLayout,
+        initialStatus: OverlayInteractionStatus,
+        onEscape: @escaping () -> Void = {},
+        onKeyboardCommand: @MainActor @escaping (OverlayCapturedKeyboardCommand) -> Void = { _ in },
+        onPresentationEvent: @MainActor @escaping (OverlayPresentationEvent) -> Void
+    ) -> OverlayKeyboardCaptureMode {
+        close()
+        let mapper = OverlayScreenFrameMapper(screenFrames: screenFrameProvider())
+        let targetPanelFrame = mapper.appKitFrame(fromAXFrame: layout.targetFrame)
+        let targetScreen = commandBarLayoutEngine.screen(
+            containing: targetPanelFrame,
+            in: screenDescriptorProvider()
+        )
+        let commandLayout = commandBarLayout(for: currentStatus, visibleFrame: targetScreen.visibleFrame)
+        let targetPanel = makePanel(frame: targetPanelFrame)
+        let commandBarPanel = makePanel(frame: commandLayout.panelFrame)
+
+        targetPanel.onEscape = { [weak self] in
             self?.close()
             onEscape()
         }
-        panel.onKeyboardCommand = onKeyboardCommand
-        panel.onScopeSelection = onScopeSelection
-        panel.level = .statusBar
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.hasShadow = false
-        panel.ignoresMouseEvents = false
-        // NSPanel은 hidesOnDeactivate 기본값이 true라 앱 비활성 시 자동 숨김된다.
-        // overlay는 앱을 활성화하지 않고(사용자 앱 포커스 유지) 표시해야 하므로 끈다.
-        panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        targetPanel.onKeyboardCommand = { command in
+            onKeyboardCommand(
+                OverlayCapturedKeyboardCommand(command: command, captureMode: .panelFallback)
+            )
+        }
 
-        self.panel = panel
+        self.targetPanel = targetPanel
+        self.commandBarPanel = commandBarPanel
+        currentCommandBarVisibleFrame = targetScreen.visibleFrame
         currentLayout = layout
-        currentStatus = OverlayInteractionStatus()
+        currentStatus = initialStatus
         render(layout: layout, status: currentStatus)
-        panel.orderFrontRegardless()
-        prepareKeyboardCapture(
+        let captureMode = prepareKeyboardCapture(
             onKeyboardCommand: onKeyboardCommand,
-            panel: panel
+            panel: targetPanel
         )
+        onPresentationEvent(.captureReady(captureMode))
+        targetPanel.orderFrontRegardless()
+        commandBarPanel.orderFrontRegardless()
+        onPresentationEvent(.panelsOrdered)
+        targetPanel.displayIfNeeded()
+        commandBarPanel.displayIfNeeded()
+        Task { @MainActor [weak self, weak targetPanel, weak commandBarPanel] in
+            guard let self,
+                  self.targetPanel === targetPanel,
+                  self.commandBarPanel === commandBarPanel else {
+                return
+            }
+            onPresentationEvent(.firstDisplayPass)
+        }
+        return captureMode
     }
 
     func updateFocus(focusedLabelID: Int?) {
@@ -149,10 +207,15 @@ final class OverlayWindowController {
                 matchCount: currentStatus.matchCount,
                 matchIndex: currentStatus.matchIndex,
                 focusedDisplayName: currentStatus.focusedDisplayName,
+                isGazeTargeting: currentStatus.isGazeTargeting,
                 highlightFrame: currentStatus.highlightFrame,
                 enterActionHint: currentStatus.enterActionHint,
+                windowMatchPreviews: currentStatus.windowMatchPreviews,
                 message: currentStatus.message,
-                tone: currentStatus.tone
+                tone: currentStatus.tone,
+                phase: currentStatus.phase,
+                requiresSecondConfirm: currentStatus.requiresSecondConfirm,
+                hasExplicitFocus: currentStatus.hasExplicitFocus
             )
         )
     }
@@ -171,72 +234,89 @@ final class OverlayWindowController {
         render(layout: currentLayout, status: status)
     }
 
-    func setMouseInputEnabled(_ isEnabled: Bool) {
-        panel?.ignoresMouseEvents = !isEnabled
-    }
-
     func close() {
         keyboardEventTap?.stop()
         keyboardEventTap = nil
-        panel?.orderOut(nil)
-        panel = nil
+        targetPanel?.orderOut(nil)
+        commandBarPanel?.orderOut(nil)
+        targetPanel = nil
+        commandBarPanel = nil
+        targetHostingView = nil
+        commandBarHostingView = nil
         currentLayout = nil
+        currentCommandBarVisibleFrame = nil
         currentStatus = OverlayInteractionStatus()
     }
 
     private func prepareKeyboardCapture(
-        onKeyboardCommand: @escaping @MainActor (FocusKeyboardCommand) -> Void,
+        onKeyboardCommand: @escaping @MainActor (OverlayCapturedKeyboardCommand) -> Void,
         panel: OverlayPanel
-    ) {
+    ) -> OverlayKeyboardCaptureMode {
         let eventTap = keyboardEventTapFactory { command in
-            onKeyboardCommand(command)
+            onKeyboardCommand(
+                OverlayCapturedKeyboardCommand(command: command, captureMode: .eventTap)
+            )
         }
         keyboardEventTap = eventTap
 
         guard eventTap.start() else {
             AppLogger.overlay.info("overlay keyboard event tap unavailable; activating app fallback")
             activateKeyboardFocusFallback(panel: panel)
-            return
+            return .panelFallback
         }
 
         AppLogger.overlay.info("overlay keyboard event tap enabled")
+        return .eventTap
     }
 
     private func activateKeyboardFocusFallback(panel: OverlayPanel) {
         applicationActivator()
-        panel.makeKeyAndOrderFront(nil)
-        panel.orderFrontRegardless()
+        panel.makeKey()
+        if !panel.isKeyWindow {
+            panel.makeKeyAndOrderFront(nil)
+        }
     }
 
     private func render(layout: OverlayLayout, status: OverlayInteractionStatus) {
-        panel?.contentView = NSHostingView(
-            rootView: OverlayView(
-                layout: layout,
-                focusedLabelID: focusedLabelID(for: status.focusedLabel),
-                status: status,
-                appearance: appearanceProvider(),
-                content: contentProvider(),
-                onScopeSelection: { [weak self] scope in
-                    self?.syncKeyboardScopeSelection(scope)
-                    self?.panel?.onScopeSelection(scope)
-                }
-            )
+        let overlayView = OverlayView(
+            layout: layout,
+            focusedLabelID: focusedLabelID(for: status.focusedLabel),
+            status: status,
+            appearance: appearanceProvider()
         )
-    }
+        if let targetHostingView {
+            targetHostingView.rootView = overlayView
+        } else {
+            let hostingView = NSHostingView(rootView: overlayView)
+            targetHostingView = hostingView
+            targetPanel?.contentView = hostingView
+        }
 
-    private func syncKeyboardScopeSelection(_ scope: QueryScope) {
-        let state = scope == .labels
-            ? QueryInputState(lastScope: .labels)
-            : QueryInputState(
-                buffer: currentStatus.queryBuffer,
-                pinnedScope: scope,
-                lastScope: scope
-            )
-        syncKeyboardState(state)
+        guard let commandBarPanel, let currentCommandBarVisibleFrame else {
+            return
+        }
+
+        let commandLayout = commandBarLayout(
+            for: status,
+            visibleFrame: currentCommandBarVisibleFrame
+        )
+        commandBarPanel.setFrame(commandLayout.panelFrame, display: false)
+        let commandBarView = OverlayCommandBarPanelView(
+            layout: commandLayout,
+            status: status,
+            language: AppLanguageSettings().selectedLanguage
+        )
+        if let commandBarHostingView {
+            commandBarHostingView.rootView = commandBarView
+        } else {
+            let hostingView = NSHostingView(rootView: commandBarView)
+            commandBarHostingView = hostingView
+            commandBarPanel.contentView = hostingView
+        }
     }
 
     private func syncKeyboardState(_ state: QueryInputState) {
-        panel?.syncKeyboardState(state)
+        targetPanel?.syncKeyboardState(state)
         keyboardEventTap?.syncKeyboardState(state)
     }
 
@@ -257,16 +337,55 @@ final class OverlayWindowController {
     }
 
     static func defaultDisplayInfo(for targetFrame: CGRect) -> OverlayDisplayInfo {
-        let screens = NSScreen.screens
+        let screens = defaultScreenDescriptors()
         let mapper = OverlayScreenFrameMapper(screenFrames: screens.map(\.frame))
-        let screen = screens.first { screen in
-            mapper.axFrame(fromAppKitFrame: screen.frame).intersects(targetFrame)
-        } ?? NSScreen.main
+        let screen = OverlayCommandBarLayoutEngine().screen(
+            containing: mapper.appKitFrame(fromAXFrame: targetFrame),
+            in: screens
+        )
 
         return OverlayDisplayInfo(
-            scaleFactor: screen?.backingScaleFactor ?? 1,
-            visibleFrame: screen.map { mapper.axFrame(fromAppKitFrame: $0.visibleFrame) }
+            scaleFactor: screen.scaleFactor,
+            visibleFrame: mapper.axFrame(fromAppKitFrame: screen.visibleFrame)
         )
+    }
+
+    private func makePanel(frame: CGRect) -> OverlayPanel {
+        let panel = OverlayPanel(
+            contentRect: frame,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        panel.level = .statusBar
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        return panel
+    }
+
+    private func commandBarLayout(
+        for status: OverlayInteractionStatus,
+        visibleFrame: CGRect
+    ) -> OverlayCommandBarLayout {
+        commandBarLayoutEngine.makeLayout(
+            visibleFrame: visibleFrame,
+            showsWindowPreviews: !status.windowMatchPreviews.isEmpty,
+            showsMessage: status.phase == .awaitingRiskConfirmation || status.phase == .failure
+        )
+    }
+
+    private static func defaultScreenDescriptors() -> [OverlayScreenDescriptor] {
+        NSScreen.screens.map {
+            OverlayScreenDescriptor(
+                frame: $0.frame,
+                visibleFrame: $0.visibleFrame,
+                scaleFactor: $0.backingScaleFactor
+            )
+        }
     }
 
 }
@@ -314,7 +433,6 @@ struct OverlayScreenFrameMapper {
 private final class OverlayPanel: NSPanel {
     var onEscape: () -> Void = {}
     var onKeyboardCommand: @MainActor (FocusKeyboardCommand) -> Void = { _ in }
-    var onScopeSelection: @MainActor (QueryScope) -> Void = { _ in }
     private var keyboardRouter = OverlayKeyboardCommandRouter()
 
     override var canBecomeKey: Bool {
@@ -369,7 +487,6 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
     private let context: OverlayKeyboardEventTapContext
     private let isSecureEventInputEnabled: () -> Bool
     private let hasListenEventAccess: () -> Bool
-    private let requestListenEventAccess: () -> Bool
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
 
@@ -380,15 +497,11 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
         hasListenEventAccess: @escaping () -> Bool = {
             CGPreflightListenEventAccess()
         },
-        requestListenEventAccess: @escaping () -> Bool = {
-            CGRequestListenEventAccess()
-        },
         onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void
     ) {
         self.context = OverlayKeyboardEventTapContext(onKeyboardCommand: onKeyboardCommand)
         self.isSecureEventInputEnabled = isSecureEventInputEnabled
         self.hasListenEventAccess = hasListenEventAccess
-        self.requestListenEventAccess = requestListenEventAccess
     }
 
     func start() -> Bool {
@@ -399,10 +512,12 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
             return false
         }
 
-        guard hasListenEventAccess() || requestListenEventAccess() else {
+        guard hasListenEventAccess() else {
             AppLogger.overlay.info("overlay keyboard event tap blocked by input monitoring permission")
             return false
         }
+
+        context.startAcceptingCommands()
 
         let userInfo = Unmanaged.passUnretained(context).toOpaque()
         let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
@@ -438,6 +553,7 @@ final class OverlayKeyboardEventTap: OverlayKeyboardEventTapping {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         }
 
+        context.stopAcceptingCommands()
         context.eventTap = nil
         eventTap = nil
         runLoopSource = nil
@@ -453,6 +569,8 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
     var eventTap: CFMachPort?
     private var keyboardRouter = OverlayKeyboardCommandRouter()
     private let onKeyboardCommand: @MainActor @Sendable (FocusKeyboardCommand) -> Void
+    private let commandStateLock = NSLock()
+    private var isAcceptingCommands = true
 
     init(onKeyboardCommand: @escaping @MainActor @Sendable (FocusKeyboardCommand) -> Void) {
         self.onKeyboardCommand = onKeyboardCommand
@@ -478,11 +596,35 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         }
 
-        Task { @MainActor in
-            onKeyboardCommand(command)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.acceptsCommands else {
+                return
+            }
+
+            MainActor.assumeIsolated {
+                self.onKeyboardCommand(command)
+            }
         }
 
         return nil
+    }
+
+    func stopAcceptingCommands() {
+        commandStateLock.lock()
+        isAcceptingCommands = false
+        commandStateLock.unlock()
+    }
+
+    func startAcceptingCommands() {
+        commandStateLock.lock()
+        isAcceptingCommands = true
+        commandStateLock.unlock()
+    }
+
+    private var acceptsCommands: Bool {
+        commandStateLock.lock()
+        defer { commandStateLock.unlock() }
+        return isAcceptingCommands
     }
 
     private func keyboardCommand(from event: CGEvent) -> FocusKeyboardCommand? {
@@ -503,7 +645,6 @@ final class OverlayKeyboardEventTapContext: @unchecked Sendable {
 struct OverlayKeyboardCommandRouter {
     private let mapper = FocusKeyboardCommandMapper()
     private var queryInput = QueryInputState()
-    private var pendingLabelPrimer: Character?
 
     mutating func command(for input: FocusKeyboardInput) -> FocusKeyboardCommand? {
         guard let command = mapper.command(for: input, queryInput: queryInput) else {
@@ -515,45 +656,26 @@ struct OverlayKeyboardCommandRouter {
 
     mutating func syncKeyboardState(_ state: QueryInputState) {
         queryInput = state
-        pendingLabelPrimer = nil
     }
 
     private mutating func route(_ command: FocusKeyboardCommand) -> FocusKeyboardCommand {
         switch command {
         case .typeLabel(let character):
-            if let pendingLabelPrimer {
-                let query = "\(pendingLabelPrimer)\(character)".precomposedStringWithCanonicalMapping
-                queryInput.buffer = query
-                self.pendingLabelPrimer = nil
-                return .appendQuery(query)
-            }
-
-            pendingLabelPrimer = Character(String(character).lowercased())
-            return command
+            return .typeLabel(String(character).uppercased().first ?? character)
         case .appendQuery(let grapheme):
-            if let pendingLabelPrimer {
-                let query = "\(pendingLabelPrimer)\(grapheme)".precomposedStringWithCanonicalMapping
-                queryInput.buffer = query
-                self.pendingLabelPrimer = nil
-                return .appendQuery(query)
-            }
-
             queryInput.buffer.append(grapheme)
             return command
         case .pinScope(let scope):
             queryInput.pinnedScope = scope
             queryInput.lastScope = scope
-            pendingLabelPrimer = nil
             return command
         case .deleteQueryCharacter:
             if !queryInput.buffer.isEmpty {
                 queryInput.buffer.removeLast()
             }
-            pendingLabelPrimer = nil
             return command
         case .clearQueryBuffer, .clearLabelBuffer, .closeOverlay:
             queryInput = QueryInputState()
-            pendingLabelPrimer = nil
             return command
         case .selectScope(let scope):
             queryInput = scope == .labels
@@ -563,10 +685,8 @@ struct OverlayKeyboardCommandRouter {
                     pinnedScope: scope,
                     lastScope: scope
                 )
-            pendingLabelPrimer = nil
             return command
         case .move, .cycleMatch, .dryRunConfirm:
-            pendingLabelPrimer = nil
             return command
         }
     }

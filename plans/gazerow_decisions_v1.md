@@ -21,7 +21,7 @@
 | --- | --- | --- | --- | --- |
 | PD-001 | 초기 사용자 | Accepted | macOS를 키보드 중심으로 쓰는 개발자 또는 파워유저 | 범용 접근성/의료 보조 제품으로 포지셔닝하지 않음 |
 | PD-002 | MVP 포지셔닝 | Accepted | 로컬 macOS keyboard-click utility | 의료/보조공학 수준의 안전성과 인증 범위를 요구하지 않도록 명확히 함 |
-| PD-003 | 앱 이름 | TBD | TBD | 메뉴바, bundle id, 권한 안내 문구에 필요 |
+| PD-003 | 앱 이름 | Accepted | `gazerow` | 사용자 표시 이름과 package는 `gazerow`; target/module/bundle identifier와 저장 key는 기존 호환성을 유지 |
 | PD-004 | 초기 지원 앱 | Accepted | Finder, Safari, Chrome, VS Code, System Settings | 5개 중 3개 task 성공을 MVP 기준으로 사용 |
 | PD-005 | MVP 완료 기준 | Accepted | 초기 5개 앱 중 3개 이상 task 성공, 치명적 오클릭 0건, 내부 사용자 3명 중 2명 이상 기본 흐름 이해 | 기능 성공과 제품성 최소 기준을 함께 봄. 내부 사용자 조건은 ED-008에 따라 local MVP freeze에서 Post-MVP defer |
 | PD-006 | Post-MVP 앱 후보 | Deferred | Slack, Discord, Obsidian, Notion | MVP 범위 과확장을 막기 위해 후순위 |

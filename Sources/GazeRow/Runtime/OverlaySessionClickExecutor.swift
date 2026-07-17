@@ -10,7 +10,7 @@ import Foundation
 @MainActor
 protocol OverlaySessionClickExecuting {
     func execute(
-        focusedIndex: Int,
+        selection: OverlayClickSelection,
         context: TargetContext,
         isSecondConfirmProvided: Bool
     ) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure>
@@ -23,10 +23,17 @@ protocol OverlaySessionClickExecuting {
 enum OverlaySessionClickFailure: Error, Equatable {
     case scanFailed(AccessibilityScanFailure)
     case missingFocusedTarget(index: Int)
+    case selectedTargetUnavailable(labelID: Int)
+    case selectedTargetChanged(labelID: Int)
+    case selectedTargetAmbiguous(labelID: Int)
     case executionFailed(ClickExecutionFailure)
 }
 
-/// production AXPress click executor adapter.
+/// production overlay click executor adapter.
+///
+/// AXUIElement와 AppKit event posting은 모두 non-Sendable API이며, 선택 검증과 click을
+/// 같은 순서로 처리해야 한다. 따라서 이 경계는 @MainActor에서 직렬 실행한다. 별도 actor로
+/// 옮기려면 AX 호출을 소유하는 Sendable wrapper와 snapshot-only 결과 계약이 먼저 필요하다.
 ///
 /// @author suho.do
 /// @since 2026-07-02
@@ -35,44 +42,79 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
     private let targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient>
     private let clickExecutor: ClickExecutor<AXClickExecutionClient>
     private let clickPreparer: TargetApplicationClickPreparer
+    private let targetMatcher: OverlayClickTargetMatcher
+    private let performanceRecorder: any OverlayClickPerformanceRecording
+    private let dateProvider: () -> Date
 
-    nonisolated init(
+    init(
         targetResolver: OverlaySessionClickTargetResolver<AXAccessibilityElementClient> = OverlaySessionClickTargetResolver(client: AXAccessibilityElementClient()),
         clickExecutor: ClickExecutor<AXClickExecutionClient> = ClickExecutor(
             client: AXClickExecutionClient(),
             configuration: .overlayConfirmedClick
         ),
-        clickPreparer: TargetApplicationClickPreparer = TargetApplicationClickPreparer()
+        clickPreparer: TargetApplicationClickPreparer = TargetApplicationClickPreparer(),
+        targetMatcher: OverlayClickTargetMatcher = OverlayClickTargetMatcher(),
+        performanceRecorder: (any OverlayClickPerformanceRecording)? = nil,
+        dateProvider: @escaping () -> Date = Date.init
     ) {
         self.targetResolver = targetResolver
         self.clickExecutor = clickExecutor
         self.clickPreparer = clickPreparer
+        self.targetMatcher = targetMatcher
+        self.performanceRecorder = performanceRecorder ?? OverlayClickPerformanceRecorder()
+        self.dateProvider = dateProvider
     }
 
     func execute(
-        focusedIndex: Int,
+        selection: OverlayClickSelection,
         context: TargetContext,
         isSecondConfirmProvided: Bool
     ) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure> {
-        switch targetResolver.resolveTargets(context: context) {
+        let startedAt = dateProvider()
+        let resolvedTargets = targetResolver.resolveTargets(context: context)
+        let resolvedAt = dateProvider()
+        let result: Result<ClickExecutionSuccess, OverlaySessionClickFailure>
+        switch resolvedTargets {
         case .success(let targets):
-            guard targets.indices.contains(focusedIndex) else {
-                return .failure(.missingFocusedTarget(index: focusedIndex))
+            switch targetMatcher.match(selection: selection, currentTargets: targets) {
+            case .matched(let target, let metadata):
+                let diagnostic = OverlayClickTargetDiagnostic.resolved(
+                    index: metadata.currentIndex,
+                    candidateCount: targets.count,
+                    target: target
+                )
+                AppLogger.interaction.info(
+                    "\(diagnostic, privacy: .public)"
+                )
+                clickPreparer.prepareForClick(application: context.application)
+                let request = ClickExecutionRequest(
+                    target: target,
+                    isSecondConfirmProvided: isSecondConfirmProvided
+                )
+                result = clickExecutor.execute(request).mapError(OverlaySessionClickFailure.executionFailed)
+            case .unavailable:
+                result = .failure(.selectedTargetUnavailable(labelID: selection.labelID))
+            case .changed:
+                result = .failure(.selectedTargetChanged(labelID: selection.labelID))
+            case .ambiguous:
+                result = .failure(.selectedTargetAmbiguous(labelID: selection.labelID))
             }
-            let target = targets[focusedIndex]
-            let frameText = "(\(Int(target.frame.minX)),\(Int(target.frame.minY)) \(Int(target.frame.width))x\(Int(target.frame.height)))"
-            AppLogger.interaction.info(
-                "click target index=\(focusedIndex, privacy: .public) count=\(targets.count, privacy: .public) role=\(target.role, privacy: .public) frame=\(frameText, privacy: .public) actions=\(target.actions.joined(separator: ","), privacy: .public)"
-            )
-            clickPreparer.prepareForClick(application: context.application)
-            let request = ClickExecutionRequest(
-                target: target,
-                isSecondConfirmProvided: isSecondConfirmProvided
-            )
-            return clickExecutor.execute(request).mapError(OverlaySessionClickFailure.executionFailed)
         case .failure(let failure):
-            return .failure(.scanFailed(failure))
+            result = .failure(.scanFailed(failure))
         }
+
+        performanceRecorder.record(
+            OverlayClickPerformanceSample(
+                rescanMilliseconds: Self.milliseconds(from: startedAt, to: resolvedAt),
+                totalMilliseconds: Self.milliseconds(from: startedAt, to: dateProvider()),
+                outcome: OverlayClickPerformanceOutcome.code(for: result)
+            )
+        )
+        return result
+    }
+
+    private static func milliseconds(from start: Date, to end: Date) -> Int {
+        max(0, Int((end.timeIntervalSince(start) * 1_000).rounded()))
     }
 }
 
@@ -81,23 +123,15 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
 /// @author suho.do
 /// @since 2026-07-04
 struct TargetApplicationClickPreparer {
-    private let activationDelay: TimeInterval
     private let activateApplication: (pid_t) -> Bool
-    private let sleep: (TimeInterval) -> Void
 
     init(
-        activationDelay: TimeInterval = 0.06,
         activateApplication: @escaping (pid_t) -> Bool = { processIdentifier in
             NSRunningApplication(processIdentifier: processIdentifier)?
                 .activate(options: []) ?? false
-        },
-        sleep: @escaping (TimeInterval) -> Void = { interval in
-            Thread.sleep(forTimeInterval: interval)
         }
     ) {
-        self.activationDelay = activationDelay
         self.activateApplication = activateApplication
-        self.sleep = sleep
     }
 
     func prepareForClick(application: TargetApplication) {
@@ -111,7 +145,6 @@ struct TargetApplicationClickPreparer {
         AppLogger.interaction.info(
             "target app activated pid=\(application.processIdentifier, privacy: .public)"
         )
-        sleep(activationDelay)
     }
 }
 
@@ -143,7 +176,7 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
 
         switch client.rootElement(for: context) {
         case .success(let root):
-            return .success(resolveTargets(root: root, startedAt: startedAt))
+            return .success(resolveTargets(root: root, context: context, startedAt: startedAt))
         case .failure(let failure):
             return .failure(failure)
         }
@@ -151,9 +184,11 @@ struct OverlaySessionClickTargetResolver<Client: AccessibilityElementClient> {
 
     private func resolveTargets(
         root: Client.Element,
+        context: TargetContext,
         startedAt: Date
     ) -> [ClickTarget<Client.Element>] {
         var stack: [(element: Client.Element, depth: Int)] = [(root, 0)]
+        stack.append(contentsOf: client.additionalRootElements(for: context).map { ($0, 0) })
         var nodesVisited = 0
         var targets: [ClickTarget<Client.Element>] = []
         var targetKeys = Set<ClickTargetKey>()

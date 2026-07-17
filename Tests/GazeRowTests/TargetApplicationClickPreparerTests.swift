@@ -7,18 +7,13 @@ import XCTest
 /// @since 2026-07-04
 final class TargetApplicationClickPreparerTests: XCTestCase {
 
-    func test_prepareForClick은_pid로_대상앱을_activate하고_짧게_대기한다() {
+    func test_prepareForClick은_pid로_대상앱을_activate하고_대기하지않는다() {
         // given
         var activatedPIDs: [pid_t] = []
-        var sleepIntervals: [TimeInterval] = []
         let sut = TargetApplicationClickPreparer(
-            activationDelay: 0.06,
             activateApplication: { processIdentifier in
                 activatedPIDs.append(processIdentifier)
                 return true
-            },
-            sleep: { interval in
-                sleepIntervals.append(interval)
             }
         )
         let application = TargetApplication(
@@ -32,17 +27,15 @@ final class TargetApplicationClickPreparerTests: XCTestCase {
 
         // then
         XCTAssertEqual(activatedPIDs, [1234])
-        XCTAssertEqual(sleepIntervals, [0.06])
     }
 
-    func test_prepareForClick은_activate실패시_대기하지_않는다() {
+    func test_prepareForClick은_activate실패시_즉시반환한다() {
         // given
-        var sleepIntervals: [TimeInterval] = []
+        var activatedPIDs: [pid_t] = []
         let sut = TargetApplicationClickPreparer(
-            activationDelay: 0.06,
-            activateApplication: { _ in false },
-            sleep: { interval in
-                sleepIntervals.append(interval)
+            activateApplication: { processIdentifier in
+                activatedPIDs.append(processIdentifier)
+                return false
             }
         )
 
@@ -56,6 +49,6 @@ final class TargetApplicationClickPreparerTests: XCTestCase {
         )
 
         // then
-        XCTAssertTrue(sleepIntervals.isEmpty)
+        XCTAssertEqual(activatedPIDs, [9999])
     }
 }

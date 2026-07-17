@@ -7,12 +7,12 @@ import XCTest
 /// @since 2026-07-07
 final class OverlayAppearanceTests: XCTestCase {
 
-    func test_기본값이_현행_하드코딩_렌더값과_일치() {
+    func test_기본값은_뒤_콘텐츠가_보이도록_label배경을_반투명하게_유지() {
         // given
         let sut = OverlayAppearance()
 
         // then
-        XCTAssertEqual(sut.labelBackgroundOpacity, 0.92, accuracy: 0.0001)
+        XCTAssertEqual(sut.labelBackgroundOpacity, 0.62, accuracy: 0.0001)
         XCTAssertEqual(sut.labelTextOpacity, 1.0, accuracy: 0.0001)
         XCTAssertEqual(sut.markerFillOpacity, 0.06, accuracy: 0.0001)
         XCTAssertEqual(sut.boundaryOpacity, 0.75, accuracy: 0.0001)

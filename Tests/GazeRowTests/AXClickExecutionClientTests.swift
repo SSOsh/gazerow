@@ -40,7 +40,6 @@ final class AXClickExecutionClientTests: XCTestCase {
         let cursorController = StubMouseCursorController(currentPosition: CGPoint(x: 400, y: 500))
         let eventPoster = StubSingleClickEventPoster(result: .success)
         let sut = CGCoordinateClickPoster(
-            clickInterval: 0.035,
             cursorController: cursorController,
             clickEventPoster: eventPoster
         )
@@ -51,7 +50,7 @@ final class AXClickExecutionClientTests: XCTestCase {
 
         // then
         XCTAssertEqual(result, .success)
-        XCTAssertEqual(eventPoster.requests, [SingleClickEventRequest(point: clickPoint, clickInterval: 0.035)])
+        XCTAssertEqual(eventPoster.points, [clickPoint])
         XCTAssertEqual(cursorController.movedPoints, [clickPoint, CGPoint(x: 400, y: 500)])
     }
 
@@ -125,19 +124,14 @@ private final class StubMouseCursorController: MouseCursorControlling {
 
 private final class StubSingleClickEventPoster: SingleClickEventPosting {
     private let result: ClickClientResult
-    private(set) var requests: [SingleClickEventRequest] = []
+    private(set) var points: [CGPoint] = []
 
     init(result: ClickClientResult) {
         self.result = result
     }
 
-    func postSingleLeftClickEvent(at point: CGPoint, clickInterval: TimeInterval) -> ClickClientResult {
-        requests.append(SingleClickEventRequest(point: point, clickInterval: clickInterval))
+    func postSingleLeftClickEvent(at point: CGPoint) -> ClickClientResult {
+        points.append(point)
         return result
     }
-}
-
-private struct SingleClickEventRequest: Equatable {
-    let point: CGPoint
-    let clickInterval: TimeInterval
 }

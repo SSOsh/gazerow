@@ -12,6 +12,7 @@ protocol AccessibilityElementClient {
     associatedtype Element
 
     func rootElement(for context: TargetContext) -> Result<Element, AccessibilityScanFailure>
+    func additionalRootElements(for context: TargetContext) -> [Element]
     func snapshot(of element: Element) -> AccessibilityElementSnapshot
     func role(of element: Element) -> String?
     func subrole(of element: Element) -> String?
@@ -24,6 +25,10 @@ protocol AccessibilityElementClient {
 }
 
 extension AccessibilityElementClient {
+    func additionalRootElements(for context: TargetContext) -> [Element] {
+        []
+    }
+
     func role(of element: Element) -> String? {
         snapshot(of: element).role
     }
