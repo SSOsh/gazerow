@@ -33,24 +33,23 @@ final class OverlaySessionController {
     private(set) var activeSession: OverlaySessionState?
     private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
     private var activeActivationID: UUID?
+    private var windowActivationTask: Task<Void, Never>?
+    private var windowActivationRequestID: UUID?
 
     private var content: AppContent.Localized {
         AppContent.localized(for: languageProvider())
     }
 
     init(
-        targetResolver: any OverlaySessionTargetResolving = TargetResolver(),
-        scanner: any OverlaySessionScanning = CachingScanner(
-            wrapped: AccessibilityScanner(client: AXAccessibilityElementClient()),
-            changeMonitor: AXAccessibilityChangeMonitor()
-        ),
-        overlayPresenter: any OverlaySessionPresenting = OverlayWindowController(),
-        interactionRecorder: any OverlaySessionInteractionRecording = InteractionLogStore(),
+        targetResolver: (any OverlaySessionTargetResolving)? = nil,
+        scanner: (any OverlaySessionScanning)? = nil,
+        overlayPresenter: (any OverlaySessionPresenting)? = nil,
+        interactionRecorder: (any OverlaySessionInteractionRecording)? = nil,
         clickExecutor: (any OverlaySessionClickExecuting)? = nil,
-        searchableNodeCollector: (any SearchableNodeCollecting)? = AccessibilitySearchableNodeCollector(client: AXAccessibilityElementClient()),
+        searchableNodeCollector: (any SearchableNodeCollecting)? = DefaultSearchableNodeCollector(),
         intentRouter: IntentRouter = IntentRouter(),
         windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex.build() },
-        windowActivator: any WindowActivating = WindowActivator(),
+        windowActivator: (any WindowActivating)? = nil,
         windowTitleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         dateProvider: @escaping () -> Date = Date.init,
         isSessionEnabled: @escaping @MainActor () -> Bool = { SessionController.shared.isEnabled },
@@ -58,15 +57,18 @@ final class OverlaySessionController {
         activationTracer: (any OverlayActivationTracing)? = nil,
         clickResultObserver: @escaping @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void = { _ in }
     ) {
-        self.targetResolver = targetResolver
-        self.scanner = scanner
-        self.overlayPresenter = overlayPresenter
-        self.interactionRecorder = interactionRecorder
+        self.targetResolver = targetResolver ?? TargetResolver()
+        self.scanner = scanner ?? CachingScanner(
+            wrapped: AccessibilityScanner(client: AXAccessibilityElementClient()),
+            changeMonitor: AXAccessibilityChangeMonitor()
+        )
+        self.overlayPresenter = overlayPresenter ?? OverlayWindowController()
+        self.interactionRecorder = interactionRecorder ?? InteractionLogStore()
         self.clickExecutor = clickExecutor ?? AXOverlaySessionClickExecutor()
         self.searchableNodeCollector = searchableNodeCollector
         self.intentRouter = intentRouter
         self.windowSearchIndexProvider = windowSearchIndexProvider
-        self.windowActivator = windowActivator
+        self.windowActivator = windowActivator ?? WindowActivator()
         self.windowTitleHasher = windowTitleHasher
         self.dateProvider = dateProvider
         self.isSessionEnabled = isSessionEnabled
@@ -77,6 +79,7 @@ final class OverlaySessionController {
 
     func start() -> OverlaySessionStartResult {
         lastClickResult = nil
+        cancelWindowActivation()
         let startedAt = dateProvider()
         if let activeActivationID {
             activationTracer.end(activationID: activeActivationID)
@@ -116,7 +119,11 @@ final class OverlaySessionController {
             at: scannedAt,
             metadata: OverlayActivationTraceMetadata(
                 nodesVisited: scanResult.nodesVisited,
-                candidateCount: scanResult.candidateCount
+                candidateCount: scanResult.candidateCount,
+                didTimeout: scanResult.didTimeout,
+                didHitNodeLimit: scanResult.didHitNodeLimit,
+                didHitDepthLimit: scanResult.didHitDepthLimit,
+                failedChildReadCount: scanResult.failedChildReadCount
             )
         )
 
@@ -200,6 +207,9 @@ final class OverlaySessionController {
     ) -> FocusEngineEvent? {
         traceKeyboardCommand(.keyCaptured, command: command, captureMode: captureMode)
         guard var session = activeSession else {
+            return nil
+        }
+        guard !session.isScanInProgress else {
             return nil
         }
         traceKeyboardCommand(
@@ -566,6 +576,7 @@ final class OverlaySessionController {
     }
 
     func close() {
+        cancelWindowActivation()
         overlayPresenter.close()
         activeSession = nil
         if let activeActivationID {
@@ -826,10 +837,48 @@ final class OverlaySessionController {
             return
         }
 
-        switch windowActivator.activate(entry) {
+        activeSession = session
+        cancelWindowActivation()
+        let requestID = UUID()
+        let activationID = activeActivationID
+        windowActivationRequestID = requestID
+        windowActivationTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+
+            let result = await self.windowActivator.activate(entry)
+            guard !Task.isCancelled,
+                  self.windowActivationRequestID == requestID,
+                  self.activeActivationID == activationID,
+                  self.activeSession != nil else {
+                return
+            }
+
+            self.windowActivationTask = nil
+            self.windowActivationRequestID = nil
+            self.handleWindowActivation(result, entry: entry)
+        }
+    }
+
+    private func cancelWindowActivation() {
+        windowActivationTask?.cancel()
+        windowActivationTask = nil
+        windowActivationRequestID = nil
+    }
+
+    private func handleWindowActivation(
+        _ result: Result<Void, WindowActivateFailure>,
+        entry: WindowEntry
+    ) {
+        switch result {
         case .success:
             rescanFrontmost(message: content.overlayWindowActivatedText(appName: entry.appName))
         case .failure:
+            guard var session = activeSession else {
+                return
+            }
+            let resolution = applyQueryResolution(to: &session)
             activeSession = session
             overlayPresenter.updateStatus(
                 status(for: session, resolution: resolution, message: content.overlayWindowActivationFailedText, tone: .failure)
@@ -1216,7 +1265,17 @@ extension OverlaySessionScanning {
     func invalidate() {}
 }
 
+/// 부분 scan 결과를 전달할 수 있는 overlay scanner abstraction.
+@MainActor
+protocol OverlaySessionProgressiveScanning: OverlaySessionScanning {
+    func scanProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanResult, AccessibilityScanFailure>
+}
+
 extension AccessibilityScanner: OverlaySessionScanning {}
+extension AccessibilityScanner: OverlaySessionProgressiveScanning {}
 
 /// overlay 표시 abstraction.
 ///
@@ -1314,6 +1373,8 @@ struct OverlaySessionState: Equatable {
     var windowMatchIndex: Int = 0
     var pendingSecondConfirm: PendingSecondConfirm?
     var focusOrigin: OverlayFocusOrigin = .initial
+    /// 부분 후보 overlay가 최종 scan 결과를 기다리는 동안 입력과 click을 막는다.
+    var isScanInProgress = false
 }
 
 /// 위험 click second confirm 대기 상태.
@@ -1492,6 +1553,8 @@ private extension AccessibilityScanFailure {
             "focused_window_unavailable"
         case .childrenUnavailable:
             "children_unavailable"
+        case .cancelled:
+            "cancelled"
         }
     }
 }

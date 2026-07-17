@@ -9,18 +9,18 @@ import XCTest
 @MainActor
 final class WindowActivatorTests: XCTestCase {
 
-    func test_activate는_app이_없으면_appNotRunning을_반환한다() {
+    func test_activate는_app이_없으면_appNotRunning을_반환한다() async {
         // given
         let sut = WindowActivator(runningApplicationProvider: { _ in nil })
 
         // when
-        let result = sut.activate(entry)
+        let result = await sut.activate(entry)
 
         // then
         XCTAssertWindowActivateFailure(result, .appNotRunning)
     }
 
-    func test_activate는_frontmost가_될때까지_polling한다() {
+    func test_activate는_frontmost가_될때까지_polling한다() async {
         // given
         var frontmostCalls = 0
         var slept: [TimeInterval] = []
@@ -38,14 +38,14 @@ final class WindowActivatorTests: XCTestCase {
         )
 
         // when
-        let result = sut.activate(entry)
+        let result = await sut.activate(entry)
 
         // then
         XCTAssertWindowActivateSuccess(result)
         XCTAssertEqual(slept, [0.05, 0.05])
     }
 
-    func test_activate는_frontmost여도_선택창이준비될때까지_polling한다() {
+    func test_activate는_frontmost여도_선택창이준비될때까지_polling한다() async {
         // given
         var selectedWindowReadinessCalls = 0
         var slept: [TimeInterval] = []
@@ -65,7 +65,7 @@ final class WindowActivatorTests: XCTestCase {
         )
 
         // when
-        let result = sut.activate(makeEntry(axWindow: targetWindow))
+        let result = await sut.activate(makeEntry(axWindow: targetWindow))
 
         // then
         XCTAssertWindowActivateSuccess(result)
@@ -73,7 +73,7 @@ final class WindowActivatorTests: XCTestCase {
         XCTAssertEqual(slept, [0.05, 0.05])
     }
 
-    func test_activate는_선택창이준비되지않으면_timeout을_반환한다() {
+    func test_activate는_선택창이준비되지않으면_timeout을_반환한다() async {
         // given
         let app = NSRunningApplication.current
         let targetWindow = AXUIElementCreateSystemWide()
@@ -88,13 +88,13 @@ final class WindowActivatorTests: XCTestCase {
         )
 
         // when
-        let result = sut.activate(makeEntry(axWindow: targetWindow))
+        let result = await sut.activate(makeEntry(axWindow: targetWindow))
 
         // then
         XCTAssertWindowActivateFailure(result, .frontmostTimeout)
     }
 
-    func test_activate는_frontmost_timeout을_반환한다() {
+    func test_activate는_frontmost_timeout을_반환한다() async {
         // given
         let app = NSRunningApplication.current
         let sut = WindowActivator(
@@ -107,10 +107,69 @@ final class WindowActivatorTests: XCTestCase {
         )
 
         // when
-        let result = sut.activate(entry)
+        let result = await sut.activate(entry)
 
         // then
         XCTAssertWindowActivateFailure(result, .frontmostTimeout)
+    }
+
+    func test_activate는_대기중취소되면_cancelled를반환한다() async {
+        // given
+        let app = NSRunningApplication.current
+        let sut = WindowActivator(
+            runningApplicationProvider: { _ in app },
+            activateApplication: { _ in true },
+            frontmostBundleIDProvider: { "com.example.Other" },
+            sleep: { _ in await Task.yield() },
+            maxPollDuration: 1,
+            pollInterval: 0.05
+        )
+
+        // when
+        let task = Task { @MainActor in
+            await sut.activate(self.entry)
+        }
+        await Task.yield()
+        task.cancel()
+        let result = await task.value
+
+        // then
+        XCTAssertWindowActivateFailure(result, .cancelled)
+    }
+
+    func test_activate가_polling을_기다리는동안_mainActor작업이실행된다() async {
+        // given
+        var didEnterSleep = false
+        var didRunHeartbeat = false
+        let app = NSRunningApplication.current
+        let sut = WindowActivator(
+            runningApplicationProvider: { _ in app },
+            activateApplication: { _ in true },
+            frontmostBundleIDProvider: { "com.example.Other" },
+            sleep: { _ in
+                didEnterSleep = true
+                await Task.yield()
+            },
+            maxPollDuration: 1,
+            pollInterval: 0.05
+        )
+
+        // when
+        let activation = Task { @MainActor in
+            await sut.activate(self.entry)
+        }
+        while !didEnterSleep {
+            await Task.yield()
+        }
+        Task { @MainActor in
+            didRunHeartbeat = true
+        }
+        await Task.yield()
+        activation.cancel()
+        _ = await activation.value
+
+        // then
+        XCTAssertTrue(didRunHeartbeat)
     }
 
     private var entry: WindowEntry {

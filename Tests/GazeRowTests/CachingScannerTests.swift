@@ -10,6 +10,26 @@ import XCTest
 @MainActor
 final class CachingScannerTests: XCTestCase {
 
+    func test_scanProgressively는_cacheHit이면_부분결과를즉시전달한다() async {
+        // given
+        let context = makeContext()
+        let result = makeScanResult(candidateCount: 1)
+        let wrapped = SpyScanner(results: [.success(result)])
+        let sut = CachingScanner(wrapped: wrapped)
+        _ = sut.scan(context: context)
+        var progressUpdates: [AccessibilityScanProgress] = []
+
+        // when
+        let actual = await sut.scanProgressively(context: context) { progress in
+            progressUpdates.append(progress)
+        }
+
+        // then
+        XCTAssertEqual(actual, Result<AccessibilityScanResult, AccessibilityScanFailure>.success(result))
+        XCTAssertEqual(wrapped.scanCallCount, 1)
+        XCTAssertEqual(progressUpdates, [AccessibilityScanProgress(candidates: result.candidates, nodesVisited: result.nodesVisited)])
+    }
+
     func test_scan_최초요청은_wrapped를_호출하고_결과를_반환() {
         // given
         let scanResult = makeScanResult(candidateCount: 1)

@@ -60,6 +60,53 @@ final class AccessibilityScannerTests: XCTestCase {
         XCTAssertEqual(scanResult.candidates.first?.role, AccessibilityRole.textField)
     }
 
+    func test_scanProgressively는_첫후보와_주기적진행상황을_전달한다() async {
+        // given
+        let button = FakeElement(
+            snapshot: snapshot(
+                role: AccessibilityRole.button,
+                title: "Open",
+                frame: CGRect(x: 10, y: 20, width: 80, height: 24),
+                actions: [AccessibilityAction.press]
+            )
+        )
+        let root = FakeElement(children: [button])
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+        var progressUpdates: [AccessibilityScanProgress] = []
+
+        // when
+        let result = await sut.scanProgressively(context: targetContext) { progress in
+            progressUpdates.append(progress)
+        }
+
+        // then
+        guard case .success(let scanResult) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanResult.candidateCount, 1)
+        XCTAssertEqual(progressUpdates.first?.candidates, [scanResult.candidates[0]])
+        XCTAssertEqual(progressUpdates.first?.nodesVisited, 2)
+    }
+
+    func test_scanProgressively는_yield후_취소되면_cancelled를반환한다() async {
+        // given
+        let leaf = FakeElement()
+        let root = nestedElement(depth: 128, leaf: leaf)
+        let sut = AccessibilityScanner(client: FakeAccessibilityElementClient(root: .success(root)))
+
+        // when
+        let task = Task { @MainActor in
+            await sut.scanProgressively(context: targetContext) { _ in }
+        }
+        await Task.yield()
+        task.cancel()
+        let result = await task.value
+
+        // then
+        XCTAssertEqual(result, .failure(.cancelled))
+    }
+
     func test_scan_AXTextArea는_action이_없어도_candidate로_수집() {
         // given
         let textArea = FakeElement(

@@ -7,12 +7,13 @@ import Foundation
 /// @since 2026-07-02
 @MainActor
 struct AccessibilityScanner<Client: AccessibilityElementClient> {
+    private var progressiveYieldInterval: Int { 32 }
     private let client: Client
     private let configuration: AccessibilityScanConfiguration
     private let clickabilityPolicy: AccessibilityClickabilityPolicy
     private let dateProvider: () -> Date
 
-    nonisolated init(
+    init(
         client: Client,
         configuration: AccessibilityScanConfiguration = AccessibilityScanConfiguration(),
         clickabilityPolicy: AccessibilityClickabilityPolicy = AccessibilityClickabilityPolicy(),
@@ -33,6 +34,94 @@ struct AccessibilityScanner<Client: AccessibilityElementClient> {
         case .failure(let failure):
             return .failure(failure)
         }
+    }
+
+    /// 긴 AX scan 중에도 main actor가 입력·종료 요청을 처리하도록 실행권을 양보한다.
+    /// 부분 후보는 완성 결과가 아니며, 호출자가 표시 빈도를 결정한다.
+    func scanProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        let startedAt = dateProvider()
+
+        guard !Task.isCancelled else {
+            return .failure(.cancelled)
+        }
+
+        let root: Client.Element
+        switch client.rootElement(for: context) {
+        case .success(let resolvedRoot):
+            root = resolvedRoot
+        case .failure(let failure):
+            return .failure(failure)
+        }
+
+        var stack: [(element: Client.Element, depth: Int)] = [(root, 0)]
+        stack.append(contentsOf: client.additionalRootElements(for: context).map { ($0, 0) })
+        var nodesVisited = 0
+        var candidates: [ClickableCandidate] = []
+        var candidateKeys = Set<CandidateKey>()
+        var didHitDepthLimit = false
+        var didHitNodeLimit = false
+        var didTimeout = false
+        var failedChildReadCount = 0
+
+        while let item = stack.popLast() {
+            if Task.isCancelled {
+                return .failure(.cancelled)
+            }
+
+            if nodesVisited >= configuration.maxNodes {
+                didHitNodeLimit = true
+                break
+            }
+
+            if isTimedOut(startedAt: startedAt) {
+                didTimeout = true
+                break
+            }
+
+            nodesVisited += 1
+            let inspection = client.inspect(item.element)
+            let candidateCountBefore = candidates.count
+            if let candidate = makeCandidate(
+                from: inspection.snapshot,
+                within: context.window.frame
+            ),
+               candidateKeys.insert(CandidateKey(candidate)).inserted {
+                candidates.append(candidate)
+            }
+
+            guard item.depth < configuration.maxDepth else {
+                didHitDepthLimit = true
+                continue
+            }
+
+            switch inspection.children {
+            case .success(let children):
+                stack.append(contentsOf: children.reversed().map { ($0, item.depth + 1) })
+            case .failure:
+                failedChildReadCount += 1
+            }
+
+            if candidateCountBefore != candidates.count || nodesVisited.isMultiple(of: progressiveYieldInterval) {
+                onProgress(AccessibilityScanProgress(candidates: candidates, nodesVisited: nodesVisited))
+                await Task.yield()
+            }
+        }
+
+        let finishedAt = dateProvider()
+        return .success(
+            AccessibilityScanResult(
+                candidates: candidates,
+                nodesVisited: nodesVisited,
+                scanDuration: finishedAt.timeIntervalSince(startedAt),
+                didHitDepthLimit: didHitDepthLimit,
+                didHitNodeLimit: didHitNodeLimit,
+                didTimeout: didTimeout,
+                failedChildReadCount: failedChildReadCount
+            )
+        )
     }
 
     private func scan(

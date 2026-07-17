@@ -11,6 +11,7 @@ enum WindowActivateFailure: Error, Equatable {
     case windowNotFound
     case axPermissionDenied
     case frontmostTimeout
+    case cancelled
 }
 
 /// Query Overlay windows scope activate abstraction.
@@ -19,7 +20,7 @@ enum WindowActivateFailure: Error, Equatable {
 /// @since 2026-07-09
 @MainActor
 protocol WindowActivating {
-    func activate(_ entry: WindowEntry) -> Result<Void, WindowActivateFailure>
+    func activate(_ entry: WindowEntry) async -> Result<Void, WindowActivateFailure>
 }
 
 /// NSRunningApplication/AX 기반 창 활성화기.
@@ -31,16 +32,16 @@ struct WindowActivator: WindowActivating {
     private let activateApplication: (NSRunningApplication) -> Bool
     private let frontmostBundleIDProvider: () -> String?
     private let selectedWindowReadinessProvider: (WindowEntry) -> Bool
-    private let sleep: (TimeInterval) -> Void
+    private let sleep: @MainActor (TimeInterval) async -> Void
     private let maxPollDuration: TimeInterval
     private let pollInterval: TimeInterval
 
-    nonisolated init(
+    init(
         runningApplicationProvider: @escaping (pid_t) -> NSRunningApplication? = {
             NSRunningApplication(processIdentifier: $0)
         },
         activateApplication: @escaping (NSRunningApplication) -> Bool = {
-            $0.activate(options: [.activateIgnoringOtherApps])
+            $0.activate(options: [])
         },
         frontmostBundleIDProvider: @escaping () -> String? = {
             NSWorkspace.shared.frontmostApplication?.bundleIdentifier
@@ -48,7 +49,9 @@ struct WindowActivator: WindowActivating {
         selectedWindowReadinessProvider: @escaping (WindowEntry) -> Bool = {
             WindowActivator.isSelectedWindowReady($0)
         },
-        sleep: @escaping (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) },
+        sleep: @escaping @MainActor (TimeInterval) async -> Void = { duration in
+            try? await Task.sleep(for: .seconds(duration))
+        },
         maxPollDuration: TimeInterval = 1.0,
         pollInterval: TimeInterval = 0.05
     ) {
@@ -61,7 +64,7 @@ struct WindowActivator: WindowActivating {
         self.pollInterval = max(0.01, pollInterval)
     }
 
-    func activate(_ entry: WindowEntry) -> Result<Void, WindowActivateFailure> {
+    func activate(_ entry: WindowEntry) async -> Result<Void, WindowActivateFailure> {
         guard let application = runningApplicationProvider(entry.pid) else {
             return .failure(.appNotRunning)
         }
@@ -74,7 +77,12 @@ struct WindowActivator: WindowActivating {
             raise(axWindow)
         }
 
-        guard waitUntilTargetReady(entry) else {
+        let isTargetReady = await waitUntilTargetReady(entry)
+        if Task.isCancelled {
+            return .failure(.cancelled)
+        }
+
+        guard isTargetReady else {
             return .failure(.frontmostTimeout)
         }
 
@@ -93,20 +101,27 @@ struct WindowActivator: WindowActivating {
         AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
     }
 
-    private func waitUntilTargetReady(_ entry: WindowEntry) -> Bool {
+    private func waitUntilTargetReady(_ entry: WindowEntry) async -> Bool {
+        guard !Task.isCancelled else {
+            return false
+        }
+
         if entry.bundleID.isEmpty {
-            sleep(0.3)
+            await sleep(0.3)
         }
 
         var elapsed: TimeInterval = 0
         while elapsed <= maxPollDuration {
+            guard !Task.isCancelled else {
+                return false
+            }
             let isApplicationFrontmost = entry.bundleID.isEmpty
                 || frontmostBundleIDProvider() == entry.bundleID
             if isApplicationFrontmost,
                selectedWindowReadinessProvider(entry) {
                 return true
             }
-            sleep(pollInterval)
+            await sleep(pollInterval)
             elapsed += pollInterval
         }
         return false

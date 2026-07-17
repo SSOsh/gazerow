@@ -5,7 +5,7 @@ import Foundation
 ///
 /// @author suho.do
 /// @since 2026-07-02
-struct AccessibilityScanConfiguration: Equatable {
+struct AccessibilityScanConfiguration: Equatable, Sendable {
     let maxDepth: Int
     let maxNodes: Int
     let timeout: TimeInterval
@@ -40,13 +40,14 @@ struct AccessibilityElementSnapshot: Equatable {
     var isSecureField: Bool {
         role == AccessibilityRole.secureTextField
     }
+
 }
 
 /// overlay label 대상 clickable candidate.
 ///
 /// @author suho.do
 /// @since 2026-07-02
-struct ClickableCandidate: Equatable {
+struct ClickableCandidate: Equatable, Sendable {
     let role: String
     let subrole: String?
     let title: String?
@@ -86,7 +87,7 @@ struct ClickableCandidate: Equatable {
 ///
 /// @author suho.do
 /// @since 2026-07-02
-struct AccessibilityScanResult: Equatable {
+struct AccessibilityScanResult: Equatable, Sendable {
     let candidates: [ClickableCandidate]
     let nodesVisited: Int
     let scanDuration: TimeInterval
@@ -100,14 +101,24 @@ struct AccessibilityScanResult: Equatable {
     }
 }
 
+/// 진행 중인 AX scan이 overlay에 전달하는 부분 후보 snapshot.
+///
+/// @author suho.do
+/// @since 2026-07-17
+struct AccessibilityScanProgress: Equatable {
+    let candidates: [ClickableCandidate]
+    let nodesVisited: Int
+}
+
 /// AX scan 실패 사유.
 ///
 /// @author suho.do
 /// @since 2026-07-02
-enum AccessibilityScanFailure: Error, Equatable {
+enum AccessibilityScanFailure: Error, Equatable, Sendable {
     case accessibilityPermissionDenied
     case focusedWindowUnavailable(String)
     case childrenUnavailable(String)
+    case cancelled
 }
 
 /// AX role/action 문자열 상수.

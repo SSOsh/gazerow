@@ -1,10 +1,6 @@
 // swift-tools-version: 5.9
 import PackageDescription
 
-let swiftSettings: [SwiftSetting] = [
-    .enableUpcomingFeature("DisableOutwardActorInference")
-]
-
 let package = Package(
     name: "gazerow",
     platforms: [
@@ -16,14 +12,12 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "GazeRow",
-            path: "Sources/GazeRow",
-            swiftSettings: swiftSettings
+            path: "Sources/GazeRow"
         ),
         .testTarget(
             name: "GazeRowTests",
             dependencies: ["GazeRow"],
-            path: "Tests/GazeRowTests",
-            swiftSettings: swiftSettings
+            path: "Tests/GazeRowTests"
         )
     ]
 )

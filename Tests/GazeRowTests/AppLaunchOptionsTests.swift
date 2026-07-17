@@ -95,6 +95,17 @@ final class AppLaunchOptionsTests: XCTestCase {
         XCTAssertTrue(sut.printsOverlayLabelMap)
     }
 
+    func test_init_printOverlayActivationTrace_인자가있으면_true() {
+        // given
+        let arguments = ["gazerow", "--print-overlay-activation-trace"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertTrue(sut.printsOverlayActivationTrace)
+    }
+
     func test_init_printHotKeyRegistration_인자가있으면_true() {
         // given
         let arguments = ["gazerow", "--print-hotkey-registration"]
@@ -137,6 +148,17 @@ final class AppLaunchOptionsTests: XCTestCase {
 
         // then
         XCTAssertFalse(sut.printsOverlayLabelMap)
+    }
+
+    func test_init_printOverlayActivationTrace_인자가없으면_false() {
+        // given
+        let arguments = ["gazerow"]
+
+        // when
+        let sut = AppLaunchOptions(arguments: arguments)
+
+        // then
+        XCTAssertFalse(sut.printsOverlayActivationTrace)
     }
 
     func test_init_clickOverlayLabel_값이있으면_반환() {

@@ -12,12 +12,12 @@ struct WindowControlCommandDispatcher {
     private let shortcutSet: WindowControlShortcutSet
     private let client: any WindowControlButtonPressing
 
-    nonisolated init(
+    init(
         shortcutSet: WindowControlShortcutSet = .default,
-        client: any WindowControlButtonPressing = AXWindowControlButtonClient()
+        client: (any WindowControlButtonPressing)? = nil
     ) {
         self.shortcutSet = shortcutSet
-        self.client = client
+        self.client = client ?? AXWindowControlButtonClient()
     }
 
     /// 입력을 해석해 일치하는 동작을 실행한다.

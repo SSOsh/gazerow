@@ -14,6 +14,33 @@ enum OverlayLaunchReporter {
         "GAZEROW_OVERLAY_RESULT success labels=\(labelCount)"
     }
 
+    static func activationTrace(_ event: OverlayActivationTraceEvent) -> String {
+        let metadata = event.metadata
+        let nodes = metadata.nodesVisited.map(String.init) ?? "-"
+        let candidates = metadata.candidateCount.map(String.init) ?? "-"
+        let command = metadata.commandKind ?? "-"
+        let capture = metadata.captureMode ?? "-"
+        let session = metadata.hasActiveSession.map(String.init) ?? "-"
+        let timeout = metadata.didTimeout.map(String.init) ?? "-"
+        let nodeLimit = metadata.didHitNodeLimit.map(String.init) ?? "-"
+        let depthLimit = metadata.didHitDepthLimit.map(String.init) ?? "-"
+        let failedChildReads = metadata.failedChildReadCount.map(String.init) ?? "-"
+        return [
+            "GAZEROW_OVERLAY_TIMING",
+            "phase=\(event.phase.rawValue)",
+            "elapsed_ms=\(event.elapsedMilliseconds)",
+            "nodes=\(nodes)",
+            "candidates=\(candidates)",
+            "command=\(command)",
+            "capture=\(capture)",
+            "session=\(session)",
+            "timeout=\(timeout)",
+            "node_limit=\(nodeLimit)",
+            "depth_limit=\(depthLimit)",
+            "failed_child_reads=\(failedChildReads)"
+        ].joined(separator: " ")
+    }
+
     static func failure(logCode: String) -> String {
         "GAZEROW_OVERLAY_RESULT failure reason=\(logCode)"
     }
@@ -163,6 +190,8 @@ enum OverlayLaunchReporter {
             "focused_window_unavailable"
         case .childrenUnavailable:
             "children_unavailable"
+        case .cancelled:
+            "cancelled"
         }
     }
 

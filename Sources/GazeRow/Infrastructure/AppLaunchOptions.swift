@@ -9,6 +9,7 @@ struct AppLaunchOptions: Equatable {
     let showsOverlayOnLaunch: Bool
     let targetBundleIdentifier: String?
     let printsOverlayLabelMap: Bool
+    let printsOverlayActivationTrace: Bool
     let clickOverlayLabel: String?
     let printsHotKeyRegistration: Bool
     let queryText: String?
@@ -21,6 +22,7 @@ struct AppLaunchOptions: Equatable {
             && !showsOverlayOnLaunch
             && targetBundleIdentifier == nil
             && !printsOverlayLabelMap
+            && !printsOverlayActivationTrace
             && clickOverlayLabel == nil
             && queryText == nil
             && queryScopePin == nil
@@ -36,6 +38,7 @@ struct AppLaunchOptions: Equatable {
         showsOverlayOnLaunch = arguments.contains("--show-overlay-on-launch")
         targetBundleIdentifier = Self.value(after: "--target-bundle-id", in: arguments)
         printsOverlayLabelMap = arguments.contains("--print-overlay-label-map")
+        printsOverlayActivationTrace = arguments.contains("--print-overlay-activation-trace")
         clickOverlayLabel = Self.value(after: "--click-overlay-label", in: arguments)
         printsHotKeyRegistration = arguments.contains("--print-hotkey-registration")
         queryText = Self.value(after: "--query-text", in: arguments)

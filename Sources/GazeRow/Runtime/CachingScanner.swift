@@ -11,7 +11,7 @@ import Foundation
 /// @author suho.do
 /// @since 2026-07-07
 @MainActor
-final class CachingScanner: OverlaySessionScanning {
+final class CachingScanner: OverlaySessionProgressiveScanning {
     private let wrapped: any OverlaySessionScanning
     private let timeToLive: TimeInterval
     private let monitoredTimeToLive: TimeInterval
@@ -21,7 +21,7 @@ final class CachingScanner: OverlaySessionScanning {
     private var monitoredProcessIdentifier: pid_t?
     private var isMonitoringChanges = false
 
-    nonisolated init(
+    init(
         wrapped: any OverlaySessionScanning,
         timeToLive: TimeInterval = 0.5,
         monitoredTimeToLive: TimeInterval = 3,
@@ -56,9 +56,47 @@ final class CachingScanner: OverlaySessionScanning {
         return result
     }
 
+    func scanProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        let key = ScanCacheKey(context: context)
+        let now = dateProvider()
+        prepareChangeMonitoring(for: context.application.processIdentifier)
+
+        if let cachedScan,
+           cachedScan.key == key,
+           now.timeIntervalSince(cachedScan.storedAt) <= effectiveTimeToLive {
+            onProgress(AccessibilityScanProgress(candidates: cachedScan.result.candidates, nodesVisited: cachedScan.result.nodesVisited))
+            return .success(cachedScan.result)
+        }
+
+        let result: Result<AccessibilityScanResult, AccessibilityScanFailure>
+        if let progressiveScanner = wrapped as? any OverlaySessionProgressiveScanning {
+            result = await progressiveScanner.scanProgressively(context: context, onProgress: onProgress)
+        } else {
+            result = wrapped.scan(context: context)
+        }
+        store(result, for: key, at: now)
+        return result
+    }
+
     /// cache를 즉시 무효화한다.
     func invalidate() {
         cachedScan = nil
+    }
+
+    private func store(
+        _ result: Result<AccessibilityScanResult, AccessibilityScanFailure>,
+        for key: ScanCacheKey,
+        at date: Date
+    ) {
+        switch result {
+        case .success(let scanResult):
+            cachedScan = CachedScan(key: key, result: scanResult, storedAt: date)
+        case .failure:
+            cachedScan = nil
+        }
     }
 
     private var effectiveTimeToLive: TimeInterval {

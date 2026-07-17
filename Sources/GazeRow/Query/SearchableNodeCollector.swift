@@ -19,7 +19,7 @@ struct AccessibilitySearchableNodeCollector<Client: AccessibilityElementClient>:
     private let configuration: AccessibilityScanConfiguration
     private let dateProvider: () -> Date
 
-    nonisolated init(
+    init(
         client: Client,
         configuration: AccessibilityScanConfiguration = AccessibilityScanConfiguration(),
         dateProvider: @escaping () -> Date = Date.init
@@ -149,6 +149,24 @@ struct AccessibilitySearchableNodeCollector<Client: AccessibilityElementClient>:
 
     private func isTimedOut(startedAt: Date) -> Bool {
         dateProvider().timeIntervalSince(startedAt) > configuration.timeout
+    }
+}
+
+/// 기본 query collector를 첫 query 시점에 구성하는 adapter.
+///
+/// @MainActor 초기화가 필요한 production AX client를 default argument에서 만들지 않아
+/// Swift 5.9과 Swift 6 양쪽의 actor 경계를 일관되게 유지한다.
+///
+/// @author suho.do
+/// @since 2026-07-17
+@MainActor
+struct DefaultSearchableNodeCollector: SearchableNodeCollecting {
+
+    nonisolated init() {}
+
+    func buildIndex(context: TargetContext) -> ElementSearchIndex {
+        AccessibilitySearchableNodeCollector(client: AXAccessibilityElementClient())
+            .buildIndex(context: context)
     }
 }
 

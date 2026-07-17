@@ -38,6 +38,33 @@ final class OverlayLaunchReporterTests: XCTestCase {
         XCTAssertEqual(message, "GAZEROW_OVERLAY_RESULT success labels=12")
     }
 
+    func test_activationTrace는_비식별성능값만_출력한다() {
+        // given
+        let event = OverlayActivationTraceEvent(
+            activationID: UUID(),
+            phase: .scanCompleted,
+            elapsedMilliseconds: 123,
+            metadata: OverlayActivationTraceMetadata(
+                nodesVisited: 675,
+                candidateCount: 520,
+                didTimeout: true,
+                didHitNodeLimit: false,
+                didHitDepthLimit: true,
+                failedChildReadCount: 2
+            )
+        )
+
+        // when
+        let message = OverlayLaunchReporter.activationTrace(event)
+
+        // then
+        XCTAssertEqual(
+            message,
+            "GAZEROW_OVERLAY_TIMING phase=scanCompleted elapsed_ms=123 nodes=675 candidates=520 command=- capture=- session=- timeout=true node_limit=false depth_limit=true failed_child_reads=2"
+        )
+        XCTAssertFalse(message.contains(event.activationID.uuidString))
+    }
+
     func test_failure_logCode를_포함한다() {
         // given
         let logCode = "target_resolution_failed.no_frontmost_application"

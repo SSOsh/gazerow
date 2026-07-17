@@ -10,6 +10,26 @@ import XCTest
 @MainActor
 final class OverlaySessionControllerTests: XCTestCase {
 
+    func test_sessionState는_기본적으로_scan완료상태다() {
+        // given
+        let layout = StubOverlayPresenter().makeLayout(
+            targetFrame: CGRect(x: 0, y: 0, width: 100, height: 100),
+            candidates: [],
+            labels: []
+        )
+        let snapshot = OverlaySessionSnapshot(
+            context: makeContext(),
+            scanResult: makeScanResult(candidates: []),
+            layout: layout
+        )
+
+        // when
+        let sut = OverlaySessionState(snapshot: snapshot, focusEngine: FocusEngine(layout: layout))
+
+        // then
+        XCTAssertFalse(sut.isScanInProgress)
+    }
+
     func test_start_sessionDisabled이면_overlay를_닫고_resolve하지_않음() {
         // given
         let resolver = StubOverlayTargetResolver(result: .success(makeContext()))
@@ -602,7 +622,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
     }
 
-    func test_handleKeyboardCommand_windowsScope_return은_windowActivator를_호출하고_rescan한다() {
+    func test_handleKeyboardCommand_windowsScope_return은_windowActivator를_호출하고_rescan한다() async {
         // given
         let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
         let windowActivator = StubWindowActivator(result: .success(()))
@@ -626,6 +646,7 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // when
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        await waitForWindowActivation()
 
         // then
         XCTAssertEqual(windowActivator.activatedEntries, [entry])
@@ -636,7 +657,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.tone, .success)
     }
 
-    func test_handleKeyboardCommand_windowsScope_resolve실패는_이전overlay를_닫는다() {
+    func test_handleKeyboardCommand_windowsScope_resolve실패는_이전overlay를_닫는다() async {
         // given
         let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
         let resolver = StubOverlayTargetResolver(
@@ -660,6 +681,7 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // when
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        await waitForWindowActivation()
 
         // then
         XCTAssertEqual(resolver.resolveCallCount, 2)
@@ -669,7 +691,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertNil(sut.activeSession)
     }
 
-    func test_handleKeyboardCommand_windowsScope_scan실패는_이전overlay를_닫는다() {
+    func test_handleKeyboardCommand_windowsScope_scan실패는_이전overlay를_닫는다() async {
         // given
         let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
         let scanner = StubOverlayScanner(
@@ -692,6 +714,7 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // when
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        await waitForWindowActivation()
 
         // then
         XCTAssertEqual(scanner.scanCallCount, 2)
@@ -701,7 +724,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertNil(sut.activeSession)
     }
 
-    func test_handleKeyboardCommand_windowsScope_재검색후보가비면_이전overlay를_닫는다() {
+    func test_handleKeyboardCommand_windowsScope_재검색후보가비면_이전overlay를_닫는다() async {
         // given
         let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
         let scanner = StubOverlayScanner(
@@ -724,6 +747,7 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // when
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        await waitForWindowActivation()
 
         // then
         XCTAssertEqual(scanner.scanCallCount, 2)
@@ -733,7 +757,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertNil(sut.activeSession)
     }
 
-    func test_handleKeyboardCommand_windowsScope_activate실패는_failure_status를_표시한다() {
+    func test_handleKeyboardCommand_windowsScope_activate실패는_failure_status를_표시한다() async {
         // given
         let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
         let windowActivator = StubWindowActivator(result: .failure(.frontmostTimeout))
@@ -748,11 +772,45 @@ final class OverlaySessionControllerTests: XCTestCase {
 
         // when
         _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        await waitForWindowActivation()
 
         // then
         XCTAssertEqual(windowActivator.activatedEntries, [entry])
         XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
         XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_close후늦은성공결과는_rescan하지않는다() async {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
+        let windowActivator = SuspendingWindowActivator()
+        let scanner = StubOverlayScanner(
+            result: .success(makeScanResult(candidates: [makeCandidate(title: "Open")]))
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) },
+            windowActivator: windowActivator
+        )
+        _ = sut.start()
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        await waitForWindowActivation()
+        sut.close()
+        windowActivator.complete(with: .success(()))
+        await waitForWindowActivation()
+
+        // then
+        XCTAssertEqual(windowActivator.activatedEntries, [entry])
+        XCTAssertEqual(scanner.scanCallCount, 1)
+        XCTAssertEqual(presenter.showRequests.count, 1)
+        XCTAssertNil(sut.activeSession)
     }
 
     func test_handleKeyboardCommand_windowsScope_match가_없으면_기존_label_focus를_비운다() {
@@ -1574,6 +1632,12 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertFalse(logCodes.joined(separator: " ").contains("raw"))
     }
 
+    private func waitForWindowActivation() async {
+        for _ in 0..<3 {
+            await Task.yield()
+        }
+    }
+
     private func makeStartedSessionController(
         presenter: StubOverlayPresenter? = nil,
         recorder: StubInteractionRecorder? = nil,
@@ -1979,8 +2043,26 @@ private final class StubWindowActivator: WindowActivating {
         self.result = result
     }
 
-    func activate(_ entry: WindowEntry) -> Result<Void, WindowActivateFailure> {
+    func activate(_ entry: WindowEntry) async -> Result<Void, WindowActivateFailure> {
         activatedEntries.append(entry)
         return result
+    }
+}
+
+@MainActor
+private final class SuspendingWindowActivator: WindowActivating {
+    private var continuation: CheckedContinuation<Result<Void, WindowActivateFailure>, Never>?
+    private(set) var activatedEntries: [WindowEntry] = []
+
+    func activate(_ entry: WindowEntry) async -> Result<Void, WindowActivateFailure> {
+        activatedEntries.append(entry)
+        return await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func complete(with result: Result<Void, WindowActivateFailure>) {
+        continuation?.resume(returning: result)
+        continuation = nil
     }
 }

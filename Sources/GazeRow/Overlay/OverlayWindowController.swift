@@ -33,7 +33,7 @@ final class OverlayWindowController {
     private let appearanceProvider: @MainActor () -> OverlayAppearance
     private var keyboardEventTap: (any OverlayKeyboardEventTapping)?
 
-    nonisolated init(
+    init(
         layoutEngine: OverlayLayoutEngine = OverlayLayoutEngine(),
         commandBarLayoutEngine: OverlayCommandBarLayoutEngine = OverlayCommandBarLayoutEngine(),
         displayInfoProvider: @escaping @MainActor (CGRect) -> OverlayDisplayInfo = OverlayWindowController.defaultDisplayInfo,

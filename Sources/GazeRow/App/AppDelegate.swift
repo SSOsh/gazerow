@@ -72,6 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
     private lazy var overlaySessionController = OverlaySessionController(
         targetResolver: makeTargetResolver(),
+        activationTracer: makeActivationTracer(),
         clickResultObserver: { [weak self] result in
             self?.printOverlayClickResultIfNeeded(result)
         }
@@ -607,6 +608,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 bundleIdentifier: bundleIdentifier
             )
         )
+    }
+
+    /// CLI 성능 평가 요청이 있을 때만 activation timing을 stdout으로 내보낸다.
+    private func makeActivationTracer() -> OverlayActivationTracer {
+        guard launchOptions.printsOverlayActivationTrace else {
+            return OverlayActivationTracer()
+        }
+
+        return OverlayActivationTracer { event in
+            print(OverlayLaunchReporter.activationTrace(event))
+            fflush(stdout)
+        }
     }
 
     /// 런치 옵션 기반 smoke 실행에서만 stdout 결과를 남긴다.
