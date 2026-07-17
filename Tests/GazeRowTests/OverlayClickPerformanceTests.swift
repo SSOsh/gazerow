@@ -14,7 +14,8 @@ final class OverlayClickPerformanceTests: XCTestCase {
             OverlayClickPerformanceSample(
                 rescanMilliseconds: $0,
                 totalMilliseconds: $0 * 2,
-                outcome: "clicked"
+                outcome: "clicked",
+                revalidationPath: $0 <= 20 ? .selective : .fullRescan
             )
         }
 
@@ -27,6 +28,8 @@ final class OverlayClickPerformanceTests: XCTestCase {
         XCTAssertEqual(summary.rescanP95Milliseconds, 50)
         XCTAssertEqual(summary.totalP50Milliseconds, 60)
         XCTAssertEqual(summary.totalP95Milliseconds, 100)
+        XCTAssertEqual(summary.selectiveSampleCount, 2)
+        XCTAssertEqual(summary.fullRescanSampleCount, 3)
     }
 
     func test_recorder는_최근최대개수만유지하고_요약을전달한다() {
@@ -37,15 +40,38 @@ final class OverlayClickPerformanceTests: XCTestCase {
         }
 
         // when
-        sut.record(OverlayClickPerformanceSample(rescanMilliseconds: 10, totalMilliseconds: 20, outcome: "clicked"))
-        sut.record(OverlayClickPerformanceSample(rescanMilliseconds: 20, totalMilliseconds: 30, outcome: "clicked"))
-        sut.record(OverlayClickPerformanceSample(rescanMilliseconds: 30, totalMilliseconds: 40, outcome: "target_changed"))
+        sut.record(
+            OverlayClickPerformanceSample(
+                rescanMilliseconds: 10,
+                totalMilliseconds: 20,
+                outcome: "clicked",
+                revalidationPath: .selective
+            )
+        )
+        sut.record(
+            OverlayClickPerformanceSample(
+                rescanMilliseconds: 20,
+                totalMilliseconds: 30,
+                outcome: "clicked",
+                revalidationPath: .selective
+            )
+        )
+        sut.record(
+            OverlayClickPerformanceSample(
+                rescanMilliseconds: 30,
+                totalMilliseconds: 40,
+                outcome: "target_changed",
+                revalidationPath: .fullRescan
+            )
+        )
 
         // then
         XCTAssertEqual(sut.samples.map(\.rescanMilliseconds), [20, 30])
         XCTAssertEqual(summaries.last?.sampleCount, 2)
         XCTAssertEqual(summaries.last?.rescanP50Milliseconds, 20)
         XCTAssertEqual(summaries.last?.rescanP95Milliseconds, 30)
+        XCTAssertEqual(summaries.last?.selectiveSampleCount, 1)
+        XCTAssertEqual(summaries.last?.fullRescanSampleCount, 1)
     }
 
     func test_outcome은_원문없이_결과코드만_반환한다() {

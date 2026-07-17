@@ -112,7 +112,8 @@ struct AXOverlaySessionClickExecutor: OverlaySessionClickExecuting {
             OverlayClickPerformanceSample(
                 rescanMilliseconds: Self.milliseconds(from: startedAt, to: resolvedAt),
                 totalMilliseconds: Self.milliseconds(from: startedAt, to: dateProvider()),
-                outcome: OverlayClickPerformanceOutcome.code(for: result)
+                outcome: OverlayClickPerformanceOutcome.code(for: result),
+                revalidationPath: revalidation.path
             )
         )
         return result
@@ -147,6 +148,18 @@ enum OverlayClickTargetRevalidation<Element> {
     case changed(path: OverlayClickRevalidationPath)
     case ambiguous(path: OverlayClickRevalidationPath)
     case scanFailed(AccessibilityScanFailure)
+
+    var path: OverlayClickRevalidationPath {
+        switch self {
+        case .matched(_, _, let path, _),
+             .unavailable(let path),
+             .changed(let path),
+             .ambiguous(let path):
+            path
+        case .scanFailed:
+            .fullRescan
+        }
+    }
 }
 
 /// generation이 동일하면 선택 path만 검증하고, 불확실하면 기존 전체 scan으로 복귀한다.

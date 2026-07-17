@@ -8,11 +8,18 @@ struct OverlayClickPerformanceSample: Equatable {
     let rescanMilliseconds: Int
     let totalMilliseconds: Int
     let outcome: String
+    let revalidationPath: OverlayClickRevalidationPath
 
-    init(rescanMilliseconds: Int, totalMilliseconds: Int, outcome: String) {
+    init(
+        rescanMilliseconds: Int,
+        totalMilliseconds: Int,
+        outcome: String,
+        revalidationPath: OverlayClickRevalidationPath
+    ) {
         self.rescanMilliseconds = max(0, rescanMilliseconds)
         self.totalMilliseconds = max(0, totalMilliseconds)
         self.outcome = outcome
+        self.revalidationPath = revalidationPath
     }
 }
 
@@ -26,6 +33,8 @@ struct OverlayClickPerformanceSummary: Equatable {
     let rescanP95Milliseconds: Int
     let totalP50Milliseconds: Int
     let totalP95Milliseconds: Int
+    let selectiveSampleCount: Int
+    let fullRescanSampleCount: Int
 
     init(samples: [OverlayClickPerformanceSample]) {
         let rescans = samples.map(\.rescanMilliseconds)
@@ -35,6 +44,8 @@ struct OverlayClickPerformanceSummary: Equatable {
         rescanP95Milliseconds = Self.percentile(0.95, in: rescans)
         totalP50Milliseconds = Self.percentile(0.50, in: totals)
         totalP95Milliseconds = Self.percentile(0.95, in: totals)
+        selectiveSampleCount = samples.filter { $0.revalidationPath == .selective }.count
+        fullRescanSampleCount = samples.filter { $0.revalidationPath == .fullRescan }.count
     }
 
     private static func percentile(_ percentile: Double, in samples: [Int]) -> Int {
@@ -76,7 +87,7 @@ final class OverlayClickPerformanceRecorder: OverlayClickPerformanceRecording {
         maximumSampleCount: Int = 100,
         onRecord: @escaping (OverlayClickPerformanceSample, OverlayClickPerformanceSummary) -> Void = { sample, summary in
             AppLogger.interaction.info(
-                "overlay confirm outcome=\(sample.outcome, privacy: .public) rescanMs=\(sample.rescanMilliseconds, privacy: .public) totalMs=\(sample.totalMilliseconds, privacy: .public) rescanP50Ms=\(summary.rescanP50Milliseconds, privacy: .public) rescanP95Ms=\(summary.rescanP95Milliseconds, privacy: .public) totalP50Ms=\(summary.totalP50Milliseconds, privacy: .public) totalP95Ms=\(summary.totalP95Milliseconds, privacy: .public) samples=\(summary.sampleCount, privacy: .public)"
+                "overlay confirm outcome=\(sample.outcome, privacy: .public) path=\(sample.revalidationPath.rawValue, privacy: .public) rescanMs=\(sample.rescanMilliseconds, privacy: .public) totalMs=\(sample.totalMilliseconds, privacy: .public) rescanP50Ms=\(summary.rescanP50Milliseconds, privacy: .public) rescanP95Ms=\(summary.rescanP95Milliseconds, privacy: .public) totalP50Ms=\(summary.totalP50Milliseconds, privacy: .public) totalP95Ms=\(summary.totalP95Milliseconds, privacy: .public) selectiveSamples=\(summary.selectiveSampleCount, privacy: .public) fullRescanSamples=\(summary.fullRescanSampleCount, privacy: .public) samples=\(summary.sampleCount, privacy: .public)"
             )
         }
     ) {
