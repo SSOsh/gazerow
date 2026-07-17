@@ -1373,7 +1373,7 @@ final class OverlaySessionController {
             activationID: activeActivationID,
             at: dateProvider(),
             metadata: OverlayActivationTraceMetadata(
-                commandKind: commandKind(for: command),
+                commandKind: command.logCode,
                 captureMode: captureMode?.rawValue,
                 hasActiveSession: hasActiveSession ?? (activeSession != nil)
             )
@@ -1399,33 +1399,6 @@ final class OverlaySessionController {
         }
 
         trace(phase, activationID: activationID, at: dateProvider(), metadata: metadata)
-    }
-
-    private func commandKind(for command: FocusKeyboardCommand) -> String {
-        switch command {
-        case .move:
-            "move"
-        case .typeLabel:
-            "type_label"
-        case .appendQuery:
-            "append_query"
-        case .deleteQueryCharacter:
-            "delete_query_character"
-        case .clearQueryBuffer:
-            "clear_query_buffer"
-        case .clearLabelBuffer:
-            "clear_label_buffer"
-        case .pinScope:
-            "pin_scope"
-        case .selectScope:
-            "select_scope"
-        case .cycleMatch:
-            "cycle_match"
-        case .dryRunConfirm:
-            "confirm"
-        case .closeOverlay:
-            "close_overlay"
-        }
     }
 }
 
