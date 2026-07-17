@@ -28,7 +28,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         timeToLive: TimeInterval = 0.5,
         monitoredTimeToLive: TimeInterval = 3,
         changeMonitor: (any AccessibilityChangeMonitoring)? = nil,
-        generationStore: AccessibilityTreeGenerationStore = AccessibilityTreeGenerationStore(),
+        generationStore: AccessibilityTreeGenerationStore? = nil,
         cacheEventRecorder: @escaping (AccessibilityScanCacheEvent) -> Void = { event in
             AppLogger.overlay.info(
                 "AX scan cache event=\(event.code, privacy: .public)"
@@ -40,7 +40,7 @@ final class CachingScanner: OverlaySessionBundleProgressiveScanning {
         self.timeToLive = max(0, timeToLive)
         self.monitoredTimeToLive = max(self.timeToLive, monitoredTimeToLive)
         self.changeMonitor = changeMonitor
-        self.generationStore = generationStore
+        self.generationStore = generationStore ?? AccessibilityTreeGenerationStore()
         self.cacheEventRecorder = cacheEventRecorder
         self.dateProvider = dateProvider
     }
