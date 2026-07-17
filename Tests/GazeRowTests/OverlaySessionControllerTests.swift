@@ -30,6 +30,80 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertFalse(sut.isScanInProgress)
     }
 
+    func test_startProgressively는_부분후보를잠금상태로표시하고_완료후최종레이아웃으로교체한다() async {
+        // given
+        let context = makeContext()
+        let firstCandidate = makeCandidate(title: "First")
+        let finalCandidates = [firstCandidate, makeCandidate(title: "Second", frame: CGRect(x: 260, y: 180, width: 44, height: 24))]
+        let scanner = SuspendingProgressiveOverlayScanner(
+            progress: AccessibilityScanProgress(candidates: [firstCandidate], nodesVisited: 12)
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(context)),
+            scanner: scanner,
+            overlayPresenter: presenter
+        )
+        var completedResult: OverlaySessionStartResult?
+
+        // when
+        sut.startProgressively { result in
+            completedResult = result
+        }
+        await waitForProgressiveScan()
+
+        // then - partial
+        XCTAssertEqual(presenter.showRequests.map(\.candidates), [[firstCandidate]])
+        XCTAssertTrue(sut.activeSession?.isScanInProgress == true)
+        XCTAssertNil(sut.handleKeyboardCommand(.move(.next)))
+        XCTAssertNil(sut.clickLabel("A"))
+        XCTAssertNil(sut.focusNearestLabel(to: CGPoint(x: 100, y: 100)))
+        XCTAssertNil(completedResult)
+
+        // when - final
+        scanner.complete(with: .success(makeScanResult(candidates: finalCandidates)))
+        await waitForProgressiveScan()
+
+        // then - final
+        XCTAssertEqual(presenter.showRequests.map(\.candidates), [[firstCandidate], finalCandidates])
+        XCTAssertFalse(sut.activeSession?.isScanInProgress == true)
+        guard case .success(let snapshot) = completedResult else {
+            XCTFail("Expected final success, got \(String(describing: completedResult)).")
+            return
+        }
+        XCTAssertEqual(snapshot.scanResult.candidates, finalCandidates)
+    }
+
+    func test_startProgressively는_close후_늦은최종결과를무시한다() async {
+        // given
+        let firstCandidate = makeCandidate(title: "First")
+        let scanner = SuspendingProgressiveOverlayScanner(
+            progress: AccessibilityScanProgress(candidates: [firstCandidate], nodesVisited: 8)
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: scanner,
+            overlayPresenter: presenter
+        )
+        var didComplete = false
+        sut.startProgressively { _ in
+            didComplete = true
+        }
+        await waitForProgressiveScan()
+
+        // when
+        sut.close()
+        scanner.complete(with: .success(makeScanResult(candidates: [firstCandidate, makeCandidate(title: "Late")])))
+        await waitForProgressiveScan()
+
+        // then
+        XCTAssertEqual(presenter.showRequests.count, 1)
+        XCTAssertNil(sut.activeSession)
+        XCTAssertFalse(didComplete)
+        XCTAssertTrue(scanner.wasCancelled)
+    }
+
     func test_start_sessionDisabled이면_overlay를_닫고_resolve하지_않음() {
         // given
         let resolver = StubOverlayTargetResolver(result: .success(makeContext()))
@@ -1638,6 +1712,12 @@ final class OverlaySessionControllerTests: XCTestCase {
         }
     }
 
+    private func waitForProgressiveScan() async {
+        for _ in 0..<6 {
+            await Task.yield()
+        }
+    }
+
     private func makeStartedSessionController(
         presenter: StubOverlayPresenter? = nil,
         recorder: StubInteractionRecorder? = nil,
@@ -1852,6 +1932,49 @@ private final class StubOverlayScanner: OverlaySessionScanning {
 
     func invalidate() {
         invalidateCallCount += 1
+    }
+}
+
+@MainActor
+private final class SuspendingProgressiveOverlayScanner: OverlaySessionProgressiveScanning {
+    private let progress: AccessibilityScanProgress
+    private var continuation:
+        CheckedContinuation<Result<AccessibilityScanResult, AccessibilityScanFailure>, Never>?
+    private(set) var wasCancelled = false
+
+    init(progress: AccessibilityScanProgress) {
+        self.progress = progress
+    }
+
+    func scan(context: TargetContext) -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        .failure(.cancelled)
+    }
+
+    func scanProgressively(
+        context: TargetContext,
+        onProgress: @escaping (AccessibilityScanProgress) -> Void
+    ) async -> Result<AccessibilityScanResult, AccessibilityScanFailure> {
+        onProgress(progress)
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.cancel()
+            }
+        }
+    }
+
+    func complete(with result: Result<AccessibilityScanResult, AccessibilityScanFailure>) {
+        let continuation = continuation
+        self.continuation = nil
+        continuation?.resume(returning: result)
+    }
+
+    private func cancel() {
+        wasCancelled = true
+        complete(with: .failure(.cancelled))
     }
 }
 

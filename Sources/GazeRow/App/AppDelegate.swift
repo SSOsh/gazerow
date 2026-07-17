@@ -280,13 +280,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 세션 활성/비활성(kill switch)을 토글하고 메뉴 타이틀을 갱신한다.
     @objc private func toggleSession() {
         SessionController.shared.toggle()
+        if !SessionController.shared.isEnabled {
+            overlaySessionController.close()
+        }
         sessionMenuItem?.title = sessionMenuTitle()
     }
 
     /// 현재 frontmost window를 기준으로 overlay session을 시작한다.
     @objc private func showOverlay() {
         AppLogger.overlay.info("overlay shortcut fired (no camera)")
-        switch overlaySessionController.start() {
+        overlaySessionController.startProgressively { [weak self] result in
+            self?.handleOverlayStartResult(result)
+        }
+    }
+
+    private func handleOverlayStartResult(_ result: OverlaySessionStartResult) {
+        switch result {
         case .success(let snapshot):
             AppLogger.overlay.info(
                 "overlay shown bundle=\(snapshot.context.application.bundleIdentifier, privacy: .public) labels=\(snapshot.layout.metrics.labelCount, privacy: .public)"
@@ -321,12 +330,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        guard case .success = overlaySessionController.start() else {
-            AppLogger.gaze.info("gaze overlay start failed")
-            return
+        overlaySessionController.startProgressively { [weak self] result in
+            guard let self else {
+                return
+            }
+            guard case .success = result else {
+                AppLogger.gaze.info("gaze overlay start failed")
+                return
+            }
+            self.startGazeOneShotCapture()
         }
-
-        startGazeOneShotCapture()
     }
 
     /// 현재 상태 기준 gaze 실행 게이트를 만든다.

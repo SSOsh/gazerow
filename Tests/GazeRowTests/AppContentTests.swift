@@ -194,6 +194,7 @@ final class AppContentTests: XCTestCase {
 
         // when & then
         XCTAssertEqual(content.overlayReadyText, "Ready")
+        XCTAssertEqual(content.overlayScanningText, "Finding more elements…")
         XCTAssertEqual(content.overlayInputClearedText, "Input cleared")
         XCTAssertEqual(content.overlayFocusedText, "Focused")
         XCTAssertEqual(content.overlayLabelsSelectedText, "Labels")
@@ -210,6 +211,7 @@ final class AppContentTests: XCTestCase {
 
         // when & then
         XCTAssertEqual(content.overlayReadyText, "준비됨")
+        XCTAssertEqual(content.overlayScanningText, "요소를 더 찾는 중…")
         XCTAssertEqual(content.overlayInputClearedText, "입력을 지웠습니다")
         XCTAssertEqual(content.overlayFocusedText, "포커스됨")
         XCTAssertEqual(content.overlayLabelsSelectedText, "라벨")

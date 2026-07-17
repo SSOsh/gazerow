@@ -33,6 +33,8 @@ final class OverlaySessionController {
     private(set) var activeSession: OverlaySessionState?
     private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
     private var activeActivationID: UUID?
+    private var progressiveScanTask: Task<Void, Never>?
+    private var progressiveScanRequestID: UUID?
     private var windowActivationTask: Task<Void, Never>?
     private var windowActivationRequestID: UUID?
 
@@ -79,6 +81,7 @@ final class OverlaySessionController {
 
     func start() -> OverlaySessionStartResult {
         lastClickResult = nil
+        cancelProgressiveScan()
         cancelWindowActivation()
         let startedAt = dateProvider()
         if let activeActivationID {
@@ -112,6 +115,105 @@ final class OverlaySessionController {
             close()
             return .failure(.scanFailed(failure))
         }
+        return completeStart(
+            context: context,
+            scanResult: scanResult,
+            activationID: activationID,
+            startedAt: startedAt,
+            targetResolvedAt: targetResolvedAt
+        )
+    }
+
+    func startProgressively(
+        onCompleted: @escaping @MainActor (OverlaySessionStartResult) -> Void
+    ) {
+        guard let progressiveScanner = scanner as? any OverlaySessionProgressiveScanning else {
+            onCompleted(start())
+            return
+        }
+
+        lastClickResult = nil
+        cancelProgressiveScan()
+        cancelWindowActivation()
+        let startedAt = dateProvider()
+        if let activeActivationID {
+            activationTracer.end(activationID: activeActivationID)
+        }
+        let activationID = activationTracer.begin(at: startedAt)
+        activeActivationID = activationID
+        trace(.shortcutReceived, activationID: activationID, at: startedAt)
+
+        guard isSessionEnabled() else {
+            close()
+            onCompleted(.failure(.sessionDisabled))
+            return
+        }
+
+        let context: TargetContext
+        switch targetResolver.resolve() {
+        case .success(let resolvedContext):
+            context = resolvedContext
+        case .failure(let failure):
+            close()
+            onCompleted(.failure(.targetResolutionFailed(failure)))
+            return
+        }
+        let targetResolvedAt = dateProvider()
+        trace(.targetResolved, activationID: activationID, at: targetResolvedAt)
+
+        let requestID = UUID()
+        progressiveScanRequestID = requestID
+        progressiveScanTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            var didShowPartialOverlay = false
+            let result = await progressiveScanner.scanProgressively(context: context) { [weak self] progress in
+                guard let self,
+                      !didShowPartialOverlay,
+                      !progress.candidates.isEmpty,
+                      self.isCurrentProgressiveScan(requestID: requestID, activationID: activationID) else {
+                    return
+                }
+                didShowPartialOverlay = true
+                self.presentPartialOverlay(
+                    context: context,
+                    progress: progress,
+                    activationID: activationID
+                )
+            }
+
+            guard self.isCurrentProgressiveScan(requestID: requestID, activationID: activationID) else {
+                return
+            }
+            self.progressiveScanTask = nil
+            self.progressiveScanRequestID = nil
+
+            let startResult: OverlaySessionStartResult
+            switch result {
+            case .success(let scanResult):
+                startResult = self.completeStart(
+                    context: context,
+                    scanResult: scanResult,
+                    activationID: activationID,
+                    startedAt: startedAt,
+                    targetResolvedAt: targetResolvedAt
+                )
+            case .failure(let failure):
+                self.close()
+                startResult = .failure(.scanFailed(failure))
+            }
+            onCompleted(startResult)
+        }
+    }
+
+    private func completeStart(
+        context: TargetContext,
+        scanResult: AccessibilityScanResult,
+        activationID: UUID,
+        startedAt: Date,
+        targetResolvedAt: Date
+    ) -> OverlaySessionStartResult {
         let scannedAt = dateProvider()
         trace(
             .scanCompleted,
@@ -191,6 +293,63 @@ final class OverlaySessionController {
             "overlay start timing targetMs=\(Self.milliseconds(from: startedAt, to: targetResolvedAt), privacy: .public) scanMs=\(Self.milliseconds(from: targetResolvedAt, to: scannedAt), privacy: .public) showMs=\(Self.milliseconds(from: scannedAt, to: shownAt), privacy: .public) totalMs=\(Self.milliseconds(from: startedAt, to: shownAt), privacy: .public) nodes=\(scanResult.nodesVisited, privacy: .public) candidates=\(scanResult.candidateCount, privacy: .public) timeout=\(scanResult.didTimeout, privacy: .public)"
         )
         return .success(snapshot)
+    }
+
+    private func presentPartialOverlay(
+        context: TargetContext,
+        progress: AccessibilityScanProgress,
+        activationID: UUID
+    ) {
+        let scanResult = AccessibilityScanResult(
+            candidates: progress.candidates,
+            nodesVisited: progress.nodesVisited,
+            scanDuration: 0,
+            didHitDepthLimit: false,
+            didHitNodeLimit: false,
+            didTimeout: false,
+            failedChildReadCount: 0
+        )
+        let layout = overlayPresenter.makeLayout(
+            targetFrame: context.window.frame,
+            candidates: progress.candidates,
+            labels: []
+        )
+        var session = OverlaySessionState(
+            snapshot: OverlaySessionSnapshot(
+                context: context,
+                scanResult: scanResult,
+                layout: layout
+            ),
+            focusEngine: FocusEngine(layout: layout),
+            elementIndex: makeFallbackElementIndex(scanResult: scanResult)
+        )
+        session.isScanInProgress = true
+        activeSession = session
+        _ = overlayPresenter.show(
+            layout: layout,
+            initialStatus: status(
+                for: session,
+                resolution: nil,
+                message: content.overlayScanningText,
+                tone: .neutral
+            ),
+            onEscape: { [weak self] in
+                self?.close()
+            },
+            onKeyboardCommand: { [weak self] capturedCommand in
+                _ = self?.handleCapturedKeyboardCommand(capturedCommand)
+            },
+            onPresentationEvent: { [weak self] event in
+                self?.tracePresentationEvent(event, activationID: activationID)
+            }
+        )
+    }
+
+    private func isCurrentProgressiveScan(requestID: UUID, activationID: UUID) -> Bool {
+        !Task.isCancelled
+            && progressiveScanRequestID == requestID
+            && activeActivationID == activationID
+            && isSessionEnabled()
     }
 
     func handleKeyboardCommand(_ command: FocusKeyboardCommand) -> FocusEngineEvent? {
@@ -335,7 +494,8 @@ final class OverlaySessionController {
     @discardableResult
     func clickLabel(_ label: String) -> Result<ClickExecutionSuccess, OverlaySessionClickFailure>? {
         let normalizedLabel = label.uppercased()
-        guard let session = activeSession else {
+        guard let session = activeSession,
+              !session.isScanInProgress else {
             return nil
         }
 
@@ -356,7 +516,8 @@ final class OverlaySessionController {
     }
 
     func focusNearestLabel(to gazePoint: CGPoint) -> FocusEngineEvent? {
-        guard var session = activeSession else {
+        guard var session = activeSession,
+              !session.isScanInProgress else {
             return nil
         }
 
@@ -576,6 +737,7 @@ final class OverlaySessionController {
     }
 
     func close() {
+        cancelProgressiveScan()
         cancelWindowActivation()
         overlayPresenter.close()
         activeSession = nil
@@ -865,6 +1027,12 @@ final class OverlaySessionController {
         windowActivationTask?.cancel()
         windowActivationTask = nil
         windowActivationRequestID = nil
+    }
+
+    private func cancelProgressiveScan() {
+        progressiveScanTask?.cancel()
+        progressiveScanTask = nil
+        progressiveScanRequestID = nil
     }
 
     private func handleWindowActivation(

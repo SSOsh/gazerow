@@ -190,6 +190,11 @@ enum AppContent {
             readyBadge
         }
 
+        /// 부분 후보를 표시한 뒤 최종 AX scan을 기다리는 상태.
+        var overlayScanningText: String {
+            language == .korean ? "요소를 더 찾는 중…" : "Finding more elements…"
+        }
+
         /// 입력 버퍼를 비웠을 때의 문구.
         var overlayInputClearedText: String {
             language == .korean ? "입력을 지웠습니다" : "Input cleared"
