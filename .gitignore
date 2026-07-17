@@ -11,3 +11,6 @@ DerivedData/
 
 # macOS
 .DS_Store
+
+# Local implementation plans
+.plans/
