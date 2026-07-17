@@ -66,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 실행 시 전달된 로컬 평가/복구 옵션.
     private let launchOptions = AppLaunchOptions.current
 
-    /// 설치 위치와 무관하게 GazeRow 단일 인스턴스 실행을 보장한다.
+    /// 설치 위치와 무관하게 gazerow 단일 인스턴스 실행을 보장한다.
     private lazy var singleInstanceCoordinator = SingleInstanceCoordinator()
 
     /// 메뉴바 activation에서 overlay session을 시작하는 runtime coordinator.
@@ -229,8 +229,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = "GazeRow could not start safely"
-        alert.informativeText = "GazeRow could not verify that only one instance is running. Error code: \(errorCode)."
+        alert.messageText = "gazerow could not start safely"
+        alert.informativeText = "gazerow could not verify that only one instance is running. Error code: \(errorCode)."
         alert.addButton(withTitle: "OK")
         alert.runModal()
 
@@ -243,11 +243,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func showSupportDonation() {
         NSApp.activate(ignoringOtherApps: true)
 
+        let content = localizedContent
         let alert = NSAlert()
-        alert.messageText = localizedContent.supportDonationTitle
-        alert.informativeText = localizedContent.supportDonationMessage
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
+        alert.messageText = content.supportDonationTitle
+        alert.informativeText = content.supportDonationMessage
+        alert.addButton(withTitle: content.supportDonationCopyButton)
+        alert.addButton(withTitle: content.supportDonationCloseButton)
+
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            let copied = SupportDonationClipboard().copyAccountNumber()
+            AppLogger.lifecycle.info("support donation account copied success=\(copied, privacy: .public)")
+        }
 
         AppLogger.lifecycle.info("support donation opened")
     }

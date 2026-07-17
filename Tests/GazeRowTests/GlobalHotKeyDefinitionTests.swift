@@ -244,7 +244,7 @@ final class GlobalHotKeyDefinitionTests: XCTestCase {
         XCTAssertTrue(message.contains("Global shortcuts failed to register"))
         XCTAssertTrue(message.contains("Command+Shift+Space: shortcut already in use"))
         XCTAssertTrue(message.contains("Control+Option+Command+Space: invalid hotkey"))
-        XCTAssertTrue(message.contains("restart GazeRow"))
+        XCTAssertTrue(message.contains("restart gazerow"))
     }
 
 }

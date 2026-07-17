@@ -1,4 +1,4 @@
-# GazeRow TICKET-010 Result v1
+# gazerow TICKET-010 Result v1
 
 ## 변경 이력
 - v1: TICKET-010 Baseline Evaluation Run의 사전 검증 결과와 수동 평가 기록지를 생성.
@@ -43,23 +43,23 @@
 
 2026-07-02 19:42:19 KST에는 Show Overlay 실행 중 target resolve/scan이 Accessibility 권한 부족으로 실패하면 권한 요청 프롬프트와 System Settings Accessibility 패널을 여는 경로를 추가했다. 실제 권한 토글은 OS 보안 설정이므로 사용자 승인 없이는 변경하지 않았다.
 
-2026-07-02 19:45:35 KST에는 `swift run GazeRow -- --request-accessibility` 실행 시 앱 시작 직후 권한 요청 프롬프트와 System Settings Accessibility 패널을 여는 런치 옵션을 추가했다.
+2026-07-02 19:45:35 KST에는 `swift run gazerow -- --request-accessibility` 실행 시 앱 시작 직후 권한 요청 프롬프트와 System Settings Accessibility 패널을 여는 런치 옵션을 추가했다.
 
 2026-07-02 19:57:41 KST에는 Codex 실행 컨텍스트의 Accessibility 권한 승인 후 `AXIsProcessTrusted()`가 `true`를 반환했다. 이후 `--show-overlay-on-launch --target-bundle-id` 평가 런치 옵션, target window fallback(`AXFocusedWindow` -> `AXMainWindow` -> `AXWindows`), overlay launch reporter를 추가했고 Finder, Safari, Chrome, VS Code, System Settings에서 overlay activation smoke가 모두 통과했다. 이 시점에는 실제 keyboard label jump/confirm click task, 30분 crash-free session, 내부 사용자 3명 평가가 남아 있었다.
 
-2026-07-02 20:20 KST에는 실제 click task를 수행했다. `--print-overlay-label-map` 평가 옵션으로 GazeRow가 부여한 label과 candidate를 확인했고, keyboard label jump 후 Return confirm으로 Safari, Chrome, System Settings task가 성공했다. Finder는 sidebar row가 candidate로 수집되지 않았고, VS Code는 Activity Bar item이 candidate로 수집되지 않아 task 실패로 기록한다. 초기 5개 앱 중 3개 task 성공 기준은 충족했지만, 이 시점에는 30분 crash-free session과 내부 사용자 3명 평가가 아직 남아 있었다.
+2026-07-02 20:20 KST에는 실제 click task를 수행했다. `--print-overlay-label-map` 평가 옵션으로 gazerow가 부여한 label과 candidate를 확인했고, keyboard label jump 후 Return confirm으로 Safari, Chrome, System Settings task가 성공했다. Finder는 sidebar row가 candidate로 수집되지 않았고, VS Code는 Activity Bar item이 candidate로 수집되지 않아 task 실패로 기록한다. 초기 5개 앱 중 3개 task 성공 기준은 충족했지만, 이 시점에는 30분 crash-free session과 내부 사용자 3명 평가가 아직 남아 있었다.
 
-2026-07-02 20:46:31 KST부터 21:16:31 KST까지 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow`로 30분 crash-free session을 수행했다. 1분 간격으로 프로세스 생존을 확인했고 1800초 동안 crash 없이 유지됐다. 세션 종료 시 `SIGINT`로 정상 정리했으며 잔여 `GazeRow` 프로세스는 없었다.
+2026-07-02 20:46:31 KST부터 21:16:31 KST까지 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run gazerow`로 30분 crash-free session을 수행했다. 1분 간격으로 프로세스 생존을 확인했고 1800초 동안 crash 없이 유지됐다. 세션 종료 시 `SIGINT`로 정상 정리했으며 잔여 `gazerow` 프로세스는 없었다.
 
 2026-07-02에는 내부 사용자 3명 평가를 직접 대체하지 않고, `gazerow_internal_user_evaluation_v1.md`에 평가 실행 절차와 기록지를 준비했다. 이후 ED-008 결정에 따라 외부 내부 사용자 3명을 확보하지 못한 상태에서는 local MVP freeze의 내부 사용자 gate를 Post-MVP로 defer한다. 평가 결과를 지어내지 않으며, 평가자 3명 확보 시 이 runbook으로 재개한다.
 
 2026-07-03 09:53 KST에는 launch-option 평가 중 keyboard confirm click 결과를 `GAZEROW_OVERLAY_CLICK_RESULT`로 stdout에 출력하도록 연결했다. Finder/VS Code fixed task 재평가 시 label map 출력과 함께 실제 click 성공/실패, 실행 방식, risk, fallback 여부를 기록할 수 있다. 이 변경은 재평가 준비이며 Finder/VS Code pass 판정으로 간주하지 않는다.
 
-2026-07-03에는 Finder fixed task 재평가를 다시 시도했다. Finder label map은 385개까지 수집됐고 sidebar 영역의 `AXCell` + `AXOpen` 후보가 확인됐다. 다만 SwiftPM 바이너리 실행 상태에서는 Computer Use 키 입력이 overlay가 아니라 Finder 목록 검색/선택으로 전달되어 keyboard confirm click 결과를 얻지 못했다. 이 상태를 pass로 기록하지 않고, LaunchServices/activation 경로로 재평가하기 위해 `scripts/build_local_app.sh`를 추가했다. 스크립트는 `.build/local-app/GazeRow.app` 생성을 통과했지만, 자동 UI 도구에서는 accessory 앱이 별도 앱으로 노출되지 않아 Finder/VS Code fixed task는 실제 사용자 키보드 입력으로 최종 확인해야 한다.
+2026-07-03에는 Finder fixed task 재평가를 다시 시도했다. Finder label map은 385개까지 수집됐고 sidebar 영역의 `AXCell` + `AXOpen` 후보가 확인됐다. 다만 SwiftPM 바이너리 실행 상태에서는 Computer Use 키 입력이 overlay가 아니라 Finder 목록 검색/선택으로 전달되어 keyboard confirm click 결과를 얻지 못했다. 이 상태를 pass로 기록하지 않고, LaunchServices/activation 경로로 재평가하기 위해 `scripts/build_local_app.sh`를 추가했다. 스크립트는 `.build/local-app/gazerow.app` 생성을 통과했지만, 자동 UI 도구에서는 accessory 앱이 별도 앱으로 노출되지 않아 Finder/VS Code fixed task는 실제 사용자 키보드 입력으로 최종 확인해야 한다.
 
 이후 overlay panel이 AX top-left frame을 그대로 AppKit bottom-left window frame으로 사용하던 문제를 보정했다. `OverlayScreenFrameMapper`로 panel frame만 AppKit 좌표로 변환하고, overlay level을 `statusBar`로 올렸다. 전체 화면 캡처(`/tmp/gazerow_overlay_smoke.png`)에서 Finder window 위 label 표시가 확인됐다. Computer Use 앱별 스냅샷은 다른 프로세스 overlay를 제외하므로 이 검증에는 사용하지 않는다.
 
-같은 좌표 보정 빌드로 VS Code overlay 표시 smoke도 수행했다. `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map`는 `GAZEROW_OVERLAY_RESULT success labels=29`를 출력했고, 전체 화면 캡처(`/tmp/gazerow_vscode_overlay_smoke.png`)에서 Activity Bar와 toolbar 후보 label이 VS Code window 위에 표시됨을 확인했다. 이 검증은 overlay visibility와 candidate map 확인이며, VS Code fixed task click 성공 판정은 아직 아니다.
+같은 좌표 보정 빌드로 VS Code overlay 표시 smoke도 수행했다. `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map`는 `GAZEROW_OVERLAY_RESULT success labels=29`를 출력했고, 전체 화면 캡처(`/tmp/gazerow_vscode_overlay_smoke.png`)에서 Activity Bar와 toolbar 후보 label이 VS Code window 위에 표시됨을 확인했다. 이 검증은 overlay visibility와 candidate map 확인이며, VS Code fixed task click 성공 판정은 아직 아니다.
 
 마지막으로 자동 UI 도구의 keyboard focus 한계를 우회하지 않고 같은 overlay session 내부에서 특정 label을 confirm할 수 있도록 `--click-overlay-label <LABEL>` 평가 옵션을 추가했다. Finder sidebar row가 노출하는 `AXShowDefaultUI` action도 click executor에 연결했다. 재평가 결과 Finder는 label `AA` row에서 `GAZEROW_OVERLAY_CLICK_RESULT success method=accessibilityAction.AXShowDefaultUI risk=safeNavigation fallback=false`, VS Code는 Activity Bar label `AO`에서 `GAZEROW_OVERLAY_CLICK_RESULT success method=axPress risk=stateChange fallback=false`를 출력했다. 이에 따라 TICKET-010의 5개 앱 click task와 Finder/VS Code fixed task 재평가는 모두 pass로 확정한다.
 
@@ -71,7 +71,7 @@
 | 평가자 | PENDING_MANUAL_EVALUATION |
 | macOS version | macOS 26.2 (25C56) |
 | Xcode version | Xcode 26.6 (17F113) |
-| GazeRow commit | `76c8555` |
+| gazerow commit | `76c8555` |
 | 빌드 방식 | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build` |
 | build result | pass |
 | test result | pass, 95 tests, 0 failures |
@@ -108,13 +108,13 @@
 | freeze verification after overlay smoke support | `scripts/verify_mvp_freeze.sh` | pass, 136 tests, 0 failures |
 | label map focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AppContentTests\|AppLaunchOptionsTests\|OverlayLaunchReporterTests'` | pass, 14 tests, 0 failures |
 | freeze verification after click task docs/support update | `scripts/verify_mvp_freeze.sh` | pass, 141 tests, 0 failures |
-| 30min crash-free session | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run GazeRow` with 1-minute process checks | pass, 1800 seconds, 0 crashes |
+| 30min crash-free session | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run gazerow` with 1-minute process checks | pass, 1800 seconds, 0 crashes |
 | freeze verification after 30min session docs | `scripts/verify_mvp_freeze.sh` | pass, 141 tests, 0 failures |
 | internal user evaluation runbook | `plans/gazerow_internal_user_evaluation_v1.md` | ready, awaiting User 1/User 2/User 3 results |
 | selectable container candidate coverage focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AccessibilityScannerTests\|OverlaySessionClickTargetResolverTests'` | pass, 15 tests, 0 failures |
 | freeze verification after candidate coverage update | `scripts/verify_mvp_freeze.sh` | pass, 150 tests, 0 failures |
 | scanner depth focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'AccessibilityScannerTests\|OverlaySessionClickTargetResolverTests'` | pass, 17 tests, 0 failures |
-| VS Code label map smoke after depth update | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` | pass, 29 labels, Activity Bar `AXRadioButton` candidates visible |
+| VS Code label map smoke after depth update | `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` | pass, 29 labels, Activity Bar `AXRadioButton` candidates visible |
 | freeze verification after scanner depth update | `scripts/verify_mvp_freeze.sh` | pass, 183 tests, 0 failures, MVP-excluded check passed |
 | AXOpen click execution focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'ClickExecutorTests\|ClickRiskClassifierTests'` | pass, 15 tests, 0 failures |
 | freeze verification after AXOpen update | `scripts/verify_mvp_freeze.sh` | pass, 186 tests, 0 failures, MVP-excluded check passed |
@@ -125,15 +125,15 @@
 | click result reporter focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'OverlayLaunchReporterTests\|OverlaySessionControllerTests'` | pass, 28 tests, 0 failures |
 | full test after click result reporter update | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 191 tests, 0 failures |
 | freeze verification after click result reporter update | `scripts/verify_mvp_freeze.sh` | pass, 191 tests, 0 failures, MVP-excluded check passed |
-| Finder fixed task reevaluation attempt | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` | inconclusive, 385 labels, sidebar `AXCell` + `AXOpen` candidates visible, keyboard input delivered to Finder instead of overlay |
-| local app bundle script | `scripts/build_local_app.sh` | pass, `.build/local-app/GazeRow.app` created |
+| Finder fixed task reevaluation attempt | `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` | inconclusive, 385 labels, sidebar `AXCell` + `AXOpen` candidates visible, keyboard input delivered to Finder instead of overlay |
+| local app bundle script | `scripts/build_local_app.sh` | pass, `.build/local-app/gazerow.app` created |
 | freeze verification after local app bundle script | `scripts/verify_mvp_freeze.sh` | pass, 191 tests, 0 failures, MVP-excluded check passed |
 | overlay frame mapper focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'OverlayWindowControllerTests\|OverlayLayoutEngineTests\|OverlaySessionControllerTests'` | pass, 30 tests, 0 failures |
-| Finder overlay visibility smoke | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` + `screencapture` | pass, 248 labels, overlay labels visible on full-screen capture |
-| VS Code overlay visibility smoke | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` + `screencapture` | pass, 29 labels, Activity Bar and toolbar labels visible on full-screen capture |
+| Finder overlay visibility smoke | `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` + `screencapture` | pass, 248 labels, overlay labels visible on full-screen capture |
+| VS Code overlay visibility smoke | `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` + `screencapture` | pass, 29 labels, Activity Bar and toolbar labels visible on full-screen capture |
 | click label option focused tests | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test --filter 'ClickExecutorTests\|ClickRiskClassifierTests\|AppLaunchOptionsTests\|OverlaySessionControllerTests\|AccessibilityScannerTests'` | pass, 64 tests, 0 failures |
-| Finder fixed task reevaluation | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map --click-overlay-label AA` | pass, 84 labels, `AXShowDefaultUI`, safeNavigation, fallback=false |
-| VS Code fixed task reevaluation | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map --click-overlay-label AO` | pass, 32 labels, `AXPress`, stateChange, fallback=false |
+| Finder fixed task reevaluation | `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map --click-overlay-label AA` | pass, 84 labels, `AXShowDefaultUI`, safeNavigation, fallback=false |
+| VS Code fixed task reevaluation | `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map --click-overlay-label AO` | pass, 32 labels, `AXPress`, stateChange, fallback=false |
 | full test after overlay frame mapper update | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 193 tests, 0 failures |
 | freeze verification after overlay frame mapper update | `scripts/verify_mvp_freeze.sh` | pass, 193 tests, 0 failures, MVP-excluded check passed |
 | full test after fixed task reevaluation update | `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test` | pass, 200 tests, 0 failures |
@@ -145,7 +145,7 @@
 
 확인 내용:
 
-- `GazeRow` 프로세스가 `.build/arm64-apple-macosx/debug/GazeRow`로 실행됨.
+- `gazerow` 프로세스가 `.build/arm64-apple-macosx/debug/gazerow`로 실행됨.
 - 메뉴바/Settings/권한/세션 UI는 앱 런타임에 연결되어 있음.
 - `TargetResolver`, `AccessibilityScanner`, `OverlayWindowController`, `FocusEngine`, `ClickExecutor`는 단위 테스트와 개별 구성요소로 존재하지만, 실제 사용자 activation 경로에서 함께 호출되지 않았음.
 - 이후 메뉴바 `Show Overlay` 액션에서 target resolve, scan, overlay show까지 연결됨.
@@ -169,11 +169,11 @@
 
 | 앱 | Bundle ID | 결과 | Label count | 명령 |
 | --- | --- | --- | ---: | --- |
-| Finder | `com.apple.finder` | pass | 63 | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` |
-| Safari | `com.apple.Safari` | pass | 35 | `swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.Safari` |
-| Chrome | `com.google.Chrome` | pass | 46 | `swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.google.Chrome` |
-| VS Code | `com.microsoft.VSCode` | pass | 29 | `.build/arm64-apple-macosx/debug/GazeRow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` |
-| System Settings | `com.apple.systempreferences` | pass | 11 | `swift run GazeRow -- --show-overlay-on-launch --target-bundle-id com.apple.systempreferences` |
+| Finder | `com.apple.finder` | pass | 63 | `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.apple.finder --print-overlay-label-map` |
+| Safari | `com.apple.Safari` | pass | 35 | `swift run gazerow -- --show-overlay-on-launch --target-bundle-id com.apple.Safari` |
+| Chrome | `com.google.Chrome` | pass | 46 | `swift run gazerow -- --show-overlay-on-launch --target-bundle-id com.google.Chrome` |
+| VS Code | `com.microsoft.VSCode` | pass | 29 | `.build/arm64-apple-macosx/debug/gazerow --show-overlay-on-launch --target-bundle-id com.microsoft.VSCode --print-overlay-label-map` |
+| System Settings | `com.apple.systempreferences` | pass | 11 | `swift run gazerow -- --show-overlay-on-launch --target-bundle-id com.apple.systempreferences` |
 
 ## 4. 앱별 평가 기록
 

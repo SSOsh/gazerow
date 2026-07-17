@@ -1,4 +1,4 @@
-# GazeRow Post-MVP App Evaluation v1
+# gazerow Post-MVP App Evaluation v1
 
 ## 변경 이력
 - v1: Slack/Notion 등 Post-MVP 앱 확대 검증을 위한 재사용 실행 스크립트와 작업 목록을 정의.

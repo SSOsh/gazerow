@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// GazeRow 앱 진입점.
+/// gazerow 앱 진입점.
 ///
 /// 메뉴바 utility로 동작하며, 시작 시 큰 main window를 띄우지 않는다.
 /// Settings window는 사용자가 메뉴바에서 열 때만 표시한다.

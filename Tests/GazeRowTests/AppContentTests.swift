@@ -7,8 +7,8 @@ import XCTest
 /// @since 2026-07-02
 final class AppContentTests: XCTestCase {
 
-    func test_사용자표시이름은_keyCursor다() {
-        XCTAssertEqual(AppState.appName, "keyCursor")
+    func test_사용자표시이름은_gazerow다() {
+        XCTAssertEqual(AppState.appName, "gazerow")
     }
 
     func test_appSupport_Ticket010통과앱을_supported로_표시한다() {
@@ -78,15 +78,25 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(notice.contains("Accessibility"))
     }
 
-    func test_supportDonationContent는_커피값후원과_계좌번호추후추가를_안내한다() {
+    func test_supportDonationContent는_후원계좌와_버튼문구를_제공한다() {
         // given
         let message = AppContent.supportDonationMessage
 
         // when & then
-        XCTAssertEqual(AppContent.supportDonationMenuTitle, "Support keyCursor")
-        XCTAssertEqual(AppContent.supportDonationTitle, "Support keyCursor")
+        XCTAssertEqual(AppContent.supportDonationMenuTitle, "Support gazerow")
+        XCTAssertEqual(AppContent.supportDonationTitle, "Support gazerow")
+        XCTAssertEqual(AppContent.supportDonationBankName, "카카오뱅크")
+        XCTAssertEqual(AppContent.supportDonationAccountNumber, "3333-26-7184989")
         XCTAssertTrue(message.contains("커피값 후원"))
-        XCTAssertTrue(message.contains("계좌번호는 추후 추가 예정"))
+        XCTAssertTrue(message.contains("카카오뱅크 3333-26-7184989"))
+
+        let english = AppContent.localized(for: .english)
+        XCTAssertEqual(english.supportDonationCopyButton, "Copy Account Number")
+        XCTAssertEqual(english.supportDonationCloseButton, "Close")
+
+        let korean = AppContent.localized(for: .korean)
+        XCTAssertEqual(korean.supportDonationCopyButton, "계좌번호 복사")
+        XCTAssertEqual(korean.supportDonationCloseButton, "닫기")
     }
 
     func test_localized_english는_기존영문콘텐츠를_제공한다() {

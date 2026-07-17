@@ -2,7 +2,7 @@ import Foundation
 
 /// gaze calibration sample을 JSON 파일로 저장/로드/삭제한다.
 ///
-/// 저장 위치는 `~/Library/Application Support/GazeRow/gaze-calibration.json`이며,
+/// 기존 설치와의 호환성을 위해 저장 위치는 `~/Library/Application Support/GazeRow/gaze-calibration.json`이며,
 /// 비식별 eye feature와 화면 좌표만 담는다. raw camera frame은 저장하지 않는다.
 ///
 /// @author suho.do

@@ -844,7 +844,7 @@ final class OverlaySessionController {
         case .success(let resolvedContext):
             context = resolvedContext
         case .failure:
-            overlayPresenter.updateStatus(OverlayInteractionStatus(message: content.overlayRescanFailedText, tone: .failure))
+            failRescanAndCloseStaleOverlay(reason: "target resolution failed")
             return
         }
 
@@ -853,7 +853,12 @@ final class OverlaySessionController {
         case .success(let result):
             scanResult = result
         case .failure:
-            overlayPresenter.updateStatus(OverlayInteractionStatus(message: content.overlayRescanFailedText, tone: .failure))
+            failRescanAndCloseStaleOverlay(reason: "accessibility scan failed")
+            return
+        }
+
+        guard !scanResult.candidates.isEmpty else {
+            failRescanAndCloseStaleOverlay(reason: "no clickable candidates")
             return
         }
 
@@ -881,6 +886,15 @@ final class OverlaySessionController {
             },
             onPresentationEvent: { _ in }
         )
+    }
+
+    /// 창은 전환됐지만 새 대상 snapshot을 만들지 못한 경우 이전 라벨을 즉시 제거한다.
+    private func failRescanAndCloseStaleOverlay(reason: String) {
+        AppLogger.overlay.info("window switch rescan failed reason=\(reason, privacy: .public)")
+        overlayPresenter.updateStatus(
+            OverlayInteractionStatus(message: content.overlayRescanFailedText, tone: .failure)
+        )
+        close()
     }
 
     private func status(

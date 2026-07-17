@@ -33,10 +33,10 @@ struct NSWorkspaceFrontmostApplicationProvider: FrontmostApplicationProviding {
     }
 }
 
-/// GazeRow가 frontmost가 된 상태에서는 직전에 활성화된 외부 앱을 반환한다.
+/// gazerow가 frontmost가 된 상태에서는 직전에 활성화된 외부 앱을 반환한다.
 ///
 /// 메뉴바 메뉴나 Settings window에서 overlay를 실행하면 `NSWorkspace.frontmostApplication`
-/// 이 GazeRow 자기 자신을 가리킬 수 있다. 이 provider는 그런 경우 직전 non-GazeRow
+/// 이 gazerow 자기 자신을 가리킬 수 있다. 이 provider는 그런 경우 직전 non-gazerow
 /// 앱을 target으로 사용해 사용자가 보고 있던 앱 위에 overlay를 띄운다.
 ///
 /// @author suho.do

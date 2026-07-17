@@ -2,7 +2,7 @@ import Foundation
 
 /// 로그/진단 파일이 저장될 디렉토리 경로를 resolve한다.
 ///
-/// 기본 위치는 `~/Library/Application Support/GazeRow/`이다.
+/// 기존 설치와의 호환성을 위해 기본 위치는 `~/Library/Application Support/GazeRow/`이다.
 /// `FileManager`를 주입할 수 있어 테스트는 임시 디렉토리를 사용한다.
 ///
 /// @author suho.do
@@ -37,7 +37,7 @@ struct LogDirectory {
 
     /// 앱 전용 디렉토리 URL을 반환하고, 없으면 생성한다.
     ///
-    /// - Returns: `.../GazeRow/` 디렉토리 URL.
+    /// - Returns: 호환성을 유지하는 `.../GazeRow/` 디렉토리 URL.
     /// - Throws: 디렉토리 생성 실패 시 에러.
     func resolveDirectory() throws -> URL {
         let base = try resolveBase()

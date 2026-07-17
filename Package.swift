@@ -6,9 +6,12 @@ let swiftSettings: [SwiftSetting] = [
 ]
 
 let package = Package(
-    name: "GazeRow",
+    name: "gazerow",
     platforms: [
         .macOS(.v14)
+    ],
+    products: [
+        .executable(name: "gazerow", targets: ["GazeRow"])
     ],
     targets: [
         .executableTarget(

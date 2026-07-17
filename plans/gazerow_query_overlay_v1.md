@@ -1,4 +1,4 @@
-# GazeRow Query Overlay v1
+# gazerow Query Overlay v1
 
 ## 변경 이력
 

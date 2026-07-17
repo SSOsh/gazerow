@@ -636,6 +636,103 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.tone, .success)
     }
 
+    func test_handleKeyboardCommand_windowsScope_resolve실패는_이전overlay를_닫는다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
+        let resolver = StubOverlayTargetResolver(
+            results: [
+                .success(makeContext()),
+                .failure(.noFrontmostApplication)
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeSessionController(
+            scanner: StubOverlayScanner(result: .success(makeScanResult(candidates: [makeCandidate()]))),
+            clickExecutor: StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+            presenter: presenter,
+            targetResolver: resolver,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) },
+            windowActivator: StubWindowActivator(result: .success(()))
+        )
+        _ = sut.start()
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(resolver.resolveCallCount, 2)
+        XCTAssertEqual(presenter.showRequests.count, 1)
+        XCTAssertEqual(presenter.closeCallCount, 1)
+        XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
+        XCTAssertNil(sut.activeSession)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_scan실패는_이전overlay를_닫는다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
+        let scanner = StubOverlayScanner(
+            results: [
+                .success(makeScanResult(candidates: [makeCandidate()])),
+                .failure(.childrenUnavailable("temporary"))
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) },
+            windowActivator: StubWindowActivator(result: .success(()))
+        )
+        _ = sut.start()
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(scanner.scanCallCount, 2)
+        XCTAssertEqual(presenter.showRequests.count, 1)
+        XCTAssertEqual(presenter.closeCallCount, 1)
+        XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
+        XCTAssertNil(sut.activeSession)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_재검색후보가비면_이전overlay를_닫는다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
+        let scanner = StubOverlayScanner(
+            results: [
+                .success(makeScanResult(candidates: [makeCandidate()])),
+                .success(makeScanResult(candidates: []))
+            ]
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeSessionController(
+            scanner: scanner,
+            clickExecutor: StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 0))),
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) },
+            windowActivator: StubWindowActivator(result: .success(()))
+        )
+        _ = sut.start()
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+
+        // then
+        XCTAssertEqual(scanner.scanCallCount, 2)
+        XCTAssertEqual(presenter.showRequests.count, 1)
+        XCTAssertEqual(presenter.closeCallCount, 1)
+        XCTAssertEqual(presenter.statusUpdates.last?.tone, .failure)
+        XCTAssertNil(sut.activeSession)
+    }
+
     func test_handleKeyboardCommand_windowsScope_activate실패는_failure_status를_표시한다() {
         // given
         let entry = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap")
@@ -1545,14 +1642,16 @@ final class OverlaySessionControllerTests: XCTestCase {
         clickExecutor: StubOverlayClickExecutor,
         presenter: StubOverlayPresenter? = nil,
         recorder: (any OverlaySessionInteractionRecording)? = nil,
+        targetResolver: (any OverlaySessionTargetResolving)? = nil,
         windowSearchIndexProvider: @escaping () -> WindowSearchIndex = { WindowSearchIndex(entries: []) },
         windowActivator: (any WindowActivating)? = nil
     ) -> OverlaySessionController {
         let presenter = presenter ?? StubOverlayPresenter()
         let recorder = recorder ?? StubInteractionRecorder()
+        let targetResolver = targetResolver ?? StubOverlayTargetResolver(result: .success(makeContext()))
         let windowActivator = windowActivator ?? StubWindowActivator(result: .failure(.appNotRunning))
         return OverlaySessionController(
-            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            targetResolver: targetResolver,
             scanner: scanner,
             overlayPresenter: presenter,
             interactionRecorder: recorder,
@@ -1649,16 +1748,20 @@ private final class SpySearchableNodeCollector: SearchableNodeCollecting {
 
 @MainActor
 private final class StubOverlayTargetResolver: OverlaySessionTargetResolving {
-    private let result: Result<TargetContext, TargetResolutionFailure>
+    private let results: [Result<TargetContext, TargetResolutionFailure>]
     private(set) var resolveCallCount = 0
 
     init(result: Result<TargetContext, TargetResolutionFailure>) {
-        self.result = result
+        self.results = [result]
+    }
+
+    init(results: [Result<TargetContext, TargetResolutionFailure>]) {
+        self.results = results
     }
 
     func resolve() -> Result<TargetContext, TargetResolutionFailure> {
         resolveCallCount += 1
-        return result
+        return results[min(resolveCallCount - 1, results.count - 1)]
     }
 }
 

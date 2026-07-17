@@ -1,4 +1,4 @@
-# GazeRow Focus Label Latency Fix v1.2
+# gazerow Focus Label Latency Fix v1.2
 
 ## 1. 개요
 
@@ -1021,7 +1021,7 @@ benchmark 출력에는 candidate count, layout duration, collision count만 포�
 ```bash
 # 빠른 관련 테스트
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
-swift test --filter 'GazeRowTests.(OverlayKeyboardCommandRouterTests|OverlayWindowControllerTests|OverlaySessionControllerTests|CachingScannerTests|OverlayLayoutEngineTests)'
+swift test --filter 'gazerowTests.(OverlayKeyboardCommandRouterTests|OverlayWindowControllerTests|OverlaySessionControllerTests|CachingScannerTests|OverlayLayoutEngineTests)'
 
 # 전체 테스트
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test

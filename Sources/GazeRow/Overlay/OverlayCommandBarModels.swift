@@ -244,7 +244,7 @@ struct OverlayCommandBarLayout: Equatable {
     let previewFrame: CGRect?
 }
 
-/// target 화면 하단 command bar의 frame을 계산한다.
+/// target 화면의 label을 가리지 않는 command bar frame을 계산한다.
 ///
 /// @author suho.do
 /// @since 2026-07-13
@@ -258,11 +258,13 @@ struct OverlayCommandBarLayoutEngine {
     static let previewHeight: CGFloat = 88
     static let previewSpacing: CGFloat = 8
     static let narrowWidthThreshold: CGFloat = 392
+    static let avoidancePadding: CGFloat = 6
 
     func makeLayout(
         visibleFrame: CGRect,
         showsWindowPreviews: Bool,
-        showsMessage: Bool
+        showsMessage: Bool,
+        avoidingFrames: [CGRect] = []
     ) -> OverlayCommandBarLayout {
         let horizontalInset = visibleFrame.width < Self.narrowWidthThreshold
             ? Self.narrowHorizontalInset
@@ -270,16 +272,60 @@ struct OverlayCommandBarLayoutEngine {
         let availableWidth = max(0, visibleFrame.width - horizontalInset * 2)
         let commandBarWidth = min(Self.maximumWidth, availableWidth)
         let commandBarHeight = showsMessage ? Self.messageHeight : Self.compactHeight
+        let defaultLayout = makeLayout(
+            visibleFrame: visibleFrame,
+            commandBarWidth: commandBarWidth,
+            commandBarHeight: commandBarHeight,
+            showsWindowPreviews: showsWindowPreviews,
+            horizontalInset: horizontalInset,
+            placement: Self.candidatePlacements[0]
+        )
+
+        guard !avoidingFrames.isEmpty else {
+            return defaultLayout
+        }
+
+        return Self.candidatePlacements.dropFirst().reduce(defaultLayout) { bestLayout, placement in
+            let candidateLayout = makeLayout(
+                visibleFrame: visibleFrame,
+                commandBarWidth: commandBarWidth,
+                commandBarHeight: commandBarHeight,
+                showsWindowPreviews: showsWindowPreviews,
+                horizontalInset: horizontalInset,
+                placement: placement
+            )
+            return overlapArea(of: candidateLayout.panelFrame, with: avoidingFrames)
+                < overlapArea(of: bestLayout.panelFrame, with: avoidingFrames)
+                ? candidateLayout
+                : bestLayout
+        }
+    }
+
+    private func makeLayout(
+        visibleFrame: CGRect,
+        commandBarWidth: CGFloat,
+        commandBarHeight: CGFloat,
+        showsWindowPreviews: Bool,
+        horizontalInset: CGFloat,
+        placement: CandidatePlacement
+    ) -> OverlayCommandBarLayout {
         let commandBarFrame = CGRect(
-            x: visibleFrame.midX - commandBarWidth / 2,
-            y: visibleFrame.minY + Self.bottomInset,
+            x: placement.horizontal.commandBarMinX(
+                in: visibleFrame,
+                commandBarWidth: commandBarWidth,
+                horizontalInset: horizontalInset
+            ),
+            y: placement.vertical.commandBarMinY(
+                in: visibleFrame,
+                commandBarHeight: commandBarHeight
+            ),
             width: commandBarWidth,
             height: commandBarHeight
         )
         let previewFrame = showsWindowPreviews
             ? CGRect(
                 x: commandBarFrame.minX,
-                y: commandBarFrame.maxY + Self.previewSpacing,
+                y: placement.vertical.previewMinY(for: commandBarFrame),
                 width: commandBarFrame.width,
                 height: Self.previewHeight
             )
@@ -291,6 +337,16 @@ struct OverlayCommandBarLayoutEngine {
             commandBarFrame: commandBarFrame,
             previewFrame: previewFrame
         )
+    }
+
+    private func overlapArea(of panelFrame: CGRect, with avoidingFrames: [CGRect]) -> CGFloat {
+        avoidingFrames.reduce(0) { total, frame in
+            let paddedFrame = frame.insetBy(
+                dx: -Self.avoidancePadding,
+                dy: -Self.avoidancePadding
+            )
+            return total + intersectionArea(of: panelFrame, and: paddedFrame)
+        }
     }
 
     func screen(
@@ -328,4 +384,66 @@ struct OverlayCommandBarLayoutEngine {
 
         return intersection.width * intersection.height
     }
+
+    private enum VerticalPlacement {
+        case bottom
+        case top
+
+        func commandBarMinY(in visibleFrame: CGRect, commandBarHeight: CGFloat) -> CGFloat {
+            switch self {
+            case .bottom:
+                return visibleFrame.minY + OverlayCommandBarLayoutEngine.bottomInset
+            case .top:
+                return visibleFrame.maxY
+                    - OverlayCommandBarLayoutEngine.bottomInset
+                    - commandBarHeight
+            }
+        }
+
+        func previewMinY(for commandBarFrame: CGRect) -> CGFloat {
+            switch self {
+            case .bottom:
+                return commandBarFrame.maxY + OverlayCommandBarLayoutEngine.previewSpacing
+            case .top:
+                return commandBarFrame.minY
+                    - OverlayCommandBarLayoutEngine.previewSpacing
+                    - OverlayCommandBarLayoutEngine.previewHeight
+            }
+        }
+    }
+
+    private enum HorizontalPlacement {
+        case centered
+        case leading
+        case trailing
+
+        func commandBarMinX(
+            in visibleFrame: CGRect,
+            commandBarWidth: CGFloat,
+            horizontalInset: CGFloat
+        ) -> CGFloat {
+            switch self {
+            case .centered:
+                return visibleFrame.midX - commandBarWidth / 2
+            case .leading:
+                return visibleFrame.minX + horizontalInset
+            case .trailing:
+                return visibleFrame.maxX - horizontalInset - commandBarWidth
+            }
+        }
+    }
+
+    private struct CandidatePlacement {
+        let vertical: VerticalPlacement
+        let horizontal: HorizontalPlacement
+    }
+
+    private static let candidatePlacements = [
+        CandidatePlacement(vertical: .bottom, horizontal: .centered),
+        CandidatePlacement(vertical: .top, horizontal: .centered),
+        CandidatePlacement(vertical: .bottom, horizontal: .leading),
+        CandidatePlacement(vertical: .top, horizontal: .leading),
+        CandidatePlacement(vertical: .bottom, horizontal: .trailing),
+        CandidatePlacement(vertical: .top, horizontal: .trailing)
+    ]
 }

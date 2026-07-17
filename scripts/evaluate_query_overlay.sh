@@ -129,11 +129,11 @@ if [[ ! -d "${DEVELOPER_DIR}" ]]; then
   exit 1
 fi
 
-echo "==> Building GazeRow"
-swift build >/dev/null
+echo "==> Building gazerow"
+swift build --product gazerow >/dev/null
 
 BIN_DIR="$(swift build --show-bin-path)"
-EXECUTABLE_PATH="${BIN_DIR}/GazeRow"
+EXECUTABLE_PATH="${BIN_DIR}/gazerow"
 
 if [[ ! -x "${EXECUTABLE_PATH}" ]]; then
   echo "Built executable not found: ${EXECUTABLE_PATH}" >&2

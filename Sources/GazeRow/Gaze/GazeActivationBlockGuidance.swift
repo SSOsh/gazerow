@@ -49,7 +49,7 @@ struct GazeActivationBlockGuidance: Equatable {
             title = "Camera access needed"
             message = """
             Gaze focus uses the camera to estimate where you are looking. \
-            Grant camera access to GazeRow in System Settings, then come back \
+            Grant camera access to gazerow in System Settings, then come back \
             and calibrate your gaze.
             """
             actionButtonTitle = "Open Camera Settings"
@@ -59,7 +59,7 @@ struct GazeActivationBlockGuidance: Equatable {
             title = "카메라 권한이 필요합니다"
             message = """
             Gaze focus는 카메라를 사용해 사용자가 바라보는 위치를 추정합니다. \
-            시스템 설정에서 GazeRow의 카메라 접근을 허용한 뒤 돌아와 \
+            시스템 설정에서 gazerow의 카메라 접근을 허용한 뒤 돌아와 \
             gaze 캘리브레이션을 진행하세요.
             """
             actionButtonTitle = "카메라 설정 열기"

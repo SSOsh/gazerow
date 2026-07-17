@@ -274,10 +274,10 @@ struct GlobalHotKeyRegistrationGuidance: Equatable {
             .map(\.definition.displayName)
 
         if !availableShortcuts.isEmpty {
-            return "Some global shortcuts failed to register (\(failedText)). You can still use \(availableShortcuts.joined(separator: " or ")). Change the conflicting macOS/app shortcut, then restart GazeRow."
+            return "Some global shortcuts failed to register (\(failedText)). You can still use \(availableShortcuts.joined(separator: " or ")). Change the conflicting macOS/app shortcut, then restart gazerow."
         }
 
-        return "Global shortcuts failed to register (\(failedText)). Change the conflicting macOS/app shortcut or quit the app using it, then restart GazeRow."
+        return "Global shortcuts failed to register (\(failedText)). Change the conflicting macOS/app shortcut or quit the app using it, then restart gazerow."
     }
 }
 

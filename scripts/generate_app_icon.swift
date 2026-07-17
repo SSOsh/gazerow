@@ -2,7 +2,7 @@
 import AppKit
 import Foundation
 
-/// keyCursor 앱 아이콘 PNG/iconset/icns를 생성한다.
+/// gazerow 앱 아이콘 PNG/iconset/icns를 생성한다.
 ///
 /// @author suho.do
 /// @since 2026-07-13
@@ -40,16 +40,33 @@ guard process.terminationStatus == 0 else {
     throw NSError(domain: "GenerateAppIcon", code: Int(process.terminationStatus))
 }
 
-func drawIcon(pixelSize: Int) -> NSImage {
+func drawIcon(pixelSize: Int) -> NSBitmapImageRep {
     let size = CGFloat(pixelSize)
-    let image = NSImage(size: NSSize(width: size, height: size))
-    image.lockFocus()
-    NSGraphicsContext.current?.imageInterpolation = .high
+    let bitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: pixelSize,
+        pixelsHigh: pixelSize,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bitmapFormat: [],
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    )!
+    bitmap.size = NSSize(width: size, height: size)
+
+    NSGraphicsContext.saveGraphicsState()
+    let context = NSGraphicsContext(bitmapImageRep: bitmap)!
+    NSGraphicsContext.current = context
+    context.imageInterpolation = .high
     drawBackground(size: size)
     drawKeycap(size: size)
     drawCursor(size: size)
-    image.unlockFocus()
-    return image
+    context.flushGraphics()
+    NSGraphicsContext.restoreGraphicsState()
+    return bitmap
 }
 
 func drawBackground(size: CGFloat) {
@@ -65,44 +82,88 @@ func drawBackground(size: CGFloat) {
 }
 
 func drawKeycap(size: CGFloat) {
-    let keycap = NSBezierPath(
-        roundedRect: NSRect(x: size * 0.20, y: size * 0.20, width: size * 0.60, height: size * 0.60),
-        xRadius: size * 0.12,
-        yRadius: size * 0.12
+    let keyboardPlate = NSBezierPath(
+        roundedRect: NSRect(x: size * 0.14, y: size * 0.14, width: size * 0.72, height: size * 0.72),
+        xRadius: size * 0.13,
+        yRadius: size * 0.13
     )
     NSGraphicsContext.saveGraphicsState()
     let shadow = NSShadow()
-    shadow.shadowColor = NSColor.black.withAlphaComponent(0.20)
-    shadow.shadowBlurRadius = size * 0.035
-    shadow.shadowOffset = NSSize(width: 0, height: -size * 0.015)
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.24)
+    shadow.shadowBlurRadius = size * 0.04
+    shadow.shadowOffset = NSSize(width: 0, height: -size * 0.018)
     shadow.set()
-    NSColor.white.withAlphaComponent(0.15).setFill()
-    keycap.fill()
+    NSColor(calibratedWhite: 0.05, alpha: 0.28).setFill()
+    keyboardPlate.fill()
     NSGraphicsContext.restoreGraphicsState()
-    NSColor.white.withAlphaComponent(0.90).setStroke()
-    keycap.lineWidth = size * 0.035
-    keycap.stroke()
+
+    NSColor.white.withAlphaComponent(0.55).setStroke()
+    keyboardPlate.lineWidth = max(1, size * 0.016)
+    keyboardPlate.stroke()
+
+    let keySize = size * 0.135
+    let gap = size * 0.045
+    let gridOrigin = NSPoint(x: size * 0.2525, y: size * 0.2525)
+    for row in 0..<3 {
+        for column in 0..<3 {
+            let keyRect = NSRect(
+                x: gridOrigin.x + CGFloat(column) * (keySize + gap),
+                y: gridOrigin.y + CGFloat(row) * (keySize + gap),
+                width: keySize,
+                height: keySize
+            )
+            let key = NSBezierPath(
+                roundedRect: keyRect,
+                xRadius: size * 0.025,
+                yRadius: size * 0.025
+            )
+            let isGazeTarget = row == 2 && column == 2
+            (isGazeTarget
+                ? NSColor(calibratedRed: 1.0, green: 0.78, blue: 0.24, alpha: 1)
+                : NSColor.white.withAlphaComponent(0.82)
+            ).setFill()
+            key.fill()
+        }
+    }
 }
 
 func drawCursor(size: CGFloat) {
-    let path = NSBezierPath()
-    path.move(to: NSPoint(x: size * 0.35, y: size * 0.73))
-    path.line(to: NSPoint(x: size * 0.35, y: size * 0.31))
-    path.line(to: NSPoint(x: size * 0.71, y: size * 0.52))
-    path.close()
-    NSColor(calibratedRed: 1.0, green: 0.79, blue: 0.30, alpha: 1).setFill()
-    path.fill()
-    NSColor.white.withAlphaComponent(0.92).setStroke()
-    path.lineWidth = size * 0.022
-    path.stroke()
+    let gazeCenter = NSPoint(x: size * 0.68, y: size * 0.68)
+    let gazeRadius = size * 0.105
+    let ring = NSBezierPath(
+        ovalIn: NSRect(
+            x: gazeCenter.x - gazeRadius,
+            y: gazeCenter.y - gazeRadius,
+            width: gazeRadius * 2,
+            height: gazeRadius * 2
+        )
+    )
+
+    NSGraphicsContext.saveGraphicsState()
+    let glow = NSShadow()
+    glow.shadowColor = NSColor.black.withAlphaComponent(0.30)
+    glow.shadowBlurRadius = size * 0.02
+    glow.set()
+    NSColor.white.withAlphaComponent(0.96).setStroke()
+    ring.lineWidth = max(1, size * 0.024)
+    ring.stroke()
+    NSGraphicsContext.restoreGraphicsState()
+
+    let pupilRadius = size * 0.026
+    let pupil = NSBezierPath(
+        ovalIn: NSRect(
+            x: gazeCenter.x - pupilRadius,
+            y: gazeCenter.y - pupilRadius,
+            width: pupilRadius * 2,
+            height: pupilRadius * 2
+        )
+    )
+    NSColor(calibratedRed: 0.02, green: 0.23, blue: 0.28, alpha: 0.95).setFill()
+    pupil.fill()
 }
 
-func writePNG(_ image: NSImage, to url: URL) throws {
-    guard
-        let tiff = image.tiffRepresentation,
-        let bitmap = NSBitmapImageRep(data: tiff),
-        let png = bitmap.representation(using: .png, properties: [:])
-    else {
+func writePNG(_ bitmap: NSBitmapImageRep, to url: URL) throws {
+    guard let png = bitmap.representation(using: .png, properties: [:]) else {
         throw NSError(domain: "GenerateAppIcon", code: 1)
     }
     try png.write(to: url)

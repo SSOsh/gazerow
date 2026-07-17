@@ -11,14 +11,38 @@ click it without touching the mouse. (Homerow style)
 - Works by reading the macOS Accessibility tree; all data stays local.
 - It is not an accessibility/assistive-technology product, and is not intended for medical or safety-critical use.
 
-> **Work in progress.** There is no official release yet — for now you build and
-> run it from source. Supported apps and behavior may change.
+> **Work in progress.** Free beta ZIPs are not signed with Apple Developer ID or
+> notarized by Apple. Only use the security override below when you trust the source.
+
+---
+
+## Free Beta Installation
+
+The free beta contains a Universal `gazerow.app` that runs on both Apple Silicon
+and Intel Macs. It does not require Xcode or Terminal.
+
+1. Download `gazerow-*-macos-universal.zip` from
+   [GitHub Releases](https://github.com/SSOsh/gazerow/releases), then unzip it.
+2. Move `gazerow.app` to **Applications**.
+3. Double-click the app once. macOS blocks it with an unidentified developer warning.
+4. Open **System Settings → Privacy & Security → Security**, then choose
+   **Open Anyway** for gazerow.
+5. Launch gazerow again and follow the app guidance to grant **Accessibility permission**.
+
+> The warning is expected because this free beta is not notarized by Apple.
+> You can verify the ZIP with the accompanying `.sha256` file. A new beta may
+> require Accessibility permission again because its ad-hoc signature changes.
+
+```bash
+# Optional: put the ZIP and .sha256 file in the same directory, then verify it
+shasum -a 256 -c gazerow-0.1.0-beta.1-macos-universal.zip.sha256
+```
 
 ---
 
 ## Quick Start
 
-1. **Launch the app** — it appears as a gazerow icon in the menu bar, with no Dock icon.
+1. **Launch the app** — it appears as a gazerow keyboard-grid icon in the menu bar, with no Dock icon.
 2. **Grant permission** — in the first-run guide (or Settings), allow **Accessibility
    permission** and press **Recheck**. Overlay and clicks require this permission.
 3. **Open the overlay** — bring the app you want to operate to the front and press `Command+Shift+Space`.
@@ -146,9 +170,9 @@ activation immediately. **Enable** it again to resume.
 | Required permission | Accessibility |
 | Languages | Korean / English |
 
-For now you build and run from source. It is based on Swift Package Manager and
-**requires Xcode 15 or newer (Swift 5.9 or newer)**. Xcode 14 and older are not
-supported because the app uses macOS 14 and SwiftUI Observation APIs.
+The beta ZIP does not require Xcode. Building from source uses Swift Package
+Manager and **requires Xcode 15 or newer (Swift 5.9 or newer)**. Xcode 14 and
+older are not supported because the app uses macOS 14 and SwiftUI Observation APIs.
 
 ```bash
 # Accept the Xcode license once (if needed)
@@ -159,13 +183,16 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift build
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run
 
 # Open the Accessibility permission request/settings flow and run
-DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run -- --request-accessibility
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift run gazerow -- --request-accessibility
 
 # Build a local .app bundle and run it as a single instance
 scripts/run_local_app.sh
 
 # Gracefully stop an existing gazerow before replacing it with the new build
 scripts/run_local_app.sh --replace-running
+
+# Build the free Universal beta ZIP and SHA-256 checksum
+scripts/package_beta_release.sh
 ```
 
 > **Note**: if multiple Xcode versions are installed, specify the intended toolchain
@@ -173,7 +200,7 @@ scripts/run_local_app.sh --replace-running
 > with the full Xcode app installed. Do not use `open -n`, because it intentionally
 > starts another app instance.
 
-After launching, click the gazerow icon in the menu bar to try **Open Settings** /
+After launching, click the keyboard-grid icon in the menu bar to try **Open Settings** /
 **Quit** and confirm it works. Without permission, use the **Request Permission**
 button in Settings or the launch option above to open the permission flow.
 
@@ -182,7 +209,8 @@ button in Settings or the launch option above to open the permission flow.
 ## Support
 
 If gazerow helps your workflow, support development via **Support gazerow** in the
-menu bar. (Account details to be added later.)
+menu bar. Choose **Copy Account Number** to copy the KakaoBank account
+`3333-26-7184989` to the clipboard.
 
 ---
 

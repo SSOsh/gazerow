@@ -116,16 +116,16 @@ struct AccessibilityPermissionGuidance: Equatable {
         case .english:
             title = "Accessibility permission needed"
             message = """
-            GazeRow needs Accessibility permission before it can show labels and click the focused app. \
-            Open System Settings, enable GazeRow under Accessibility, then return and try the overlay again.
+            gazerow needs Accessibility permission before it can show labels and click the focused app. \
+            Open System Settings, enable gazerow under Accessibility, then return and try the overlay again.
             """
             actionButtonTitle = "Open System Settings"
             cancelButtonTitle = "Cancel"
         case .korean:
             title = "손쉬운 사용 권한이 필요합니다"
             message = """
-            GazeRow가 라벨을 표시하고 현재 앱의 요소를 클릭하려면 손쉬운 사용 권한이 필요합니다. \
-            시스템 설정에서 GazeRow를 손쉬운 사용 항목에 허용한 뒤 돌아와 overlay를 다시 실행하세요.
+            gazerow가 라벨을 표시하고 현재 앱의 요소를 클릭하려면 손쉬운 사용 권한이 필요합니다. \
+            시스템 설정에서 gazerow를 손쉬운 사용 항목에 허용한 뒤 돌아와 overlay를 다시 실행하세요.
             """
             actionButtonTitle = "시스템 설정 열기"
             cancelButtonTitle = "취소"

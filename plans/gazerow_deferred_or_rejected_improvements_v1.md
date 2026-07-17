@@ -1,4 +1,4 @@
-# GazeRow Deferred or Rejected Improvements v1
+# gazerow Deferred or Rejected Improvements v1
 
 ## 목적
 

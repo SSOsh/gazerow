@@ -1,4 +1,4 @@
-# GazeRow Runtime Wiring v1
+# gazerow Runtime Wiring v1
 
 ## 변경 이력
 - v1: TICKET-010 수동 평가 차단 해소를 위한 end-to-end overlay session wiring 작업 목록을 정의.

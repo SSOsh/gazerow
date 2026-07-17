@@ -45,6 +45,55 @@ final class WindowActivatorTests: XCTestCase {
         XCTAssertEqual(slept, [0.05, 0.05])
     }
 
+    func test_activate는_frontmost여도_선택창이준비될때까지_polling한다() {
+        // given
+        var selectedWindowReadinessCalls = 0
+        var slept: [TimeInterval] = []
+        let app = NSRunningApplication.current
+        let targetWindow = AXUIElementCreateSystemWide()
+        let sut = WindowActivator(
+            runningApplicationProvider: { _ in app },
+            activateApplication: { _ in true },
+            frontmostBundleIDProvider: { "com.example.Target" },
+            selectedWindowReadinessProvider: { _ in
+                selectedWindowReadinessCalls += 1
+                return selectedWindowReadinessCalls >= 3
+            },
+            sleep: { slept.append($0) },
+            maxPollDuration: 1,
+            pollInterval: 0.05
+        )
+
+        // when
+        let result = sut.activate(makeEntry(axWindow: targetWindow))
+
+        // then
+        XCTAssertWindowActivateSuccess(result)
+        XCTAssertEqual(selectedWindowReadinessCalls, 3)
+        XCTAssertEqual(slept, [0.05, 0.05])
+    }
+
+    func test_activate는_선택창이준비되지않으면_timeout을_반환한다() {
+        // given
+        let app = NSRunningApplication.current
+        let targetWindow = AXUIElementCreateSystemWide()
+        let sut = WindowActivator(
+            runningApplicationProvider: { _ in app },
+            activateApplication: { _ in true },
+            frontmostBundleIDProvider: { "com.example.Target" },
+            selectedWindowReadinessProvider: { _ in false },
+            sleep: { _ in },
+            maxPollDuration: 0.1,
+            pollInterval: 0.05
+        )
+
+        // when
+        let result = sut.activate(makeEntry(axWindow: targetWindow))
+
+        // then
+        XCTAssertWindowActivateFailure(result, .frontmostTimeout)
+    }
+
     func test_activate는_frontmost_timeout을_반환한다() {
         // given
         let app = NSRunningApplication.current
@@ -65,6 +114,10 @@ final class WindowActivatorTests: XCTestCase {
     }
 
     private var entry: WindowEntry {
+        makeEntry(axWindow: nil)
+    }
+
+    private func makeEntry(axWindow: AXUIElement?) -> WindowEntry {
         WindowEntry(
             id: 0,
             appName: "Target",
@@ -72,7 +125,7 @@ final class WindowActivatorTests: XCTestCase {
             windowTitle: "Main",
             windowTitleHash: "hash",
             pid: 100,
-            axWindow: nil,
+            axWindow: axWindow,
             appIcon: nil
         )
     }
