@@ -11,6 +11,3 @@ DerivedData/
 
 # macOS
 .DS_Store
-
-# Generated app icon intermediates
-Assets/AppIcon.iconset/
