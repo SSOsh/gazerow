@@ -13,8 +13,9 @@ enum StatusItemIconFactory {
 
         NSColor.black.setStroke()
         NSColor.black.setFill()
-        drawKeycap(in: NSRect(x: 2.5, y: 2.5, width: 13, height: 13))
-        drawCursor()
+        drawKeyboardPlate()
+        drawKeyboardGrid()
+        drawGazeRing()
 
         image.unlockFocus()
         image.isTemplate = true
@@ -22,18 +23,50 @@ enum StatusItemIconFactory {
         return image
     }
 
-    private static func drawKeycap(in rect: NSRect) {
-        let path = NSBezierPath(roundedRect: rect, xRadius: 3.2, yRadius: 3.2)
-        path.lineWidth = 1.35
+    private static func drawKeyboardPlate() {
+        let path = NSBezierPath(
+            roundedRect: NSRect(x: 1.5, y: 2.25, width: 15, height: 13.5),
+            xRadius: 2.6,
+            yRadius: 2.6
+        )
+        path.lineWidth = 1.15
         path.stroke()
     }
 
-    private static func drawCursor() {
-        let path = NSBezierPath()
-        path.move(to: NSPoint(x: 6.2, y: 13.3))
-        path.line(to: NSPoint(x: 6.2, y: 5.7))
-        path.line(to: NSPoint(x: 12.8, y: 9.5))
-        path.close()
-        path.fill()
+    private static func drawKeyboardGrid() {
+        let keySize: CGFloat = 2.3
+        let gap: CGFloat = 1.4
+        let origin = NSPoint(x: 3.2, y: 4)
+
+        for row in 0..<3 {
+            for column in 0..<3 where !(row == 2 && column == 2) {
+                let rect = NSRect(
+                    x: origin.x + CGFloat(column) * (keySize + gap),
+                    y: origin.y + CGFloat(row) * (keySize + gap),
+                    width: keySize,
+                    height: keySize
+                )
+                NSBezierPath(roundedRect: rect, xRadius: 0.55, yRadius: 0.55).fill()
+            }
+        }
+    }
+
+    private static func drawGazeRing() {
+        let center = NSPoint(x: 12.3, y: 11.9)
+        let radius: CGFloat = 2.65
+        let ring = NSBezierPath(
+            ovalIn: NSRect(
+                x: center.x - radius,
+                y: center.y - radius,
+                width: radius * 2,
+                height: radius * 2
+            )
+        )
+        ring.lineWidth = 1.15
+        ring.stroke()
+
+        NSBezierPath(
+            ovalIn: NSRect(x: center.x - 0.65, y: center.y - 0.65, width: 1.3, height: 1.3)
+        ).fill()
     }
 }
