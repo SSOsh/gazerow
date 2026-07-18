@@ -1173,7 +1173,8 @@ final class OverlaySessionController {
                 ordinal: index + 1,
                 isFocused: index == session.windowMatchIndex,
                 appIcon: entry.appIcon,
-                recencyRank: entry.recencyRank
+                recencyRank: entry.recencyRank,
+                tabCount: entry.tabCount
             )
         }
 

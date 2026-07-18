@@ -1196,6 +1196,24 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(previews?[1].additionalWindowCount, 6)
     }
 
+    func test_handleKeyboardCommand_windowsScope_tabCount가_windowMatchPreviews로_전달된다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Chrome", bundleID: "com.google.Chrome", title: "Gmail", tabCount: 5)
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("chrome"))
+
+        // then
+        let previews = presenter.statusUpdates.last?.windowMatchPreviews
+        XCTAssertEqual(previews?.first?.tabCount, 5)
+    }
+
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
         // given
         let clickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 1)))
@@ -2120,7 +2138,8 @@ final class OverlaySessionControllerTests: XCTestCase {
         appName: String,
         bundleID: String,
         title: String? = nil,
-        recencyRank: Int = Int.max
+        recencyRank: Int = Int.max,
+        tabCount: Int? = nil
     ) -> WindowEntry {
         WindowEntry(
             id: id,
@@ -2131,7 +2150,8 @@ final class OverlaySessionControllerTests: XCTestCase {
             pid: pid_t(id + 100),
             axWindow: nil,
             appIcon: nil,
-            recencyRank: recencyRank
+            recencyRank: recencyRank,
+            tabCount: tabCount
         )
     }
 }

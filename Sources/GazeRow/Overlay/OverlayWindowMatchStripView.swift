@@ -66,6 +66,20 @@ private struct WindowMatchIconView: View {
                             .offset(x: 5, y: -5)
                     }
                 }
+                .overlay(alignment: .bottomTrailing) {
+                    if let tabCount = preview.tabCount {
+                        Text("\(tabCount)")
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 3)
+                            .padding(.vertical, 1)
+                            .background(Color.black.opacity(0.85), in: Capsule())
+                            .overlay {
+                                Capsule().stroke(Color.white.opacity(0.4), lineWidth: 0.5)
+                            }
+                            .offset(x: 5, y: 5)
+                    }
+                }
 
             Text(preview.appName)
                 .font(.system(size: 9, weight: preview.isFocused ? .bold : .medium, design: .rounded))

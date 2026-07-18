@@ -67,6 +67,20 @@ final class OverlayWindowMatchGrouperTests: XCTestCase {
         XCTAssertEqual(result[0].displayName, "Chrome — Beta 외 2개 창")
     }
 
+    func test_grouped_요약row는_대표_창의_tabCount를_그대로_전달한다() {
+        // given
+        let sut = OverlayWindowMatchGrouper()
+        let alpha = makePreview(id: 0, appName: "Chrome", title: "Alpha", ordinal: 1, isFocused: false, tabCount: 3)
+        let beta = makePreview(id: 1, appName: "Chrome", title: "Beta", ordinal: 2, isFocused: false, tabCount: 7)
+
+        // when
+        let result = sut.grouped(from: [alpha, beta])
+
+        // then: recencyRank가 동률이면 배열상 첫번째(alpha)가 대표가 되므로 alpha의 tabCount(3)를 그대로 들고 있어야 한다
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].tabCount, 3)
+    }
+
     func test_grouped_서로_다른앱은_순서를_유지하며_그룹핑하지_않는다() {
         // given
         let sut = OverlayWindowMatchGrouper()
@@ -86,7 +100,8 @@ final class OverlayWindowMatchGrouperTests: XCTestCase {
         title: String,
         ordinal: Int,
         isFocused: Bool,
-        recencyRank: Int = Int.max
+        recencyRank: Int = Int.max,
+        tabCount: Int? = nil
     ) -> OverlayWindowMatchPreview {
         OverlayWindowMatchPreview(
             id: id,
@@ -94,7 +109,8 @@ final class OverlayWindowMatchGrouperTests: XCTestCase {
             displayName: "\(appName) — \(title)",
             ordinal: ordinal,
             isFocused: isFocused,
-            recencyRank: recencyRank
+            recencyRank: recencyRank,
+            tabCount: tabCount
         )
     }
 }

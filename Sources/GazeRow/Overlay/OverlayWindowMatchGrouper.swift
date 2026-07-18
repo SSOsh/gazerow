@@ -62,7 +62,8 @@ struct OverlayWindowMatchGrouper {
             ordinal: representative.ordinal,
             isFocused: false,
             appIcon: representative.appIcon,
-            additionalWindowCount: additionalCount
+            additionalWindowCount: additionalCount,
+            tabCount: representative.tabCount
         )
     }
 }
