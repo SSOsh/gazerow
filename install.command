@@ -12,4 +12,6 @@ APP_DIR="${INSTALL_DIR:-/Applications/gazerow.app}" "${ROOT_DIR}/scripts/run_loc
 echo
 echo "설치가 끝났습니다. 앞으로는 Spotlight(⌘+Space)에서 'gazerow'를 검색하거나"
 echo "응용 프로그램(Applications) 폴더에서 gazerow.app을 실행하면 됩니다."
-read -rp "아무 키나 누르면 창이 닫힙니다..." _
+read -n 1 -s -r -p "아무 키나 누르면 창이 닫힙니다..."
+echo
+osascript -e "tell application \"Terminal\" to close (every window whose tty is \"$(tty)\")" >/dev/null 2>&1 &
