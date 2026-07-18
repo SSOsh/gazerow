@@ -83,17 +83,22 @@ struct WindowSearchIndex: Equatable {
         workspace: NSWorkspace = .shared,
         titleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         recencyRanker: WindowRecencyRanker = WindowRecencyRanker(),
-        browserTabCountFetcher: BrowserTabCountFetcher = BrowserTabCountFetcher(),
+        browserTabCountCache: BrowserTabCountCache = .shared,
         now: Date = Date()
     ) -> WindowSearchIndex {
         var nextID = 0
         var entries: [WindowEntry] = []
         let recencyRanks = recencyRanker.ranks()
         let runningBundleIDs = Set(workspace.runningApplications.compactMap(\.bundleIdentifier))
-        var browserTabCounts: [String: [String: Int]] = [:]
-        for profile in BrowserTabCountFetcher.knownBrowsers where runningBundleIDs.contains(profile.bundleID) {
-            browserTabCounts[profile.bundleID] = browserTabCountFetcher.tabCounts(for: profile)
+        let runningBrowserProfiles = BrowserTabCountFetcher.knownBrowsers.filter {
+            runningBundleIDs.contains($0.bundleID)
         }
+        // AppleScript(Apple Event) 호출은 최초 실행 시 권한 팝업 응답을 기다리며 블로킹될 수 있어
+        // MainActor에서 동기로 실행하면 안 된다. 여기서는 캐시에 남아있는(있다면) 마지막 결과만
+        // 즉시 읽고, 갱신은 백그라운드에서 트리거만 한다 — 최신 값은 다음 build() 호출(30초 후
+        // staleness 갱신)부터 반영된다.
+        browserTabCountCache.refreshInBackground(profiles: runningBrowserProfiles)
+        let browserTabCounts = browserTabCountCache.currentSnapshot()
 
         for app in workspace.runningApplications
             where app.activationPolicy == .regular
