@@ -18,6 +18,8 @@ struct WindowEntry: Equatable, Identifiable {
     let appIcon: NSImage?
     /// 동일 앱 그룹에서 대표 창을 고를 때 쓰는 최근 사용(z-order) 순위. 낮을수록 최근/전면 창이며, 알 수 없으면 `Int.max`.
     let recencyRank: Int
+    /// 브라우저 창의 열린 탭 개수. 브라우저가 아니거나(`BrowserTabCountFetcher.knownBrowsers` 미지원 포함) 조회에 실패하면 `nil`.
+    let tabCount: Int?
 
     init(
         id: Int,
@@ -28,7 +30,8 @@ struct WindowEntry: Equatable, Identifiable {
         pid: pid_t,
         axWindow: AXUIElement?,
         appIcon: NSImage?,
-        recencyRank: Int = Int.max
+        recencyRank: Int = Int.max,
+        tabCount: Int? = nil
     ) {
         self.id = id
         self.appName = appName
@@ -39,6 +42,7 @@ struct WindowEntry: Equatable, Identifiable {
         self.axWindow = axWindow
         self.appIcon = appIcon
         self.recencyRank = recencyRank
+        self.tabCount = tabCount
     }
 
     static func == (lhs: WindowEntry, rhs: WindowEntry) -> Bool {
@@ -79,11 +83,17 @@ struct WindowSearchIndex: Equatable {
         workspace: NSWorkspace = .shared,
         titleHasher: WindowTitleHasher = WindowTitleHasher(salt: SessionSalt()),
         recencyRanker: WindowRecencyRanker = WindowRecencyRanker(),
+        browserTabCountFetcher: BrowserTabCountFetcher = BrowserTabCountFetcher(),
         now: Date = Date()
     ) -> WindowSearchIndex {
         var nextID = 0
         var entries: [WindowEntry] = []
         let recencyRanks = recencyRanker.ranks()
+        let runningBundleIDs = Set(workspace.runningApplications.compactMap(\.bundleIdentifier))
+        var browserTabCounts: [String: [String: Int]] = [:]
+        for profile in BrowserTabCountFetcher.knownBrowsers where runningBundleIDs.contains(profile.bundleID) {
+            browserTabCounts[profile.bundleID] = browserTabCountFetcher.tabCounts(for: profile)
+        }
 
         for app in workspace.runningApplications
             where app.activationPolicy == .regular
@@ -114,6 +124,7 @@ struct WindowSearchIndex: Equatable {
                 let recencyRank = Self.windowFrame(window).flatMap { frame in
                     recencyRanks[WindowRecencyKey(pid: app.processIdentifier, frame: frame)]
                 } ?? Int.max
+                let tabCount = title.flatMap { browserTabCounts[bundleID]?[$0] }
                 entries.append(
                     WindowEntry(
                         id: nextID,
@@ -124,7 +135,8 @@ struct WindowSearchIndex: Equatable {
                         pid: app.processIdentifier,
                         axWindow: window,
                         appIcon: app.icon,
-                        recencyRank: recencyRank
+                        recencyRank: recencyRank,
+                        tabCount: tabCount
                     )
                 )
                 nextID += 1
@@ -194,7 +206,11 @@ struct WindowSearchIndex: Equatable {
             return entry.appName
         }
 
-        return "\(entry.appName) — \(title)"
+        guard let tabCount = entry.tabCount else {
+            return "\(entry.appName) — \(title)"
+        }
+
+        return "\(entry.appName) — \(title) · \(tabCount) tabs"
     }
 
     private static func windowElements(for pid: pid_t) -> [AXUIElement] {

@@ -85,6 +85,32 @@ final class WindowSearchIndexTests: XCTestCase {
         XCTAssertTrue(sut.search("   ").isEmpty)
     }
 
+    func test_search_tabCount가_있으면_displayLine에_탭_개수를_덧붙인다() {
+        // given
+        let sut = WindowSearchIndex(entries: [
+            entry(id: 0, appName: "Google Chrome", bundleID: "com.google.Chrome", title: "Gmail", tabCount: 5)
+        ])
+
+        // when
+        let matches = sut.search("gmail")
+
+        // then
+        XCTAssertEqual(matches.first?.displayLine, "Google Chrome — Gmail · 5 tabs")
+    }
+
+    func test_search_tabCount가_없으면_displayLine에_탭_개수를_덧붙이지_않는다() {
+        // given
+        let sut = WindowSearchIndex(entries: [
+            entry(id: 0, appName: "Google Chrome", bundleID: "com.google.Chrome", title: "Gmail")
+        ])
+
+        // when
+        let matches = sut.search("gmail")
+
+        // then
+        XCTAssertEqual(matches.first?.displayLine, "Google Chrome — Gmail")
+    }
+
     func test_isStale은_30초_초과시_true다() {
         // given
         let builtAt = Date(timeIntervalSince1970: 100)
@@ -99,7 +125,8 @@ final class WindowSearchIndexTests: XCTestCase {
         id: Int,
         appName: String,
         bundleID: String = "com.example.app",
-        title: String?
+        title: String?,
+        tabCount: Int? = nil
     ) -> WindowEntry {
         WindowEntry(
             id: id,
@@ -109,7 +136,8 @@ final class WindowSearchIndexTests: XCTestCase {
             windowTitleHash: title.map { "hash-\($0)" },
             pid: pid_t(id + 100),
             axWindow: nil,
-            appIcon: nil
+            appIcon: nil,
+            tabCount: tabCount
         )
     }
 }
