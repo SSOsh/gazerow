@@ -31,6 +31,7 @@ final class OverlaySessionController {
     private let activationTracer: any OverlayActivationTracing
     private let clickResultObserver: @MainActor (Result<ClickExecutionSuccess, OverlaySessionClickFailure>) -> Void
     private let sessionReducer = OverlaySessionReducer()
+    private let windowMatchGrouper = OverlayWindowMatchGrouper()
     private(set) var activeSession: OverlaySessionState?
     private(set) var lastClickResult: Result<ClickExecutionSuccess, OverlaySessionClickFailure>?
     private var activeActivationID: UUID?
@@ -1161,7 +1162,7 @@ final class OverlaySessionController {
             selectedIndex: session.windowMatchIndex,
             matchCount: session.windowMatches.count
         )
-        return indices.compactMap { index in
+        let previews = indices.compactMap { index -> OverlayWindowMatchPreview? in
             guard session.windowMatches.indices.contains(index),
                   let entry = session.windowIndex?.entry(id: session.windowMatches[index].entryID) else {
                 return nil
@@ -1176,6 +1177,7 @@ final class OverlaySessionController {
                 appIcon: entry.appIcon
             )
         }
+        return windowMatchGrouper.grouped(from: previews)
     }
 
     private func windowMatchPreviewIndices(selectedIndex: Int, matchCount: Int) -> Range<Int> {

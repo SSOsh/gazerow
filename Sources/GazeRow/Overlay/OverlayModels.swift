@@ -273,6 +273,8 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
     let ordinal: Int
     let isFocused: Bool
     let appIcon: NSImage?
+    /// 이 preview에 묶여서 노출되지 않는 동일 앱의 나머지 창 개수. 0이면 그룹핑되지 않은 단일 창.
+    let additionalWindowCount: Int
 
     init(
         id: Int,
@@ -280,7 +282,8 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
         displayName: String,
         ordinal: Int,
         isFocused: Bool,
-        appIcon: NSImage? = nil
+        appIcon: NSImage? = nil,
+        additionalWindowCount: Int = 0
     ) {
         self.id = id
         self.appName = appName
@@ -288,6 +291,7 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
         self.ordinal = max(1, ordinal)
         self.isFocused = isFocused
         self.appIcon = appIcon
+        self.additionalWindowCount = max(0, additionalWindowCount)
     }
 
     static func == (lhs: OverlayWindowMatchPreview, rhs: OverlayWindowMatchPreview) -> Bool {
@@ -296,10 +300,15 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
             && lhs.displayName == rhs.displayName
             && lhs.ordinal == rhs.ordinal
             && lhs.isFocused == rhs.isFocused
+            && lhs.additionalWindowCount == rhs.additionalWindowCount
     }
 
     var hasAppIcon: Bool {
         appIcon != nil
+    }
+
+    var hasAdditionalWindows: Bool {
+        additionalWindowCount > 0
     }
 
     var detailText: String {

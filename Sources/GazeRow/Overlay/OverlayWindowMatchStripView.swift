@@ -55,6 +55,17 @@ private struct WindowMatchIconView: View {
                             lineWidth: preview.isFocused ? 2 : 1
                         )
                 }
+                .overlay(alignment: .topTrailing) {
+                    if preview.hasAdditionalWindows {
+                        Text("+\(preview.additionalWindowCount)")
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 3)
+                            .padding(.vertical, 1)
+                            .background(Color.blue.opacity(0.92), in: Capsule())
+                            .offset(x: 5, y: -5)
+                    }
+                }
 
             Text(preview.appName)
                 .font(.system(size: 9, weight: preview.isFocused ? .bold : .medium, design: .rounded))

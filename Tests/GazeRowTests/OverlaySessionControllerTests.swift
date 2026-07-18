@@ -1106,6 +1106,31 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.focusedDisplayName, "Slack — Beta")
     }
 
+    func test_handleKeyboardCommand_windowsScope_같은앱_창이_여러개면_windowMatchPreviews를_그룹핑한다() {
+        // given
+        let first = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Alpha")
+        let second = makeWindowEntry(id: 1, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Beta")
+        let third = makeWindowEntry(id: 2, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Gamma")
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [first, second, third]) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // then
+        let previews = presenter.statusUpdates.last?.windowMatchPreviews
+        XCTAssertEqual(previews?.count, 2)
+        XCTAssertEqual(previews?[0].displayName, "Slack — Alpha")
+        XCTAssertTrue(previews?[0].isFocused ?? false)
+        XCTAssertEqual(previews?[1].displayName, "Slack — Beta 외 1개 창")
+        XCTAssertEqual(previews?[1].additionalWindowCount, 1)
+        XCTAssertFalse(previews?[1].isFocused ?? true)
+    }
+
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
         // given
         let clickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 1)))
