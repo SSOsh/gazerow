@@ -1131,6 +1131,39 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertFalse(previews?[1].isFocused ?? true)
     }
 
+    func test_handleKeyboardCommand_windowsScope_그룹요약row는_recencyRank가_낮은_창을_대표로_고른다() {
+        // given
+        let first = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Alpha")
+        let second = makeWindowEntry(
+            id: 1,
+            appName: "Slack",
+            bundleID: "com.tinyspeck.slackmacgap",
+            title: "Beta",
+            recencyRank: 3
+        )
+        let third = makeWindowEntry(
+            id: 2,
+            appName: "Slack",
+            bundleID: "com.tinyspeck.slackmacgap",
+            title: "Gamma",
+            recencyRank: 0
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [first, second, third]) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // then
+        let previews = presenter.statusUpdates.last?.windowMatchPreviews
+        XCTAssertEqual(previews?.count, 2)
+        XCTAssertEqual(previews?[1].displayName, "Slack — Gamma 외 1개 창")
+    }
+
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
         // given
         let clickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 1)))
@@ -2054,7 +2087,8 @@ final class OverlaySessionControllerTests: XCTestCase {
         id: Int,
         appName: String,
         bundleID: String,
-        title: String? = nil
+        title: String? = nil,
+        recencyRank: Int = Int.max
     ) -> WindowEntry {
         WindowEntry(
             id: id,
@@ -2064,7 +2098,8 @@ final class OverlaySessionControllerTests: XCTestCase {
             windowTitleHash: title.map { "hash-\($0)" },
             pid: pid_t(id + 100),
             axWindow: nil,
-            appIcon: nil
+            appIcon: nil,
+            recencyRank: recencyRank
         )
     }
 }

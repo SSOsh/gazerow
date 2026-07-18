@@ -2,6 +2,7 @@
 ///
 /// focus된 preview는 항상 단독으로 노출하고, 같은 앱의 나머지 창은
 /// "<대표 창 제목> 외 N개 창" 형태의 요약 row 하나로 묶는다.
+/// 대표 창은 `recencyRank`(낮을수록 최근/전면 창)가 가장 낮은 창을 고른다.
 ///
 /// @author suho.do
 /// @since 2026-07-18
@@ -34,7 +35,7 @@ struct OverlayWindowMatchGrouper {
         }
 
         let unfocused = group.filter { !$0.isFocused }
-        if let representative = unfocused.first {
+        if let representative = unfocused.min(by: { $0.recencyRank < $1.recencyRank }) {
             rows.append(summaryRow(representative: representative, additionalCount: unfocused.count - 1))
         }
 

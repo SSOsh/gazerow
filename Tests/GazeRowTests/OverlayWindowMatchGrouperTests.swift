@@ -52,6 +52,21 @@ final class OverlayWindowMatchGrouperTests: XCTestCase {
         XCTAssertEqual(result[0].additionalWindowCount, 1)
     }
 
+    func test_grouped_recencyRank가_낮은_창을_배열_순서와_무관하게_대표로_고른다() {
+        // given
+        let sut = OverlayWindowMatchGrouper()
+        let alpha = makePreview(id: 0, appName: "Chrome", title: "Alpha", ordinal: 1, isFocused: false, recencyRank: 5)
+        let beta = makePreview(id: 1, appName: "Chrome", title: "Beta", ordinal: 2, isFocused: false, recencyRank: 1)
+        let gamma = makePreview(id: 2, appName: "Chrome", title: "Gamma", ordinal: 3, isFocused: false, recencyRank: 9)
+
+        // when
+        let result = sut.grouped(from: [alpha, beta, gamma])
+
+        // then
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].displayName, "Chrome — Beta 외 2개 창")
+    }
+
     func test_grouped_서로_다른앱은_순서를_유지하며_그룹핑하지_않는다() {
         // given
         let sut = OverlayWindowMatchGrouper()
@@ -70,14 +85,16 @@ final class OverlayWindowMatchGrouperTests: XCTestCase {
         appName: String,
         title: String,
         ordinal: Int,
-        isFocused: Bool
+        isFocused: Bool,
+        recencyRank: Int = Int.max
     ) -> OverlayWindowMatchPreview {
         OverlayWindowMatchPreview(
             id: id,
             appName: appName,
             displayName: "\(appName) — \(title)",
             ordinal: ordinal,
-            isFocused: isFocused
+            isFocused: isFocused,
+            recencyRank: recencyRank
         )
     }
 }

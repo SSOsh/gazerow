@@ -275,6 +275,8 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
     let appIcon: NSImage?
     /// 이 preview에 묶여서 노출되지 않는 동일 앱의 나머지 창 개수. 0이면 그룹핑되지 않은 단일 창.
     let additionalWindowCount: Int
+    /// 동일 앱 그룹에서 대표 창을 고를 때 쓰는 최근 사용(z-order) 순위. 낮을수록 최근/전면 창이며, 알 수 없으면 `Int.max`.
+    let recencyRank: Int
 
     init(
         id: Int,
@@ -283,7 +285,8 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
         ordinal: Int,
         isFocused: Bool,
         appIcon: NSImage? = nil,
-        additionalWindowCount: Int = 0
+        additionalWindowCount: Int = 0,
+        recencyRank: Int = Int.max
     ) {
         self.id = id
         self.appName = appName
@@ -292,6 +295,7 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
         self.isFocused = isFocused
         self.appIcon = appIcon
         self.additionalWindowCount = max(0, additionalWindowCount)
+        self.recencyRank = recencyRank
     }
 
     static func == (lhs: OverlayWindowMatchPreview, rhs: OverlayWindowMatchPreview) -> Bool {

@@ -1174,7 +1174,8 @@ final class OverlaySessionController {
                 displayName: session.windowMatches[index].displayLine,
                 ordinal: index + 1,
                 isFocused: index == session.windowMatchIndex,
-                appIcon: entry.appIcon
+                appIcon: entry.appIcon,
+                recencyRank: entry.recencyRank
             )
         }
         return windowMatchGrouper.grouped(from: previews)
