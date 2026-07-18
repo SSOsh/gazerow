@@ -127,6 +127,8 @@ cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
   <true/>
   <key>NSCameraUsageDescription</key>
   <string>gazerow uses the camera only when you enable experimental gaze focus. Frames stay local and clicks still require keyboard confirmation.</string>
+  <key>NSAppleEventsUsageDescription</key>
+  <string>gazerow asks your browser (Chrome, Safari, and similar) for its open tab count so the window switcher can show it. No tab content is read.</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
 </dict>

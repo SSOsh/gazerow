@@ -273,6 +273,12 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
     let ordinal: Int
     let isFocused: Bool
     let appIcon: NSImage?
+    /// 이 preview에 묶여서 노출되지 않는 동일 앱의 나머지 창 개수. 0이면 그룹핑되지 않은 단일 창.
+    let additionalWindowCount: Int
+    /// 동일 앱 그룹에서 대표 창을 고를 때 쓰는 최근 사용(z-order) 순위. 낮을수록 최근/전면 창이며, 알 수 없으면 `Int.max`.
+    let recencyRank: Int
+    /// 브라우저 창의 열린 탭 개수. 브라우저가 아니거나 조회에 실패하면 `nil`.
+    let tabCount: Int?
 
     init(
         id: Int,
@@ -280,7 +286,10 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
         displayName: String,
         ordinal: Int,
         isFocused: Bool,
-        appIcon: NSImage? = nil
+        appIcon: NSImage? = nil,
+        additionalWindowCount: Int = 0,
+        recencyRank: Int = Int.max,
+        tabCount: Int? = nil
     ) {
         self.id = id
         self.appName = appName
@@ -288,6 +297,9 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
         self.ordinal = max(1, ordinal)
         self.isFocused = isFocused
         self.appIcon = appIcon
+        self.additionalWindowCount = max(0, additionalWindowCount)
+        self.recencyRank = recencyRank
+        self.tabCount = tabCount
     }
 
     static func == (lhs: OverlayWindowMatchPreview, rhs: OverlayWindowMatchPreview) -> Bool {
@@ -296,10 +308,16 @@ struct OverlayWindowMatchPreview: Equatable, Identifiable {
             && lhs.displayName == rhs.displayName
             && lhs.ordinal == rhs.ordinal
             && lhs.isFocused == rhs.isFocused
+            && lhs.additionalWindowCount == rhs.additionalWindowCount
+            && lhs.tabCount == rhs.tabCount
     }
 
     var hasAppIcon: Bool {
         appIcon != nil
+    }
+
+    var hasAdditionalWindows: Bool {
+        additionalWindowCount > 0
     }
 
     var detailText: String {

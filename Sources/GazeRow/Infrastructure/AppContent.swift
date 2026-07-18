@@ -541,6 +541,21 @@ enum AppContent {
             }
         }
 
+        var browserTabAutomationLabel: String {
+            language == .korean ? "브라우저 탭 개수" : "Browser tab count"
+        }
+
+        func browserAutomationStatusBadge(deniedBrowserNames: [String]) -> String {
+            deniedBrowserNames.isEmpty ? readyBadge : deniedBadge
+        }
+
+        func browserAutomationDeniedDetail(deniedBrowserNames: [String]) -> String {
+            let names = deniedBrowserNames.joined(separator: ", ")
+            return language == .korean
+                ? "\(names)에서 Automation 권한이 거부되어 탭 개수를 가져올 수 없습니다. 시스템 설정에서 허용한 뒤 다시 확인을 누르세요."
+                : "Automation permission was denied for \(names), so gazerow can't read tab counts. Allow it in System Settings, then Recheck."
+        }
+
         func diagnosticsMessage(_ message: String?) -> String? {
             guard language == .korean, let message else {
                 return message

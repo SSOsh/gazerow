@@ -39,6 +39,12 @@ struct NSWorkspaceFrontmostApplicationProvider: FrontmostApplicationProviding {
 /// 이 gazerow 자기 자신을 가리킬 수 있다. 이 provider는 그런 경우 직전 non-gazerow
 /// 앱을 target으로 사용해 사용자가 보고 있던 앱 위에 overlay를 띄운다.
 ///
+/// - Note: 캐시는 `NSWorkspace.didActivateApplicationNotification` 구독으로 갱신되는데,
+///   장시간 실행 중 이 구독이 어떤 이유로든 끊기면 캐시가 오래된 앱을 계속 가리키게 되어
+///   그 이후로는 어떤 앱으로 전환해도 focused window resolution이 계속 실패할 수 있다.
+///   이를 막기 위해 notification과 별개로 주기적으로 현재 frontmost 앱을 다시 읽어 캐시를
+///   스스로 복구한다.
+///
 /// @author suho.do
 /// @since 2026-07-03
 @MainActor
@@ -54,24 +60,44 @@ final class RecentNonSelfApplicationProvider: FrontmostApplicationProviding {
     private let currentApplicationProvider: any FrontmostApplicationProviding
     private let notificationCenter: NotificationCenter
     private var observer: NSObjectProtocol?
+    private var cancelPeriodicRefresh: (() -> Void)?
     private(set) var lastNonSelfApplication: TargetApplication?
 
     init(
         ownBundleIdentifier: String = AppState.bundleIdentifier,
         currentApplicationProvider: any FrontmostApplicationProviding = NSWorkspaceFrontmostApplicationProvider(),
-        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter
+        notificationCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
+        // notification 구독이 끊겼을 때 캐시가 오래된 상태로 남는 기간의 상한(초).
+        periodicRefreshInterval: TimeInterval = 5,
+        scheduleRepeatingTask: @escaping (TimeInterval, @escaping @MainActor () -> Void) -> (() -> Void) = { interval, action in
+            let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
+                MainActor.assumeIsolated {
+                    action()
+                }
+            }
+            return { timer.invalidate() }
+        }
     ) {
         self.ownBundleIdentifier = ownBundleIdentifier
         self.currentApplicationProvider = currentApplicationProvider
         self.notificationCenter = notificationCenter
         recordIfNonSelf(currentApplicationProvider.frontmostApplication())
         installActivationObserver()
+        cancelPeriodicRefresh = scheduleRepeatingTask(periodicRefreshInterval) { [weak self] in
+            self?.refreshFromCurrentSnapshot()
+        }
     }
 
     deinit {
         if let observer {
             notificationCenter.removeObserver(observer)
         }
+        cancelPeriodicRefresh?()
+    }
+
+    /// notification 없이도 캐시를 되살리는 self-healing 경로. 주기적 타이머에서만 호출한다.
+    private func refreshFromCurrentSnapshot() {
+        recordIfNonSelf(currentApplicationProvider.frontmostApplication())
     }
 
     func frontmostApplication() -> TargetApplication? {

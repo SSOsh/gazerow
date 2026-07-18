@@ -82,6 +82,54 @@ final class RecentNonSelfApplicationProviderTests: XCTestCase {
         XCTAssertEqual(sut.lastNonSelfApplication, finder)
     }
 
+    func test_주기적_재확인_tick만으로도_notification없이_캐시가_스스로_복구된다() {
+        // given: notification 없이, 스케줄러가 캡처한 action을 수동으로 호출해 tick을 흉내낸다
+        var capturedAction: (@MainActor () -> Void)?
+        let provider = StubFrontmostApplicationProvider(application: nil)
+        let sut = RecentNonSelfApplicationProvider(
+            ownBundleIdentifier: "dev.local.gazerow",
+            currentApplicationProvider: provider,
+            notificationCenter: NotificationCenter(),
+            scheduleRepeatingTask: { _, action in
+                capturedAction = action
+                return {}
+            }
+        )
+        XCTAssertNil(sut.lastNonSelfApplication)
+
+        // when: 캐시가 오래된 사이 사용자가 Finder로 전환했다고 가정하고 주기적 tick만 실행한다
+        let finder = makeApplication(bundleIdentifier: "com.apple.finder")
+        provider.application = finder
+        capturedAction?()
+
+        // then
+        XCTAssertEqual(sut.lastNonSelfApplication, finder)
+    }
+
+    func test_주기적_재확인이_ControlCenter_같은_무시대상은_캐시를_덮어쓰지_않는다() {
+        // given
+        var capturedAction: (@MainActor () -> Void)?
+        let finder = makeApplication(bundleIdentifier: "com.apple.finder")
+        let provider = StubFrontmostApplicationProvider(application: finder)
+        let sut = RecentNonSelfApplicationProvider(
+            ownBundleIdentifier: "dev.local.gazerow",
+            currentApplicationProvider: provider,
+            notificationCenter: NotificationCenter(),
+            scheduleRepeatingTask: { _, action in
+                capturedAction = action
+                return {}
+            }
+        )
+        XCTAssertEqual(sut.lastNonSelfApplication, finder)
+
+        // when
+        provider.application = makeApplication(bundleIdentifier: "com.apple.controlcenter")
+        capturedAction?()
+
+        // then
+        XCTAssertEqual(sut.lastNonSelfApplication, finder)
+    }
+
     private func makeApplication(bundleIdentifier: String) -> TargetApplication {
         TargetApplication(
             localizedName: bundleIdentifier,

@@ -1106,6 +1106,114 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.focusedDisplayName, "Slack — Beta")
     }
 
+    func test_handleKeyboardCommand_windowsScope_같은앱_창이_여러개면_windowMatchPreviews를_그룹핑한다() {
+        // given
+        let first = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Alpha")
+        let second = makeWindowEntry(id: 1, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Beta")
+        let third = makeWindowEntry(id: 2, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Gamma")
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [first, second, third]) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // then
+        let previews = presenter.statusUpdates.last?.windowMatchPreviews
+        XCTAssertEqual(previews?.count, 2)
+        XCTAssertEqual(previews?[0].displayName, "Slack — Alpha")
+        XCTAssertTrue(previews?[0].isFocused ?? false)
+        XCTAssertEqual(previews?[1].displayName, "Slack — Beta 외 1개 창")
+        XCTAssertEqual(previews?[1].additionalWindowCount, 1)
+        XCTAssertFalse(previews?[1].isFocused ?? true)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_그룹요약row는_recencyRank가_낮은_창을_대표로_고른다() {
+        // given
+        let first = makeWindowEntry(id: 0, appName: "Slack", bundleID: "com.tinyspeck.slackmacgap", title: "Alpha")
+        let second = makeWindowEntry(
+            id: 1,
+            appName: "Slack",
+            bundleID: "com.tinyspeck.slackmacgap",
+            title: "Beta",
+            recencyRank: 3
+        )
+        let third = makeWindowEntry(
+            id: 2,
+            appName: "Slack",
+            bundleID: "com.tinyspeck.slackmacgap",
+            title: "Gamma",
+            recencyRank: 0
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [first, second, third]) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("slack"))
+
+        // then
+        let previews = presenter.statusUpdates.last?.windowMatchPreviews
+        XCTAssertEqual(previews?.count, 2)
+        XCTAssertEqual(previews?[1].displayName, "Slack — Gamma 외 1개 창")
+    }
+
+    func test_handleKeyboardCommand_windowsScope_그룹핑은_6개_slice_경계밖_창도_카운트에_포함한다() {
+        // given: 같은 앱 창 8개 (maxWindowMatchPreviewCount(6)를 넘겨서 예전엔 slice 밖 창이 누락됐다)
+        let entries = (0..<8).map { index in
+            makeWindowEntry(
+                id: index,
+                appName: "Chrome",
+                bundleID: "com.google.Chrome",
+                title: "Tab\(index)"
+            )
+        }
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: entries) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("chrome"))
+
+        // when: 마지막 창(index 7)까지 focus를 이동한다
+        for _ in 0..<7 {
+            _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+        }
+
+        // then: unfocused 7개(Tab0~Tab6) 중 1개는 대표로 표시되고 나머지 6개가 "외 N개"에 잡혀야 한다.
+        // slice를 먼저 자르던 예전 로직이면 slice 밖(Tab0, Tab1)이 누락되어 4가 나왔을 것이다.
+        let previews = presenter.statusUpdates.last?.windowMatchPreviews
+        XCTAssertEqual(previews?.count, 2)
+        XCTAssertTrue(previews?[0].isFocused ?? false)
+        XCTAssertEqual(previews?[0].displayName, "Chrome — Tab7")
+        XCTAssertEqual(previews?[1].additionalWindowCount, 6)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_tabCount가_windowMatchPreviews로_전달된다() {
+        // given
+        let entry = makeWindowEntry(id: 0, appName: "Chrome", bundleID: "com.google.Chrome", title: "Gmail", tabCount: 5)
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: [entry]) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("chrome"))
+
+        // then
+        let previews = presenter.statusUpdates.last?.windowMatchPreviews
+        XCTAssertEqual(previews?.first?.tabCount, 5)
+    }
+
     func test_handleKeyboardCommand_dryRunConfirm은_현재_focus_event를_반환() {
         // given
         let clickExecutor = StubOverlayClickExecutor(result: .failure(.missingFocusedTarget(index: 1)))
@@ -2029,7 +2137,9 @@ final class OverlaySessionControllerTests: XCTestCase {
         id: Int,
         appName: String,
         bundleID: String,
-        title: String? = nil
+        title: String? = nil,
+        recencyRank: Int = Int.max,
+        tabCount: Int? = nil
     ) -> WindowEntry {
         WindowEntry(
             id: id,
@@ -2039,7 +2149,9 @@ final class OverlaySessionControllerTests: XCTestCase {
             windowTitleHash: title.map { "hash-\($0)" },
             pid: pid_t(id + 100),
             axWindow: nil,
-            appIcon: nil
+            appIcon: nil,
+            recencyRank: recencyRank,
+            tabCount: tabCount
         )
     }
 }

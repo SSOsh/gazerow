@@ -16,6 +16,9 @@ struct SettingsView: View {
     /// Camera 권한 상태를 조회/요청하는 매니저.
     @State private var cameraPermissionManager = CameraPermissionManager()
 
+    /// 브라우저 탭 개수 조회용 Automation 권한 상태를 조회/재확인하는 매니저.
+    @State private var browserAutomationPermissionManager = BrowserAutomationPermissionManager()
+
     /// Camera gaze focus opt-in 저장소.
     @State private var cameraGazeSettings = CameraGazeSettings()
 
@@ -305,6 +308,10 @@ struct SettingsView: View {
 
             cameraPermissionRows
 
+            Divider()
+
+            browserAutomationPermissionRows
+
             // Input Monitoring은 baseline 흐름에서 요청하지 않음을 명시한다.
             labeledRow(content.inputMonitoringLabel, content.inputMonitoringDeferred)
         }
@@ -349,6 +356,60 @@ struct SettingsView: View {
 
             calibrationRows
         }
+    }
+
+    /// 브라우저 탭 개수 조회용 Automation 권한 상태를 표시하는 행.
+    ///
+    /// 확인 자체가 대상 브라우저에 Apple Event를 보내 권한 팝업을 띄울 수 있어
+    /// 화면 진입 시 자동으로 조회하지 않고, 사용자가 "다시 확인"을 눌렀을 때만 조회한다.
+    private var browserAutomationPermissionRows: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(content.browserTabAutomationLabel)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if browserAutomationPermissionManager.hasCheckedOnce {
+                    browserAutomationBadge
+                }
+            }
+            .font(.callout)
+
+            if !browserAutomationPermissionManager.deniedBrowserNames.isEmpty {
+                Text(
+                    content.browserAutomationDeniedDetail(
+                        deniedBrowserNames: browserAutomationPermissionManager.deniedBrowserNames
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
+            actionButtons {
+                Button(content.recheckButton) {
+                    Task { await browserAutomationPermissionManager.refresh() }
+                }
+                Button(content.openSystemSettingsButton) {
+                    browserAutomationPermissionManager.openAutomationSettings()
+                }
+            }
+        }
+    }
+
+    /// browserAutomationPermissionRows의 상태 배지.
+    private var browserAutomationBadge: some View {
+        let isDenied = !browserAutomationPermissionManager.deniedBrowserNames.isEmpty
+        return Text(
+            content.browserAutomationStatusBadge(
+                deniedBrowserNames: browserAutomationPermissionManager.deniedBrowserNames
+            )
+        )
+        .font(.caption)
+        .fontWeight(.semibold)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 2)
+        .background((isDenied ? Color.orange : Color.green).opacity(0.18), in: Capsule())
+        .foregroundStyle(isDenied ? Color.orange : Color.green)
     }
 
     /// gaze calibration 상태와 시작 버튼을 표시하는 행.
