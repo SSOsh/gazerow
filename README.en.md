@@ -200,6 +200,12 @@ scripts/package_beta_release.sh
 > with the full Xcode app installed. Do not use `open -n`, because it intentionally
 > starts another app instance.
 
+If the terminal feels unfamiliar, double-click `install.command` at the repo root
+in Finder instead. It builds from the latest source, installs it as
+`/Applications/gazerow.app`, and launches it right away. Afterward you can find it
+by searching "gazerow" in Spotlight (⌘+Space) or opening it from the Applications
+folder.
+
 After launching, click the keyboard-grid icon in the menu bar to try **Open Settings** /
 **Quit** and confirm it works. Without permission, use the **Request Permission**
 button in Settings or the launch option above to open the permission flow.
