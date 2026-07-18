@@ -1158,13 +1158,11 @@ final class OverlaySessionController {
             return []
         }
 
-        let indices = windowMatchPreviewIndices(
-            selectedIndex: session.windowMatchIndex,
-            matchCount: session.windowMatches.count
-        )
-        let previews = indices.compactMap { index -> OverlayWindowMatchPreview? in
-            guard session.windowMatches.indices.contains(index),
-                  let entry = session.windowIndex?.entry(id: session.windowMatches[index].entryID) else {
+        // 그룹핑(같은 앱 창 요약)은 전체 match를 대상으로 먼저 수행한 뒤 화면에 보여줄 row 수를 제한한다.
+        // 순서를 반대로 하면(먼저 6개로 자르고 그룹핑) 그룹 밖으로 밀려난 같은 앱 창이 "외 N개" 집계에서
+        // 누락될 수 있다.
+        let allPreviews = session.windowMatches.indices.compactMap { index -> OverlayWindowMatchPreview? in
+            guard let entry = session.windowIndex?.entry(id: session.windowMatches[index].entryID) else {
                 return nil
             }
 
@@ -1178,7 +1176,14 @@ final class OverlaySessionController {
                 recencyRank: entry.recencyRank
             )
         }
-        return windowMatchGrouper.grouped(from: previews)
+
+        let groupedRows = windowMatchGrouper.grouped(from: allPreviews)
+        let focusedRowIndex = groupedRows.firstIndex(where: \.isFocused) ?? 0
+        let indices = windowMatchPreviewIndices(
+            selectedIndex: focusedRowIndex,
+            matchCount: groupedRows.count
+        )
+        return indices.compactMap { groupedRows.indices.contains($0) ? groupedRows[$0] : nil }
     }
 
     private func windowMatchPreviewIndices(selectedIndex: Int, matchCount: Int) -> Range<Int> {
