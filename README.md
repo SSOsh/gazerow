@@ -199,6 +199,11 @@ scripts/package_beta_release.sh
 > 설치를 기준으로 검증합니다. `open -n`은 중복 인스턴스를 강제로 만들기 때문에
 > 사용하지 마세요.
 
+터미널 명령이 낯설다면 저장소 루트의 `install.command`를 Finder에서 더블클릭하세요.
+최신 소스로 빌드해 `/Applications/gazerow.app`으로 설치하고 바로 실행까지 해줍니다.
+설치 후에는 Spotlight(⌘+Space)에서 "gazerow"를 검색하거나 응용 프로그램(Applications)
+폴더에서 실행할 수 있습니다.
+
 실행 후 메뉴바 키보드 격자 아이콘을 클릭하면 **Open Settings** / **Quit** 등으로 동작을
 확인할 수 있습니다. 권한이 없으면 Settings의 **권한 요청** 버튼이나 위 런치 옵션으로
 권한 동선을 열 수 있습니다.
