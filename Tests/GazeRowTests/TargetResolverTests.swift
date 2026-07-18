@@ -10,7 +10,7 @@ import XCTest
 @MainActor
 final class TargetResolverTests: XCTestCase {
 
-    func resolve_NoFrontmostApplication_ReturnsFailure() {
+    func test_resolve_NoFrontmostApplication_ReturnsFailure() {
         // given
         let resolver = TargetResolver(
             frontmostApplicationProvider: StubFrontmostApplicationProvider(application: nil),
@@ -24,7 +24,7 @@ final class TargetResolverTests: XCTestCase {
         XCTAssertEqual(result, .failure(.noFrontmostApplication))
     }
 
-    func resolve_InvalidProcessIdentifier_ReturnsFailure() {
+    func test_resolve_InvalidProcessIdentifier_ReturnsFailure() {
         // given
         let resolver = TargetResolver(
             frontmostApplicationProvider: StubFrontmostApplicationProvider(
@@ -44,7 +44,7 @@ final class TargetResolverTests: XCTestCase {
         XCTAssertEqual(result, .failure(.invalidProcessIdentifier(0)))
     }
 
-    func resolve_AccessibilityPermissionDenied_ReturnsFailure() {
+    func test_resolve_AccessibilityPermissionDenied_ReturnsFailure() {
         // given
         let resolver = TargetResolver(
             frontmostApplicationProvider: StubFrontmostApplicationProvider(application: finderApplication),
@@ -58,7 +58,7 @@ final class TargetResolverTests: XCTestCase {
         XCTAssertEqual(result, .failure(.accessibilityPermissionDenied))
     }
 
-    func resolve_FocusedWindowUnavailable_ReturnsBundleScopedFailure() {
+    func test_resolve_FocusedWindowUnavailable_ReturnsBundleScopedFailure() {
         // given
         let resolver = TargetResolver(
             frontmostApplicationProvider: StubFrontmostApplicationProvider(application: finderApplication),
@@ -82,7 +82,7 @@ final class TargetResolverTests: XCTestCase {
         )
     }
 
-    func resolve_WindowFrameUnavailable_ReturnsBundleScopedFailure() {
+    func test_resolve_WindowFrameUnavailable_ReturnsBundleScopedFailure() {
         // given
         let resolver = TargetResolver(
             frontmostApplicationProvider: StubFrontmostApplicationProvider(application: finderApplication),
@@ -106,7 +106,7 @@ final class TargetResolverTests: XCTestCase {
         )
     }
 
-    func resolve_InvalidWindowFrame_ReturnsFailure() {
+    func test_resolve_InvalidWindowFrame_ReturnsFailure() {
         // given
         let frame = CGRect(x: 10, y: 20, width: 0, height: 120)
         let resolver = TargetResolver(
@@ -131,7 +131,7 @@ final class TargetResolverTests: XCTestCase {
         )
     }
 
-    func resolve_ValidTarget_ReturnsContext() {
+    func test_resolve_ValidTarget_ReturnsContext() {
         // given
         let resolvedAt = Date(timeIntervalSince1970: 1_788_748_400)
         let window = TargetWindow(
