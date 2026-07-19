@@ -45,14 +45,14 @@ private struct WindowMatchIconView: View {
                 .frame(width: 24, height: 24)
                 .padding(3)
                 .background(
-                    preview.isFocused ? Color.blue.opacity(0.42) : Color.white.opacity(0.10),
+                    preview.isFocused ? Color.blue.opacity(0.5) : Color.white.opacity(0.10),
                     in: RoundedRectangle(cornerRadius: 5)
                 )
                 .overlay {
                     RoundedRectangle(cornerRadius: 5)
                         .stroke(
-                            preview.isFocused ? Color.blue.opacity(0.98) : Color.white.opacity(0.36),
-                            lineWidth: preview.isFocused ? 2 : 1
+                            preview.isFocused ? Color.blue : Color.white.opacity(0.36),
+                            lineWidth: preview.isFocused ? 2.5 : 1
                         )
                 }
                 .overlay(alignment: .topTrailing) {
@@ -66,20 +66,7 @@ private struct WindowMatchIconView: View {
                             .offset(x: 5, y: -5)
                     }
                 }
-                .overlay(alignment: .bottomTrailing) {
-                    if let tabCount = preview.tabCount {
-                        Text("\(tabCount)")
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.white)
-                            .padding(.horizontal, 3)
-                            .padding(.vertical, 1)
-                            .background(Color.black.opacity(0.85), in: Capsule())
-                            .overlay {
-                                Capsule().stroke(Color.white.opacity(0.4), lineWidth: 0.5)
-                            }
-                            .offset(x: 5, y: 5)
-                    }
-                }
+                .scaleEffect(preview.isFocused ? 1.08 : 1.0)
 
             Text(preview.appName)
                 .font(.system(size: 9, weight: preview.isFocused ? .bold : .medium, design: .rounded))
@@ -87,7 +74,18 @@ private struct WindowMatchIconView: View {
                 .truncationMode(.tail)
                 .frame(width: 70)
                 .foregroundStyle(Color.white.opacity(preview.isFocused ? 1 : 0.76))
+
+            if let tabCount = preview.tabCount {
+                Text("\(tabCount) tabs")
+                    .font(.system(size: 8, weight: .regular, design: .rounded))
+                    .foregroundStyle(Color.white.opacity(preview.isFocused ? 0.9 : 0.6))
+            }
+
+            Circle()
+                .fill(preview.isFocused ? Color.blue : Color.clear)
+                .frame(width: 4, height: 4)
         }
+        .animation(.easeOut(duration: 0.12), value: preview.isFocused)
         .help(preview.displayName)
     }
 
