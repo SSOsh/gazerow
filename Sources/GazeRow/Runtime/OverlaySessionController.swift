@@ -454,12 +454,19 @@ final class OverlaySessionController {
         case .pinScope(let scope):
             sessionReducer.pinScope(scope, in: &session)
             prepareIndex(for: scope, session: &session)
+            if scope == .windows {
+                resolveQueryAndPresent(&session)
+                return nil
+            }
             event = nil
             statusMessage = content.overlayPinnedText(scope)
         case .selectScope(let scope):
             sessionReducer.selectScope(scope, in: &session)
             prepareIndex(for: scope, session: &session)
-            if session.queryInput.buffer.isEmpty {
+            if scope == .windows {
+                resolveQueryAndPresent(&session)
+                return nil
+            } else if session.queryInput.buffer.isEmpty {
                 event = nil
                 statusMessage = scope == .labels ? content.overlayLabelsSelectedText : content.overlayPinnedText(scope)
             } else {
@@ -903,7 +910,10 @@ final class OverlaySessionController {
     private func applyQueryResolution(to session: inout OverlaySessionState) -> QueryResolution {
         session.elementMatches = session.elementIndex.search(session.queryInput.buffer)
         let windowIndex = session.windowIndex ?? WindowSearchIndex(entries: [])
-        session.windowMatches = windowIndex.search(session.queryInput.buffer)
+        session.windowMatches = windowMatches(
+            for: session.queryInput,
+            in: windowIndex
+        )
         if session.elementMatches.isEmpty {
             session.elementMatchIndex = 0
         } else {
@@ -922,7 +932,8 @@ final class OverlaySessionController {
             elementMatchIndex: session.elementMatchIndex,
             actionableCandidates: session.snapshot.scanResult.candidates,
             windowIndex: windowIndex,
-            windowMatchIndex: session.windowMatchIndex
+            windowMatchIndex: session.windowMatchIndex,
+            windowMatches: session.windowMatches
         )
         session.queryInput.lastScope = resolution.scope
         if let focusTargetCandidateIndex = resolution.focusTargetCandidateIndex {
@@ -932,6 +943,18 @@ final class OverlaySessionController {
             _ = session.focusEngine.focusItem(id: -1)
         }
         return resolution
+    }
+
+    private func windowMatches(
+        for queryInput: QueryInputState,
+        in index: WindowSearchIndex
+    ) -> [WindowMatch] {
+        guard queryInput.pinnedScope == .windows,
+              SearchTextMatcher.normalized(queryInput.buffer).isEmpty else {
+            return index.search(queryInput.buffer)
+        }
+
+        return index.overviewMatches()
     }
 
     private func prepareIndex(for scope: QueryScope, session: inout OverlaySessionState) {

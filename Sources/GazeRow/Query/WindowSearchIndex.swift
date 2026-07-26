@@ -171,6 +171,28 @@ struct WindowSearchIndex: Equatable {
         }
     }
 
+    /// 빈 검색어의 window overview에 표시할 전체 후보를 최근 사용 순서로 반환한다.
+    ///
+    /// recency를 알 수 없는 후보끼리는 원래 index 순서를 유지해 UI 순서가 흔들리지
+    /// 않게 한다. 검색 API의 empty-query 계약은 그대로 유지한다.
+    func overviewMatches() -> [WindowMatch] {
+        entries.enumerated()
+            .sorted { lhs, rhs in
+                if lhs.element.recencyRank != rhs.element.recencyRank {
+                    return lhs.element.recencyRank < rhs.element.recencyRank
+                }
+
+                return lhs.offset < rhs.offset
+            }
+            .map { _, entry in
+                WindowMatch(
+                    entryID: entry.id,
+                    score: 0,
+                    displayLine: displayLine(for: entry)
+                )
+            }
+    }
+
     func entry(id: Int) -> WindowEntry? {
         entries.first { $0.id == id }
     }

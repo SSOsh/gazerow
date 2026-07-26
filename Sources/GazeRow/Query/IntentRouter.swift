@@ -58,16 +58,17 @@ struct IntentRouter {
         elementMatchIndex: Int,
         actionableCandidates: [ClickableCandidate],
         windowIndex: WindowSearchIndex = WindowSearchIndex(entries: []),
-        windowMatchIndex: Int = 0
+        windowMatchIndex: Int = 0,
+        windowMatches: [WindowMatch]? = nil
     ) -> QueryResolution {
         let matches = elementIndex.search(queryInput.buffer)
-        let windowMatches = windowIndex.search(queryInput.buffer)
+        let resolvedWindowMatches = windowMatches ?? windowIndex.search(queryInput.buffer)
         let scope = chooseScope(
             buffer: queryInput.buffer,
             pinnedScope: queryInput.pinnedScope,
             focusEngine: focusEngine,
             elementMatches: matches,
-            windowMatches: windowMatches,
+            windowMatches: resolvedWindowMatches,
             lastScope: queryInput.lastScope
         )
 
@@ -91,7 +92,7 @@ struct IntentRouter {
             )
         case .windows:
             return windowResolution(
-                matches: windowMatches,
+                matches: resolvedWindowMatches,
                 matchIndex: windowMatchIndex
             )
         }

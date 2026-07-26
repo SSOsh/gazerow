@@ -85,6 +85,36 @@ final class WindowSearchIndexTests: XCTestCase {
         XCTAssertTrue(sut.search("   ").isEmpty)
     }
 
+    func test_overviewMatches는_최근사용순서로_전체후보를_반환한다() {
+        // given
+        let sut = WindowSearchIndex(entries: [
+            entry(id: 0, appName: "Unknown A", title: nil),
+            entry(id: 1, appName: "Safari", title: "Docs", recencyRank: 2),
+            entry(id: 2, appName: "Finder", title: "Downloads", recencyRank: 0),
+            entry(id: 3, appName: "Unknown B", title: nil)
+        ])
+
+        // when
+        let matches = sut.overviewMatches()
+
+        // then
+        XCTAssertEqual(matches.map(\.entryID), [2, 1, 0, 3])
+        XCTAssertEqual(matches.map(\.displayLine), [
+            "Finder — Downloads",
+            "Safari — Docs",
+            "Unknown A",
+            "Unknown B"
+        ])
+    }
+
+    func test_overviewMatches는_entry가_없으면_빈배열을_반환한다() {
+        // given
+        let sut = WindowSearchIndex(entries: [])
+
+        // when & then
+        XCTAssertTrue(sut.overviewMatches().isEmpty)
+    }
+
     func test_search_tabCount가_있으면_displayLine에_탭_개수를_덧붙인다() {
         // given
         let sut = WindowSearchIndex(entries: [
@@ -126,6 +156,7 @@ final class WindowSearchIndexTests: XCTestCase {
         appName: String,
         bundleID: String = "com.example.app",
         title: String?,
+        recencyRank: Int = Int.max,
         tabCount: Int? = nil
     ) -> WindowEntry {
         WindowEntry(
@@ -137,6 +168,7 @@ final class WindowSearchIndexTests: XCTestCase {
             pid: pid_t(id + 100),
             axWindow: nil,
             appIcon: nil,
+            recencyRank: recencyRank,
             tabCount: tabCount
         )
     }

@@ -760,6 +760,41 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.pinnedScope, .windows)
     }
 
+    func test_handleKeyboardCommand_windowsScope_빈query는_최근사용순서의_전체창을_표시한다() {
+        // given
+        let older = makeWindowEntry(
+            id: 0,
+            appName: "Finder",
+            bundleID: "com.apple.finder",
+            title: "Downloads",
+            recencyRank: 4
+        )
+        let recent = makeWindowEntry(
+            id: 1,
+            appName: "Safari",
+            bundleID: "com.apple.Safari",
+            title: "Docs",
+            recencyRank: 0
+        )
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: {
+                WindowSearchIndex(entries: [older, recent])
+            }
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.windowMatches.map(\.entryID), [1, 0])
+        XCTAssertEqual(sut.activeSession?.windowMatchIndex, 0)
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.matchCount, 2)
+        XCTAssertEqual(presenter.statusUpdates.last?.focusedDisplayName, "Safari — Docs")
+    }
+
     func test_overlayKeyboardCallback은_selectScope_command로_session을_갱신한다() throws {
         // given
         let presenter = StubOverlayPresenter()
