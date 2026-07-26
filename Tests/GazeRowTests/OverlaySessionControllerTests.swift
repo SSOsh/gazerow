@@ -793,6 +793,32 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
         XCTAssertEqual(presenter.statusUpdates.last?.matchCount, 2)
         XCTAssertEqual(presenter.statusUpdates.last?.focusedDisplayName, "Safari — Docs")
+        XCTAssertEqual(presenter.statusUpdates.last?.windowOverviewItems.map(\.label), ["A", "S"])
+        XCTAssertEqual(presenter.statusUpdates.last?.windowOverviewItems.map(\.id), [1, 0])
+        XCTAssertEqual(presenter.statusUpdates.last?.windowOverviewItems.map(\.isFocused), [true, false])
+    }
+
+    func test_handleKeyboardCommand_windowsScope_overview는_같은앱창도_각각표시한다() {
+        // given
+        let entries = [
+            makeWindowEntry(id: 0, appName: "Safari", bundleID: "com.apple.Safari", title: "Docs"),
+            makeWindowEntry(id: 1, appName: "Safari", bundleID: "com.apple.Safari", title: "Mail")
+        ]
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: entries) }
+        )
+
+        // when
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // then
+        XCTAssertEqual(presenter.statusUpdates.last?.windowOverviewItems.count, 2)
+        XCTAssertEqual(
+            presenter.statusUpdates.last?.windowOverviewItems.map(\.displayName),
+            ["Safari — Docs", "Safari — Mail"]
+        )
     }
 
     func test_overlayKeyboardCallback은_selectScope_command로_session을_갱신한다() throws {

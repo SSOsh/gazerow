@@ -229,4 +229,36 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.highlightFrame, CGRect(x: 10, y: 20, width: 30, height: 40))
     }
 
+    func test_OverlayWindowOverviewItem_detailText는_앱이름prefix를_제거한다() {
+        // given
+        let sut = OverlayWindowOverviewItem(
+            id: 1,
+            label: "A",
+            appName: "Safari",
+            displayName: "Safari — Documentation",
+            isFocused: true,
+            appIcon: nil,
+            tabCount: nil
+        )
+
+        // when & then
+        XCTAssertEqual(sut.detailText, "Documentation")
+    }
+
+    func test_OverlayWindowOverviewItem_detailText는_앱이름만있으면_빈문자열이다() {
+        // given
+        let sut = OverlayWindowOverviewItem(
+            id: 1,
+            label: "A",
+            appName: "Finder",
+            displayName: "Finder",
+            isFocused: false,
+            appIcon: nil,
+            tabCount: nil
+        )
+
+        // when & then
+        XCTAssertEqual(sut.detailText, "")
+    }
+
 }

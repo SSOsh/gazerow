@@ -176,6 +176,7 @@ struct OverlayInteractionStatus: Equatable {
     let highlightFrame: CGRect?
     let enterActionHint: String
     let windowMatchPreviews: [OverlayWindowMatchPreview]
+    let windowOverviewItems: [OverlayWindowOverviewItem]
     let message: String?
     let tone: Tone
     let phase: OverlayInteractionPhase
@@ -195,6 +196,7 @@ struct OverlayInteractionStatus: Equatable {
         highlightFrame: CGRect? = nil,
         enterActionHint: String = "click",
         windowMatchPreviews: [OverlayWindowMatchPreview] = [],
+        windowOverviewItems: [OverlayWindowOverviewItem] = [],
         message: String? = nil,
         tone: Tone = .neutral,
         phase: OverlayInteractionPhase = .idle,
@@ -213,6 +215,7 @@ struct OverlayInteractionStatus: Equatable {
         self.highlightFrame = highlightFrame
         self.enterActionHint = enterActionHint
         self.windowMatchPreviews = windowMatchPreviews
+        self.windowOverviewItems = windowOverviewItems
         self.message = message
         self.tone = tone
         self.phase = phase
@@ -229,6 +232,38 @@ struct OverlayInteractionStatus: Equatable {
         case success
         case warning
         case failure
+    }
+}
+
+/// 전체 화면 window overview에 표시할 그룹핑되지 않은 창 카드.
+///
+/// @author suho.do
+/// @since 2026-07-26
+struct OverlayWindowOverviewItem: Equatable, Identifiable {
+    let id: Int
+    let label: String
+    let appName: String
+    let displayName: String
+    let isFocused: Bool
+    let appIcon: NSImage?
+    let tabCount: Int?
+
+    static func == (lhs: OverlayWindowOverviewItem, rhs: OverlayWindowOverviewItem) -> Bool {
+        lhs.id == rhs.id
+            && lhs.label == rhs.label
+            && lhs.appName == rhs.appName
+            && lhs.displayName == rhs.displayName
+            && lhs.isFocused == rhs.isFocused
+            && lhs.tabCount == rhs.tabCount
+    }
+
+    var detailText: String {
+        let prefix = "\(appName) — "
+        if displayName.hasPrefix(prefix) {
+            return String(displayName.dropFirst(prefix.count))
+        }
+
+        return displayName == appName ? "" : displayName
     }
 }
 

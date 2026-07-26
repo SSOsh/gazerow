@@ -231,6 +231,7 @@ final class OverlayWindowController {
                 highlightFrame: currentStatus.highlightFrame,
                 enterActionHint: currentStatus.enterActionHint,
                 windowMatchPreviews: currentStatus.windowMatchPreviews,
+                windowOverviewItems: currentStatus.windowOverviewItems,
                 message: currentStatus.message,
                 tone: currentStatus.tone,
                 phase: currentStatus.phase,

@@ -1131,6 +1131,7 @@ final class OverlaySessionController {
             highlightFrame: resolution?.highlightFrame,
             enterActionHint: enterHint,
             windowMatchPreviews: windowMatchPreviews(for: session, activeScope: activeScope),
+            windowOverviewItems: windowOverviewItems(for: session, activeScope: activeScope),
             message: message,
             tone: tone,
             phase: phase ?? interactionPhase(
@@ -1208,6 +1209,32 @@ final class OverlaySessionController {
             matchCount: groupedRows.count
         )
         return indices.compactMap { groupedRows.indices.contains($0) ? groupedRows[$0] : nil }
+    }
+
+    private func windowOverviewItems(
+        for session: OverlaySessionState,
+        activeScope: QueryScope
+    ) -> [OverlayWindowOverviewItem] {
+        guard activeScope == .windows, !session.windowMatches.isEmpty else {
+            return []
+        }
+
+        let labels = HintLabelGenerator().labels(count: session.windowMatches.count)
+        return session.windowMatches.indices.compactMap { index in
+            guard let entry = session.windowIndex?.entry(id: session.windowMatches[index].entryID) else {
+                return nil
+            }
+
+            return OverlayWindowOverviewItem(
+                id: entry.id,
+                label: labels[index],
+                appName: entry.appName,
+                displayName: session.windowMatches[index].displayLine,
+                isFocused: index == session.windowMatchIndex,
+                appIcon: entry.appIcon,
+                tabCount: entry.tabCount
+            )
+        }
     }
 
     private func windowMatchPreviewIndices(selectedIndex: Int, matchCount: Int) -> Range<Int> {
