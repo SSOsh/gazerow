@@ -14,8 +14,10 @@ final class OverlayWindowController {
 
     private var targetPanel: OverlayPanel?
     private var commandBarPanel: OverlayPanel?
+    private var overviewPanel: OverlayPanel?
     private var targetHostingView: NSHostingView<OverlayView>?
     private var commandBarHostingView: NSHostingView<OverlayCommandBarPanelView>?
+    private var overviewHostingView: NSHostingView<OverlayWindowOverviewView>?
     private var currentLayout: OverlayLayout?
     private var currentCommandBarVisibleFrame: CGRect?
     private var currentCommandBarAvoidingFrames: [CGRect] = []
@@ -75,8 +77,16 @@ final class OverlayWindowController {
         commandBarPanel?.isVisible == true
     }
 
+    var isOverviewPanelVisible: Bool {
+        overviewPanel?.isVisible == true
+    }
+
     var commandBarPanelFrame: CGRect? {
         commandBarPanel?.frame
+    }
+
+    var overviewPanelFrame: CGRect? {
+        overviewPanel?.frame
     }
 
     /// 선택 label은 안내용 command bar보다 앞에 표시되어야 한다.
@@ -96,12 +106,18 @@ final class OverlayWindowController {
         commandBarHostingView.map(ObjectIdentifier.init)
     }
 
+    var overviewHostingViewIdentifier: ObjectIdentifier? {
+        overviewHostingView.map(ObjectIdentifier.init)
+    }
+
     /// 표시 중인 overlay panel이 앱 비활성 상태에서도 유지되는지 여부.
     ///
     /// LSUIElement 앱은 overlay 표시 시 자기 앱을 활성화하지 않으므로, panel이
     /// `hidesOnDeactivate`로 자동 숨김되면 화면에 나타나지 않는다.
     var persistsWhileAppInactive: Bool {
-        targetPanel?.hidesOnDeactivate == false && commandBarPanel?.hidesOnDeactivate == false
+        targetPanel?.hidesOnDeactivate == false
+            && commandBarPanel?.hidesOnDeactivate == false
+            && (overviewPanel?.hidesOnDeactivate == false || overviewPanel == nil)
     }
 
     func show(
@@ -260,10 +276,13 @@ final class OverlayWindowController {
         keyboardEventTap = nil
         targetPanel?.orderOut(nil)
         commandBarPanel?.orderOut(nil)
+        overviewPanel?.orderOut(nil)
         targetPanel = nil
         commandBarPanel = nil
+        overviewPanel = nil
         targetHostingView = nil
         commandBarHostingView = nil
+        overviewHostingView = nil
         currentLayout = nil
         currentCommandBarVisibleFrame = nil
         currentCommandBarAvoidingFrames = []
@@ -314,6 +333,8 @@ final class OverlayWindowController {
             targetPanel?.contentView = hostingView
         }
 
+        renderOverview(status: status)
+
         guard let commandBarPanel, let currentCommandBarVisibleFrame else {
             return
         }
@@ -336,6 +357,36 @@ final class OverlayWindowController {
             commandBarHostingView = hostingView
             commandBarPanel.contentView = hostingView
         }
+
+        if overviewPanel?.isVisible == true {
+            commandBarPanel.orderFrontRegardless()
+        }
+    }
+
+    private func renderOverview(status: OverlayInteractionStatus) {
+        guard status.activeScope == .windows,
+              !status.windowOverviewItems.isEmpty,
+              let visibleFrame = currentCommandBarVisibleFrame else {
+            overviewPanel?.orderOut(nil)
+            return
+        }
+
+        let overviewView = OverlayWindowOverviewView(
+            items: status.windowOverviewItems,
+            language: AppLanguageSettings().selectedLanguage
+        )
+        if let overviewHostingView {
+            overviewHostingView.rootView = overviewView
+        } else {
+            let panel = makePanel(frame: visibleFrame)
+            let hostingView = NSHostingView(rootView: overviewView)
+            panel.contentView = hostingView
+            overviewPanel = panel
+            overviewHostingView = hostingView
+        }
+
+        overviewPanel?.setFrame(visibleFrame, display: false)
+        overviewPanel?.orderFrontRegardless()
     }
 
     private func syncKeyboardState(_ state: QueryInputState) {

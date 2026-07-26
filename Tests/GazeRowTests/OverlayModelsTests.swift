@@ -207,6 +207,16 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertTrue(sut.requiresSecondConfirm)
     }
 
+    func test_OverlayInteractionStatus_windowsScope는_targetOverlay를_숨긴다() {
+        // given
+        let windows = OverlayInteractionStatus(activeScope: .windows)
+        let labels = OverlayInteractionStatus(activeScope: .labels)
+
+        // when & then
+        XCTAssertFalse(windows.showsTargetOverlay)
+        XCTAssertTrue(labels.showsTargetOverlay)
+    }
+
     func test_OverlayInteractionStatus_queryBuffer가_있으면_표시값을_우선한다() {
         // given
         let sut = OverlayInteractionStatus(

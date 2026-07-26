@@ -227,6 +227,10 @@ struct OverlayInteractionStatus: Equatable {
         queryBuffer.isEmpty ? typedLabelBuffer : queryBuffer
     }
 
+    var showsTargetOverlay: Bool {
+        activeScope != .windows
+    }
+
     enum Tone: Equatable {
         case neutral
         case success

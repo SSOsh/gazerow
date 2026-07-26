@@ -30,55 +30,56 @@ struct OverlayView: View {
         let highlightFrame = localHighlightFrame
         let renderingStrategy = OverlayRenderingStrategy.resolve(labelCount: layout.labels.count)
         ZStack(alignment: .topLeading) {
-            if showsBoundary {
-                Rectangle()
-                    .stroke(Color.accentColor.opacity(appearance.boundaryOpacity), lineWidth: 2)
-                    .frame(width: layout.localBounds.width, height: layout.localBounds.height)
-            }
-
-            if renderingStrategy == .canvas {
-                OverlayBatchCanvas(
-                    labels: layout.labels,
-                    focusedLabelID: focusedLabelID,
-                    status: status,
-                    appearance: appearance,
-                    focusStyle: focusStyle,
-                    highlightFrame: highlightFrame
-                )
-            } else {
-                ForEach(layout.labels) { label in
-                    OverlayTargetMarkerView(
-                        label: label,
-                        isFocused: label.id == focusedLabelID,
-                        appearance: appearance,
-                        focusStyle: focusStyle
-                    )
-                    .frame(width: layout.localBounds.width, height: layout.localBounds.height)
+            if status.showsTargetOverlay {
+                if showsBoundary {
+                    Rectangle()
+                        .stroke(Color.accentColor.opacity(appearance.boundaryOpacity), lineWidth: 2)
+                        .frame(width: layout.localBounds.width, height: layout.localBounds.height)
                 }
 
-                if let highlightFrame {
-                    SearchHitHighlightView(scope: status.activeScope)
-                        .frame(width: highlightFrame.width, height: highlightFrame.height)
-                        .position(x: highlightFrame.midX, y: highlightFrame.midY)
-                }
-
-                ForEach(layout.labels) { label in
-                    OverlayLabelView(
-                        label: label,
-                        isFocused: label.id == focusedLabelID,
+                if renderingStrategy == .canvas {
+                    OverlayBatchCanvas(
+                        labels: layout.labels,
+                        focusedLabelID: focusedLabelID,
+                        status: status,
                         appearance: appearance,
                         focusStyle: focusStyle,
-                        labelOpacity: OverlayLabelVisibility.opacity(
-                            for: label,
-                            focusedLabelID: focusedLabelID,
-                            status: status
-                        )
+                        highlightFrame: highlightFrame
                     )
-                    .frame(width: label.labelFrame.width, height: label.labelFrame.height)
-                    .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
+                } else {
+                    ForEach(layout.labels) { label in
+                        OverlayTargetMarkerView(
+                            label: label,
+                            isFocused: label.id == focusedLabelID,
+                            appearance: appearance,
+                            focusStyle: focusStyle
+                        )
+                        .frame(width: layout.localBounds.width, height: layout.localBounds.height)
+                    }
+
+                    if let highlightFrame {
+                        SearchHitHighlightView(scope: status.activeScope)
+                            .frame(width: highlightFrame.width, height: highlightFrame.height)
+                            .position(x: highlightFrame.midX, y: highlightFrame.midY)
+                    }
+
+                    ForEach(layout.labels) { label in
+                        OverlayLabelView(
+                            label: label,
+                            isFocused: label.id == focusedLabelID,
+                            appearance: appearance,
+                            focusStyle: focusStyle,
+                            labelOpacity: OverlayLabelVisibility.opacity(
+                                for: label,
+                                focusedLabelID: focusedLabelID,
+                                status: status
+                            )
+                        )
+                        .frame(width: label.labelFrame.width, height: label.labelFrame.height)
+                        .position(x: label.labelFrame.midX, y: label.labelFrame.midY)
+                    }
                 }
             }
-
         }
         .frame(width: layout.localBounds.width, height: layout.localBounds.height)
         .background(Color.clear)

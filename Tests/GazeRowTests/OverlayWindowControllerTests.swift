@@ -284,6 +284,74 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_updateStatus_windowsScope는_대상화면전체에_overviewPanel을표시한다() {
+        // given
+        let screen = OverlayScreenDescriptor(
+            frame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 24, width: 1440, height: 876),
+            scaleFactor: 2
+        )
+        let sut = OverlayWindowController(
+            screenFrameProvider: { [screen.frame] },
+            screenDescriptorProvider: { [screen] },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        sut.show(layout: makeLayout())
+
+        // when
+        sut.updateStatus(makeWindowOverviewStatus())
+
+        // then
+        XCTAssertTrue(sut.isOverviewPanelVisible)
+        XCTAssertEqual(sut.overviewPanelFrame, screen.visibleFrame)
+        XCTAssertTrue(sut.persistsWhileAppInactive)
+
+        sut.close()
+    }
+
+    func test_updateStatus_scope를벗어나면_overviewPanel을숨긴다() {
+        // given
+        let sut = OverlayWindowController(
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        sut.show(layout: makeLayout())
+        sut.updateStatus(makeWindowOverviewStatus())
+
+        // when
+        sut.updateStatus(OverlayInteractionStatus(activeScope: .labels))
+
+        // then
+        XCTAssertFalse(sut.isOverviewPanelVisible)
+
+        sut.close()
+    }
+
+    func test_updateStatus는_기존overviewHostingView를_재사용한다() {
+        // given
+        let sut = OverlayWindowController(
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        sut.show(layout: makeLayout())
+        sut.updateStatus(makeWindowOverviewStatus())
+        let identifier = sut.overviewHostingViewIdentifier
+
+        // when
+        sut.updateStatus(makeWindowOverviewStatus(focusedID: 2))
+
+        // then
+        XCTAssertEqual(sut.overviewHostingViewIdentifier, identifier)
+
+        sut.close()
+        XCTAssertFalse(sut.isOverviewPanelVisible)
+        XCTAssertNil(sut.overviewHostingViewIdentifier)
+    }
+
     func test_show는_target교차면적이큰화면의_visibleFrame에_commandPanel을배치한다() {
         // given
         let leftScreen = OverlayScreenDescriptor(
@@ -585,6 +653,36 @@ final class OverlayWindowControllerTests: XCTestCase {
                 displayScaleFactor: 1
             ),
             displayInfo: OverlayDisplayInfo(scaleFactor: 1, visibleFrame: nil)
+        )
+    }
+
+    private func makeWindowOverviewStatus(focusedID: Int = 1) -> OverlayInteractionStatus {
+        let items = [
+            OverlayWindowOverviewItem(
+                id: 1,
+                label: "A",
+                appName: "Finder",
+                displayName: "Finder — Downloads",
+                isFocused: focusedID == 1,
+                appIcon: nil,
+                tabCount: nil
+            ),
+            OverlayWindowOverviewItem(
+                id: 2,
+                label: "S",
+                appName: "Safari",
+                displayName: "Safari — Docs",
+                isFocused: focusedID == 2,
+                appIcon: nil,
+                tabCount: 3
+            )
+        ]
+        return OverlayInteractionStatus(
+            activeScope: .windows,
+            pinnedScope: .windows,
+            matchCount: items.count,
+            matchIndex: focusedID,
+            windowOverviewItems: items
         )
     }
 }
