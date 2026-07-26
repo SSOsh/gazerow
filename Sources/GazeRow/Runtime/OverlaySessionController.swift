@@ -414,6 +414,12 @@ final class OverlaySessionController {
         var statusTone = OverlayInteractionStatus.Tone.neutral
         switch command {
         case .move(let moveCommand):
+            if activeScope(for: session) == .windows,
+               !session.windowMatches.isEmpty {
+                moveWindowFocus(moveCommand, session: &session)
+                resolveQueryAndPresent(&session)
+                return nil
+            }
             session.pendingSecondConfirm = nil
             event = session.focusEngine.move(moveCommand)
             session.focusOrigin = .keyboard
@@ -431,12 +437,16 @@ final class OverlaySessionController {
             statusMessage = feedback.message
             statusTone = feedback.tone
         case .appendQuery(let grapheme):
+            if handleWindowLabelInput(grapheme, session: &session) {
+                return nil
+            }
             sessionReducer.appendQuery(grapheme, to: &session)
             prepareIndex(for: session.queryInput.lastScope, session: &session)
             resolveQueryAndPresent(&session)
             return nil
         case .deleteQueryCharacter:
-            if sessionReducer.deleteInput(from: &session) {
+            let hasRemainingQuery = sessionReducer.deleteInput(from: &session)
+            if hasRemainingQuery || activeScope(for: session) == .windows {
                 prepareIndex(for: session.queryInput.lastScope, session: &session)
                 resolveQueryAndPresent(&session)
                 return nil
@@ -448,6 +458,17 @@ final class OverlaySessionController {
             event = nil
             statusMessage = content.overlayInputClearedText
         case .clearLabelBuffer:
+            if activeScope(for: session) == .windows,
+               !session.windowLabelBuffer.isEmpty {
+                session.windowLabelBuffer = ""
+                activeSession = session
+                updateOverlayStatus(
+                    for: session,
+                    message: content.overlayInputClearedText,
+                    tone: .neutral
+                )
+                return nil
+            }
             sessionReducer.clearLabelInput(in: &session)
             event = nil
             statusMessage = content.overlayInputClearedText
@@ -957,6 +978,68 @@ final class OverlaySessionController {
         return index.overviewMatches()
     }
 
+    private func handleWindowLabelInput(
+        _ grapheme: String,
+        session: inout OverlaySessionState
+    ) -> Bool {
+        guard activeScope(for: session) == .windows,
+              session.queryInput.buffer.isEmpty,
+              !grapheme.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+
+        let labels = HintLabelGenerator().labels(count: session.windowMatches.count)
+        let selection = OverlayWindowLabelSelector().select(
+            appending: grapheme,
+            to: session.windowLabelBuffer,
+            labels: labels
+        )
+        switch selection {
+        case .partial(let buffer):
+            session.windowLabelBuffer = buffer
+            presentWindowLabelState(session: &session, phase: .typing)
+            return true
+        case .exact(let index):
+            session.windowLabelBuffer = ""
+            session.windowMatchIndex = index
+            presentWindowLabelState(session: &session, phase: .matching)
+            return true
+        case .noMatch:
+            session.windowLabelBuffer = ""
+            return false
+        }
+    }
+
+    private func presentWindowLabelState(
+        session: inout OverlaySessionState,
+        phase: OverlayInteractionPhase
+    ) {
+        let resolution = applyQueryResolution(to: &session)
+        activeSession = session
+        overlayPresenter.updateStatus(
+            status(
+                for: session,
+                resolution: resolution,
+                message: nil,
+                tone: .neutral,
+                phase: phase
+            )
+        )
+    }
+
+    private func moveWindowFocus(
+        _ command: FocusMoveCommand,
+        session: inout OverlaySessionState
+    ) {
+        sessionReducer.clearSecondConfirm(in: &session)
+        session.windowLabelBuffer = ""
+        session.windowMatchIndex = OverlayWindowOverviewNavigation().index(
+            after: command,
+            currentIndex: session.windowMatchIndex,
+            itemCount: session.windowMatches.count
+        )
+    }
+
     private func prepareIndex(for scope: QueryScope, session: inout OverlaySessionState) {
         switch scope {
         case .labels:
@@ -1120,7 +1203,9 @@ final class OverlaySessionController {
 
         return OverlayInteractionStatus(
             focusedLabel: labelText(for: session.focusEngine.focusedItemID, in: session),
-            typedLabelBuffer: session.focusEngine.labelBuffer,
+            typedLabelBuffer: activeScope == .windows
+                ? session.windowLabelBuffer
+                : session.focusEngine.labelBuffer,
             queryBuffer: session.queryInput.buffer,
             activeScope: activeScope,
             pinnedScope: session.queryInput.pinnedScope,
@@ -1403,6 +1488,10 @@ private extension FocusChangeMethod {
             "tab"
         case .shiftTab:
             "shiftTab"
+        case .arrowLeft:
+            "arrowLeft"
+        case .arrowRight:
+            "arrowRight"
         case .arrowUp:
             "arrowUp"
         case .arrowDown:

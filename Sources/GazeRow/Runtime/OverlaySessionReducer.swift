@@ -12,6 +12,7 @@ struct OverlaySessionReducer {
         } else {
             session.queryInput.buffer.append(grapheme)
         }
+        session.windowLabelBuffer = ""
         session.queryInput.lastScope = session.queryInput.pinnedScope ?? .elements
     }
 
@@ -30,6 +31,7 @@ struct OverlaySessionReducer {
     func clearQuery(in session: inout OverlaySessionState) {
         clearSecondConfirm(in: &session)
         session.queryInput = QueryInputState(lastScope: session.queryInput.lastScope)
+        session.windowLabelBuffer = ""
         session.focusEngine.clearLabelBuffer()
         session.elementMatches = []
         session.elementMatchIndex = 0
@@ -46,6 +48,7 @@ struct OverlaySessionReducer {
         clearSecondConfirm(in: &session)
         session.queryInput.pinnedScope = scope
         session.queryInput.lastScope = scope
+        session.windowLabelBuffer = ""
     }
 
     func selectScope(_ scope: QueryScope, in session: inout OverlaySessionState) {
@@ -57,10 +60,12 @@ struct OverlaySessionReducer {
             session.elementMatchIndex = 0
             session.windowMatches = []
             session.windowMatchIndex = 0
+            session.windowLabelBuffer = ""
             session.focusEngine.clearLabelBuffer()
         case .elements, .windows:
             session.queryInput.pinnedScope = scope
             session.queryInput.lastScope = scope
+            session.windowLabelBuffer = ""
         }
     }
 
@@ -84,14 +89,20 @@ struct OverlaySessionReducer {
             count: session.windowMatches.count,
             forward: forward
         )
+        session.windowLabelBuffer = ""
     }
 
     func shouldCycleQueryMatches(
         _ session: OverlaySessionState,
         scope: QueryScope
     ) -> Bool {
-        !session.queryInput.buffer.isEmpty
-            && (session.queryInput.pinnedScope ?? session.queryInput.lastScope) == scope
+        guard (session.queryInput.pinnedScope ?? session.queryInput.lastScope) == scope else {
+            return false
+        }
+
+        return scope == .windows
+            ? !session.windowMatches.isEmpty
+            : !session.queryInput.buffer.isEmpty
     }
 
     func clearSecondConfirm(in session: inout OverlaySessionState) {

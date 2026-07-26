@@ -311,6 +311,46 @@ final class OverlayWindowControllerTests: XCTestCase {
         sut.close()
     }
 
+    func test_updateStatus_overview표시중에는_compactPreview높이를_추가하지않는다() {
+        // given
+        let screen = OverlayScreenDescriptor(
+            frame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            visibleFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            scaleFactor: 2
+        )
+        let sut = OverlayWindowController(
+            screenFrameProvider: { [screen.frame] },
+            screenDescriptorProvider: { [screen] },
+            keyboardEventTapFactory: { _ in
+                FakeOverlayKeyboardEventTap(startResult: true)
+            }
+        )
+        sut.show(layout: makeLayout())
+        let item = makeWindowOverviewStatus().windowOverviewItems[0]
+        let preview = OverlayWindowMatchPreview(
+            id: item.id,
+            appName: item.appName,
+            displayName: item.displayName,
+            ordinal: 1,
+            isFocused: true
+        )
+
+        // when
+        sut.updateStatus(
+            OverlayInteractionStatus(
+                activeScope: .windows,
+                pinnedScope: .windows,
+                windowMatchPreviews: [preview],
+                windowOverviewItems: [item]
+            )
+        )
+
+        // then
+        XCTAssertEqual(sut.commandBarPanelFrame?.height, 72)
+
+        sut.close()
+    }
+
     func test_updateStatus_scope를벗어나면_overviewPanel을숨긴다() {
         // given
         let sut = OverlayWindowController(

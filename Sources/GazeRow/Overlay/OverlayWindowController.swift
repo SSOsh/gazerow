@@ -451,7 +451,8 @@ final class OverlayWindowController {
     ) -> OverlayCommandBarLayout {
         commandBarLayoutEngine.makeLayout(
             visibleFrame: visibleFrame,
-            showsWindowPreviews: !status.windowMatchPreviews.isEmpty,
+            showsWindowPreviews: !status.windowMatchPreviews.isEmpty
+                && status.windowOverviewItems.isEmpty,
             showsMessage: status.phase == .awaitingRiskConfirmation || status.phase == .failure,
             avoidingFrames: avoidingFrames
         )

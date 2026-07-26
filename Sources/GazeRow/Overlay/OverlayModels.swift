@@ -224,7 +224,11 @@ struct OverlayInteractionStatus: Equatable {
     }
 
     var displayBuffer: String {
-        queryBuffer.isEmpty ? typedLabelBuffer : queryBuffer
+        if activeScope == .windows, queryBuffer.hasPrefix(" ") {
+            return String(queryBuffer.dropFirst())
+        }
+
+        return queryBuffer.isEmpty ? typedLabelBuffer : queryBuffer
     }
 
     var showsTargetOverlay: Bool {

@@ -25,6 +25,7 @@ struct OverlaySessionState: Equatable {
     var windowIndex: WindowSearchIndex?
     var windowMatches: [WindowMatch] = []
     var windowMatchIndex: Int = 0
+    var windowLabelBuffer = ""
     var pendingSecondConfirm: PendingSecondConfirm?
     var focusOrigin: OverlayFocusOrigin = .initial
     var targetDescriptors: [AccessibilityTargetDescriptor?] = []

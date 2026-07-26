@@ -288,4 +288,20 @@ final class AppContentTests: XCTestCase {
             "대상을 확실히 구분할 수 없어 클릭하지 않았습니다."
         )
     }
+
+    func test_windowOverviewHelper는_언어별_입력규칙을_안내한다() {
+        // given
+        let korean = AppContent.localized(for: .korean)
+        let english = AppContent.localized(for: .english)
+
+        // when & then
+        XCTAssertEqual(
+            korean.windowOverviewHelper,
+            "라벨 선택 · Space 검색 · 방향키 이동 · Return 전환"
+        )
+        XCTAssertEqual(
+            english.windowOverviewHelper,
+            "Label select · Space search · Arrow keys navigate · Return switch"
+        )
+    }
 }

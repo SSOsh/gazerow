@@ -23,6 +23,8 @@ struct FocusItem: Equatable, Identifiable {
 enum FocusMoveCommand: Equatable {
     case next
     case previous
+    case left
+    case right
     case up
     case down
 }
@@ -35,6 +37,8 @@ enum FocusChangeMethod: Equatable {
     case initial
     case tab
     case shiftTab
+    case arrowLeft
+    case arrowRight
     case arrowUp
     case arrowDown
     case labelJump

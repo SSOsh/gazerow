@@ -821,6 +821,101 @@ final class OverlaySessionControllerTests: XCTestCase {
         )
     }
 
+    func test_handleKeyboardCommand_windowsScope_라벨입력은_query없이_해당창을focus한다() {
+        // given
+        let entries = [
+            makeWindowEntry(id: 0, appName: "Finder", bundleID: "com.apple.finder"),
+            makeWindowEntry(id: 1, appName: "Safari", bundleID: "com.apple.Safari")
+        ]
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: entries) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery("S"))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.buffer, "")
+        XCTAssertEqual(sut.activeSession?.windowMatchIndex, 1)
+        XCTAssertEqual(presenter.statusUpdates.last?.phase, .matching)
+        XCTAssertEqual(
+            presenter.statusUpdates.last?.windowOverviewItems.map(\.isFocused),
+            [false, true]
+        )
+    }
+
+    func test_handleKeyboardCommand_windowsScope_라벨선택후Return은_선택창을활성화한다() async {
+        // given
+        let entries = [
+            makeWindowEntry(id: 0, appName: "Finder", bundleID: "com.apple.finder"),
+            makeWindowEntry(id: 1, appName: "Safari", bundleID: "com.apple.Safari")
+        ]
+        let activator = StubWindowActivator(result: .failure(.appNotRunning))
+        let sut = makeStartedSessionController(
+            windowSearchIndexProvider: { WindowSearchIndex(entries: entries) },
+            windowActivator: activator
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        _ = sut.handleKeyboardCommand(.appendQuery("S"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        await waitForWindowActivation()
+
+        // then
+        XCTAssertEqual(activator.activatedEntries.map(\.id), [1])
+    }
+
+    func test_handleKeyboardCommand_windowsScope_빈query에서Tab과방향키로_focus를이동한다() {
+        // given
+        let entries = (0..<6).map {
+            makeWindowEntry(
+                id: $0,
+                appName: "App\($0)",
+                bundleID: "com.example.\($0)"
+            )
+        }
+        let sut = makeStartedSessionController(
+            windowSearchIndexProvider: { WindowSearchIndex(entries: entries) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.cycleMatch(forward: true))
+        let afterTab = sut.activeSession?.windowMatchIndex
+        _ = sut.handleKeyboardCommand(.move(.down))
+
+        // then
+        XCTAssertEqual(afterTab, 1)
+        XCTAssertEqual(sut.activeSession?.windowMatchIndex, 4)
+    }
+
+    func test_handleKeyboardCommand_windowsScope_space후입력은_라벨대신_검색한다() {
+        // given
+        let entries = [
+            makeWindowEntry(id: 0, appName: "Finder", bundleID: "com.apple.finder"),
+            makeWindowEntry(id: 1, appName: "Safari", bundleID: "com.apple.Safari")
+        ]
+        let presenter = StubOverlayPresenter()
+        let sut = makeStartedSessionController(
+            presenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: entries) }
+        )
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+
+        // when
+        _ = sut.handleKeyboardCommand(.appendQuery(" "))
+        _ = sut.handleKeyboardCommand(.appendQuery("s"))
+
+        // then
+        XCTAssertEqual(sut.activeSession?.queryInput.buffer, " s")
+        XCTAssertEqual(sut.activeSession?.windowMatches.map(\.entryID), [1])
+        XCTAssertEqual(presenter.statusUpdates.last?.windowOverviewItems.map(\.appName), ["Safari"])
+    }
+
     func test_overlayKeyboardCallback은_selectScope_command로_session을_갱신한다() throws {
         // given
         let presenter = StubOverlayPresenter()

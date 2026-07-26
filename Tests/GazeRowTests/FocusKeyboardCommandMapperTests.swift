@@ -46,6 +46,21 @@ final class FocusKeyboardCommandMapperTests: XCTestCase {
         )
     }
 
+    func test_arrowLeftRight는_수평이동_명령으로_변환() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+
+        // when & then
+        XCTAssertEqual(
+            sut.command(for: FocusKeyboardInput(keyCode: 123)),
+            .move(.left)
+        )
+        XCTAssertEqual(
+            sut.command(for: FocusKeyboardInput(keyCode: 124)),
+            .move(.right)
+        )
+    }
+
     func test_return은_dryRunConfirm으로_변환() {
         // given
         let sut = FocusKeyboardCommandMapper()
@@ -250,6 +265,36 @@ final class FocusKeyboardCommandMapperTests: XCTestCase {
 
         // then
         XCTAssertEqual(command, .appendQuery("d"))
+    }
+
+    func test_windowsScope_빈query에서_한글IME문자는_물리라벨문자로_변환한다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+        let state = QueryInputState(pinnedScope: .windows, lastScope: .windows)
+
+        // when
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 1, charactersIgnoringModifiers: "ㄴ"),
+            queryInput: state
+        )
+
+        // then
+        XCTAssertEqual(command, .appendQuery("S"))
+    }
+
+    func test_windowsScope_query가시작되면_한글문자를_검색어로유지한다() {
+        // given
+        let sut = FocusKeyboardCommandMapper()
+        let state = QueryInputState(buffer: " ", pinnedScope: .windows, lastScope: .windows)
+
+        // when
+        let command = sut.command(
+            for: FocusKeyboardInput(keyCode: 1, charactersIgnoringModifiers: "ㄴ"),
+            queryInput: state
+        )
+
+        // then
+        XCTAssertEqual(command, .appendQuery("ㄴ"))
     }
 
     func test_backspace는_queryBuffer가_있으면_한글자삭제_명령으로_변환한다() {

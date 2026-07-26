@@ -14,6 +14,7 @@ enum OverlayCommandBarAction: Equatable {
     case previous
     case clear
     case typeToSearch
+    case navigate
     case confirmAgain
     case cancel
     case retry
@@ -149,10 +150,11 @@ struct OverlayCommandBarPresentation: Equatable {
             ]
         case .windows:
             [
-                hint("Type", .typeToSearch, priority: 0, content: content),
-                hint("/", .searchElements, priority: 1, content: content),
-                hint("Delete", .clear, priority: 2, content: content),
-                hint("Esc", .close, priority: 3, content: content)
+                hint("A-Z", .select, priority: 0, content: content),
+                hint("Space", .typeToSearch, priority: 1, content: content),
+                hint("↑↓←→", .navigate, priority: 2, content: content),
+                hint("Return", .switchWindows, priority: 3, content: content),
+                hint("Esc", .close, priority: 4, content: content)
             ]
         }
     }

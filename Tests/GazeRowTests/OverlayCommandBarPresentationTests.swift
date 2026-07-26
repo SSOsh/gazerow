@@ -48,6 +48,26 @@ final class OverlayCommandBarPresentationTests: XCTestCase {
         XCTAssertEqual(result.keyHints.count, 5)
     }
 
+    func test_idleWindowOverview는_라벨검색이동전환_hint를표시한다() {
+        // given
+        let status = OverlayInteractionStatus(
+            activeScope: .windows,
+            pinnedScope: .windows,
+            phase: .idle
+        )
+
+        // when
+        let result = OverlayCommandBarPresentation(
+            status: status,
+            content: AppContent.localized(for: .korean)
+        )
+
+        // then
+        XCTAssertEqual(result.summaryText, "라벨 또는 방향키로 창을 선택하세요")
+        XCTAssertEqual(result.keyHints.map(\.key), ["A-Z", "Space", "↑↓←→", "Return", "Esc"])
+        XCTAssertEqual(result.keyHints.map(\.action), ["선택", "검색", "이동", "창 전환", "닫기"])
+    }
+
     func test_noMatches는_Return을표시하지않는다() {
         // given
         let status = OverlayInteractionStatus(

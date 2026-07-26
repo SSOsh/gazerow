@@ -352,7 +352,9 @@ enum AppContent {
             case .elements:
                 language == .korean ? "검색어를 입력하세요" : "Type to search elements"
             case .windows:
-                language == .korean ? "앱 또는 창 이름을 입력하세요" : "Type an app or window name"
+                language == .korean
+                    ? "라벨 또는 방향키로 창을 선택하세요"
+                    : "Choose a window by label or arrow key"
             }
         }
 
@@ -388,6 +390,12 @@ enum AppContent {
                 : "Type a label, then press Return to click"
         }
 
+        var windowOverviewHelper: String {
+            language == .korean
+                ? "라벨 선택 · Space 검색 · 방향키 이동 · Return 전환"
+                : "Label select · Space search · Arrow keys navigate · Return switch"
+        }
+
         var commandBarRiskTitle: String {
             language == .korean ? "위험 동작입니다" : "Risky action"
         }
@@ -412,6 +420,8 @@ enum AppContent {
                 language == .korean ? "지우기" : "Clear"
             case .typeToSearch:
                 language == .korean ? "검색" : "Search"
+            case .navigate:
+                language == .korean ? "이동" : "Navigate"
             case .confirmAgain:
                 language == .korean ? "다시 확인" : "Confirm again"
             case .cancel:

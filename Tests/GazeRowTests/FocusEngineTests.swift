@@ -68,6 +68,36 @@ final class FocusEngineTests: XCTestCase {
         XCTAssertEqual(event, .focusChanged(from: 2, to: 1, method: .arrowUp))
     }
 
+    func test_move_right_가장가까운_오른쪽_item으로_이동() {
+        // given
+        var sut = FocusEngine(items: [
+            FocusItem(id: 0, label: "A", frame: CGRect(x: 0, y: 0, width: 10, height: 10)),
+            FocusItem(id: 1, label: "S", frame: CGRect(x: 30, y: 0, width: 10, height: 10))
+        ])
+
+        // when
+        let event = sut.move(.right)
+
+        // then
+        XCTAssertEqual(sut.focusedItemID, 1)
+        XCTAssertEqual(event, .focusChanged(from: 0, to: 1, method: .arrowRight))
+    }
+
+    func test_move_left_왼쪽후보가없으면_focus를유지한다() {
+        // given
+        var sut = FocusEngine(items: [
+            FocusItem(id: 0, label: "A", frame: CGRect(x: 0, y: 0, width: 10, height: 10)),
+            FocusItem(id: 1, label: "S", frame: CGRect(x: 30, y: 0, width: 10, height: 10))
+        ])
+
+        // when
+        let event = sut.move(.left)
+
+        // then
+        XCTAssertEqual(sut.focusedItemID, 0)
+        XCTAssertEqual(event, .focusChanged(from: 0, to: 0, method: .arrowLeft))
+    }
+
     func test_typeLabelCharacter_정확히_일치하면_labelJump_성공() {
         // given
         var sut = FocusEngine(items: items)

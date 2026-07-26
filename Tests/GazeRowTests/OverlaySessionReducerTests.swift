@@ -78,6 +78,40 @@ final class OverlaySessionReducerTests: XCTestCase {
         XCTAssertEqual(session.elementMatchIndex, 0)
     }
 
+    func test_shouldCycleQueryMatches_windows는_빈query에서도_후보가있으면_true다() {
+        // given
+        let sut = OverlaySessionReducer()
+        var session = makeSession()
+        session.queryInput = QueryInputState(pinnedScope: .windows, lastScope: .windows)
+        session.windowMatches = [
+            WindowMatch(entryID: 1, score: 0, displayLine: "Finder")
+        ]
+
+        // when & then
+        XCTAssertTrue(sut.shouldCycleQueryMatches(session, scope: .windows))
+        XCTAssertFalse(sut.shouldCycleQueryMatches(session, scope: .elements))
+    }
+
+    func test_appendQuery와_scope전환은_windowLabelBuffer를_초기화한다() {
+        // given
+        let sut = OverlaySessionReducer()
+        var session = makeSession()
+        session.windowLabelBuffer = "Z"
+
+        // when
+        sut.appendQuery("query", to: &session)
+
+        // then
+        XCTAssertEqual(session.windowLabelBuffer, "")
+
+        // when
+        session.windowLabelBuffer = "A"
+        sut.selectScope(.labels, in: &session)
+
+        // then
+        XCTAssertEqual(session.windowLabelBuffer, "")
+    }
+
     func test_input상태전이는_pendingSecondConfirm을초기화한다() {
         // given
         let sut = OverlaySessionReducer()

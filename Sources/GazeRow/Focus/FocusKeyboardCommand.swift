@@ -58,6 +58,10 @@ struct FocusKeyboardCommandMapper {
             return .move(.up)
         case KeyCode.arrowDown:
             return .move(.down)
+        case KeyCode.arrowLeft:
+            return .move(.left)
+        case KeyCode.arrowRight:
+            return .move(.right)
         case KeyCode.returnKey, KeyCode.keypadEnter:
             return .dryRunConfirm
         case KeyCode.escape:
@@ -86,6 +90,15 @@ struct FocusKeyboardCommandMapper {
 
         if input.charactersIgnoringModifiers == "/" {
             return .pinScope(.elements)
+        }
+
+        if queryInput.pinnedScope == .windows,
+           queryInput.buffer.isEmpty,
+           let physicalLetter = KeyCode.letter(for: input.keyCode) {
+            let letter = input.singleLetterCharacter.flatMap { character in
+                character.isASCII ? character : nil
+            } ?? physicalLetter
+            return .appendQuery(String(letter))
         }
 
         if shouldRouteAsQuery(input: input, queryInput: queryInput),
@@ -169,6 +182,8 @@ private enum KeyCode {
     static let forwardDelete: UInt16 = 117
     static let arrowUp: UInt16 = 126
     static let arrowDown: UInt16 = 125
+    static let arrowLeft: UInt16 = 123
+    static let arrowRight: UInt16 = 124
 
     /// 물리 keyCode에 대응하는 ANSI(QWERTY) 알파벳을 돌려준다. 매핑이 없으면 nil.
     static func letter(for keyCode: UInt16) -> Character? {

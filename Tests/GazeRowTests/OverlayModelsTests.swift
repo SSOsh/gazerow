@@ -239,6 +239,17 @@ final class OverlayModelsTests: XCTestCase {
         XCTAssertEqual(sut.highlightFrame, CGRect(x: 10, y: 20, width: 30, height: 40))
     }
 
+    func test_OverlayInteractionStatus_window검색mode의_선행space는_표시하지않는다() {
+        // given
+        let sut = OverlayInteractionStatus(
+            queryBuffer: " safari",
+            activeScope: .windows
+        )
+
+        // when & then
+        XCTAssertEqual(sut.displayBuffer, "safari")
+    }
+
     func test_OverlayWindowOverviewItem_detailText는_앱이름prefix를_제거한다() {
         // given
         let sut = OverlayWindowOverviewItem(

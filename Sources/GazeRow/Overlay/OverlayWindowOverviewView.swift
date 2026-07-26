@@ -80,7 +80,7 @@ struct OverlayWindowOverviewView: View {
             Text(content.commandBarModeTitle(for: .windows))
                 .font(.system(size: 24, weight: .bold, design: .rounded))
 
-            Text(content.commandBarModeHelper(for: .windows))
+            Text(content.windowOverviewHelper)
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(Color.white.opacity(0.68))
         }

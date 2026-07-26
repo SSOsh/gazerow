@@ -174,11 +174,41 @@ struct FocusEngine: Equatable {
             return relativeFocusID(step: 1)
         case .previous:
             return relativeFocusID(step: -1)
+        case .left:
+            return horizontalFocusID(searchingRight: false)
+        case .right:
+            return horizontalFocusID(searchingRight: true)
         case .up:
             return verticalFocusID(searchingDown: false)
         case .down:
             return verticalFocusID(searchingDown: true)
         }
+    }
+
+    private func horizontalFocusID(searchingRight: Bool) -> Int {
+        guard let focusedItem else {
+            return items[0].id
+        }
+
+        let candidates = items.filter { item in
+            searchingRight
+                ? item.frame.midX > focusedItem.frame.midX
+                : item.frame.midX < focusedItem.frame.midX
+        }
+        guard let best = candidates.min(by: { lhs, rhs in
+            horizontalDistanceScore(lhs, from: focusedItem)
+                < horizontalDistanceScore(rhs, from: focusedItem)
+        }) else {
+            return focusedItem.id
+        }
+
+        return best.id
+    }
+
+    private func horizontalDistanceScore(_ item: FocusItem, from focusedItem: FocusItem) -> CGFloat {
+        let horizontalDistance = abs(item.frame.midX - focusedItem.frame.midX)
+        let verticalDistance = abs(item.frame.midY - focusedItem.frame.midY)
+        return horizontalDistance * 1_000 + verticalDistance
     }
 
     private func relativeFocusID(step: Int) -> Int {
@@ -237,6 +267,10 @@ struct FocusEngine: Equatable {
             .tab
         case .previous:
             .shiftTab
+        case .left:
+            .arrowLeft
+        case .right:
+            .arrowRight
         case .up:
             .arrowUp
         case .down:
