@@ -30,6 +30,7 @@ protocol WindowActivating {
 struct WindowActivator: WindowActivating {
     private let runningApplicationProvider: (pid_t) -> NSRunningApplication?
     private let activateApplication: (NSRunningApplication) -> Bool
+    private let requestWindowFocus: (AXUIElement) -> Void
     private let frontmostBundleIDProvider: () -> String?
     private let selectedWindowReadinessProvider: (WindowEntry) -> Bool
     private let sleep: @MainActor (TimeInterval) async -> Void
@@ -41,7 +42,14 @@ struct WindowActivator: WindowActivating {
             NSRunningApplication(processIdentifier: $0)
         },
         activateApplication: @escaping (NSRunningApplication) -> Bool = {
-            $0.activate(options: [])
+            if NSApp.isActive {
+                NSApp.yieldActivation(to: $0)
+                return $0.activate(from: NSRunningApplication.current, options: [])
+            }
+            return $0.activate(options: [])
+        },
+        requestWindowFocus: @escaping (AXUIElement) -> Void = {
+            WindowActivator.requestFocus(for: $0)
         },
         frontmostBundleIDProvider: @escaping () -> String? = {
             NSWorkspace.shared.frontmostApplication?.bundleIdentifier
@@ -57,6 +65,7 @@ struct WindowActivator: WindowActivating {
     ) {
         self.runningApplicationProvider = runningApplicationProvider
         self.activateApplication = activateApplication
+        self.requestWindowFocus = requestWindowFocus
         self.frontmostBundleIDProvider = frontmostBundleIDProvider
         self.selectedWindowReadinessProvider = selectedWindowReadinessProvider
         self.sleep = sleep
@@ -74,7 +83,7 @@ struct WindowActivator: WindowActivating {
         }
 
         if let axWindow = entry.axWindow {
-            raise(axWindow)
+            requestWindowFocus(axWindow)
         }
 
         let isTargetReady = await waitUntilTargetReady(entry)
@@ -89,7 +98,7 @@ struct WindowActivator: WindowActivating {
         return .success(())
     }
 
-    private func raise(_ window: AXUIElement) {
+    nonisolated private static func requestFocus(for window: AXUIElement) {
         var minimizedValue: AnyObject?
         if AXUIElementCopyAttributeValue(window, kAXMinimizedAttribute as CFString, &minimizedValue) == .success,
            let isMinimized = minimizedValue as? Bool,
@@ -97,8 +106,9 @@ struct WindowActivator: WindowActivating {
             AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
         }
 
-        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
         AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        AXUIElementPerformAction(window, kAXRaiseAction as CFString)
     }
 
     private func waitUntilTargetReady(_ entry: WindowEntry) async -> Bool {
@@ -120,6 +130,10 @@ struct WindowActivator: WindowActivating {
             if isApplicationFrontmost,
                selectedWindowReadinessProvider(entry) {
                 return true
+            }
+            if isApplicationFrontmost,
+               let axWindow = entry.axWindow {
+                requestWindowFocus(axWindow)
             }
             await sleep(pollInterval)
             elapsed += pollInterval

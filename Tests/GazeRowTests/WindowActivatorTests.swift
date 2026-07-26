@@ -48,12 +48,14 @@ final class WindowActivatorTests: XCTestCase {
     func test_activate는_frontmost여도_선택창이준비될때까지_polling한다() async {
         // given
         var selectedWindowReadinessCalls = 0
+        var focusRequestCount = 0
         var slept: [TimeInterval] = []
         let app = NSRunningApplication.current
         let targetWindow = AXUIElementCreateSystemWide()
         let sut = WindowActivator(
             runningApplicationProvider: { _ in app },
             activateApplication: { _ in true },
+            requestWindowFocus: { _ in focusRequestCount += 1 },
             frontmostBundleIDProvider: { "com.example.Target" },
             selectedWindowReadinessProvider: { _ in
                 selectedWindowReadinessCalls += 1
@@ -70,7 +72,35 @@ final class WindowActivatorTests: XCTestCase {
         // then
         XCTAssertWindowActivateSuccess(result)
         XCTAssertEqual(selectedWindowReadinessCalls, 3)
+        XCTAssertEqual(focusRequestCount, 3)
         XCTAssertEqual(slept, [0.05, 0.05])
+    }
+
+    func test_activate는_app활성화후_선택창에_focus를요청한다() async {
+        // given
+        var events: [String] = []
+        let app = NSRunningApplication.current
+        let targetWindow = AXUIElementCreateSystemWide()
+        let sut = WindowActivator(
+            runningApplicationProvider: { _ in app },
+            activateApplication: { _ in
+                events.append("activate")
+                return true
+            },
+            requestWindowFocus: { _ in events.append("focus") },
+            frontmostBundleIDProvider: { "com.example.Target" },
+            selectedWindowReadinessProvider: { _ in
+                events.append("ready")
+                return true
+            }
+        )
+
+        // when
+        let result = await sut.activate(makeEntry(axWindow: targetWindow))
+
+        // then
+        XCTAssertWindowActivateSuccess(result)
+        XCTAssertEqual(events, ["activate", "focus", "ready"])
     }
 
     func test_activate는_선택창이준비되지않으면_timeout을_반환한다() async {
