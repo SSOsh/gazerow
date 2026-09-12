@@ -294,6 +294,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// element scan 없이 창 overview를 즉시 시작한다.
+    @objc private func showWindowOverview() {
+        AppLogger.overlay.info("window overview shortcut fired")
+        handleOverlayStartResult(overlaySessionController.startWindowOverview())
+    }
+
     private func handleOverlayStartResult(_ result: OverlaySessionStartResult) {
         switch result {
         case .success(let snapshot):
@@ -474,6 +480,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Task { @MainActor in
                     self?.showGazeOverlay()
                 }
+            case .consumeWindowOverviewActivation:
+                // window overview activation은 Carbon hotkey가 담당한다.
+                break
             case .consumeOverlayActivation:
                 // overlay activation은 Carbon hotkey가 담당한다. 중복 실행 방지를 위해
                 // monitor에서는 아무 것도 하지 않는다.
@@ -494,6 +503,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.showGazeOverlay()
                 }
                 return nil
+            case .consumeWindowOverviewActivation:
+                // window overview activation은 Carbon hotkey가 담당하므로 이벤트만 소비한다.
+                return nil
             case .consumeOverlayActivation:
                 // Carbon hotkey가 activation을 담당하므로 이벤트만 소비한다.
                 return nil
@@ -508,11 +520,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// overlay/gaze activation용 Carbon hotkey들을 등록한다.
     private func registerGlobalHotKeys() -> [GlobalHotKeyRegistrationStatus] {
-        let controllers = GlobalHotKeyDefinition.overlayActivationDefinitions.map { definition in
+        var controllers = GlobalHotKeyDefinition.overlayActivationDefinitions.map { definition in
             GlobalHotKeyController(definition: definition) { [weak self] in
                 self?.showOverlay()
             }
         }
+        controllers.append(
+            GlobalHotKeyController(definition: .windowOverviewActivation) { [weak self] in
+                self?.showWindowOverview()
+            }
+        )
         globalHotKeyControllers = controllers
 
         let statuses = globalHotKeyControllers.map { controller in

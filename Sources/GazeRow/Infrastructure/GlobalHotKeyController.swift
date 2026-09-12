@@ -143,6 +143,12 @@ struct GlobalHotKeyDefinition: Equatable {
         signature: Self.fourCharacterCode("GzRw"),
         identifier: 3
     )
+    static let windowOverviewActivation = GlobalHotKeyDefinition(
+        keyCode: OverlayActivationKeyCode.semicolon,
+        requiredModifiers: [.command, .shift],
+        signature: Self.fourCharacterCode("GzRw"),
+        identifier: 4
+    )
     static let overlayActivationDefinitions = [
         overlayActivation,
         fallbackOverlayActivation
@@ -194,6 +200,8 @@ struct GlobalHotKeyDefinition: Equatable {
         switch keyCode {
         case OverlayActivationKeyCode.space:
             "Space"
+        case OverlayActivationKeyCode.semicolon:
+            ";"
         default:
             "KeyCode\(keyCode)"
         }

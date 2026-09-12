@@ -1,3 +1,4 @@
+import ApplicationServices
 import XCTest
 @testable import GazeRow
 
@@ -149,6 +150,150 @@ final class WindowSearchIndexTests: XCTestCase {
         // when & then
         XCTAssertFalse(sut.isStale(now: Date(timeIntervalSince1970: 130)))
         XCTAssertTrue(sut.isStale(now: Date(timeIntervalSince1970: 131)))
+    }
+
+    func test_isSwitchableWindow_허용된_subrole과_nil은_true를_반환한다() {
+        // given
+        let allowedSubroles: [String?] = [
+            kAXStandardWindowSubrole,
+            kAXDialogSubrole,
+            kAXSystemDialogSubrole,
+            kAXUnknownSubrole,
+            nil
+        ]
+        let frame = CGRect(x: 10, y: 20, width: 800, height: 600)
+
+        // when
+        let results = allowedSubroles.map {
+            WindowSearchIndex.isSwitchableWindow(
+                role: kAXWindowRole,
+                subrole: $0,
+                frame: frame
+            )
+        }
+
+        // then
+        XCTAssertTrue(results.allSatisfy { $0 })
+    }
+
+    func test_isSwitchableWindow_windowRole이_아니거나_nil이면_false를_반환한다() {
+        // given
+        let invalidRoles: [String?] = [kAXButtonRole, nil]
+        let frame = CGRect(x: 10, y: 20, width: 800, height: 600)
+
+        // when
+        let results = invalidRoles.map {
+            WindowSearchIndex.isSwitchableWindow(
+                role: $0,
+                subrole: kAXStandardWindowSubrole,
+                frame: frame
+            )
+        }
+
+        // then
+        XCTAssertTrue(results.allSatisfy { !$0 })
+    }
+
+    func test_isSwitchableWindow_floating_subrole은_false를_반환한다() {
+        // given
+        let excludedSubroles = [
+            kAXFloatingWindowSubrole,
+            kAXSystemFloatingWindowSubrole
+        ]
+        let frame = CGRect(x: 10, y: 20, width: 800, height: 600)
+
+        // when
+        let results = excludedSubroles.map {
+            WindowSearchIndex.isSwitchableWindow(
+                role: kAXWindowRole,
+                subrole: $0,
+                frame: frame
+            )
+        }
+
+        // then
+        XCTAssertTrue(results.allSatisfy { !$0 })
+    }
+
+    func test_isSwitchableWindow_frame크기가_0이하면_false를_반환한다() {
+        // given
+        let invalidFrames = [
+            CGRect(x: 10, y: 20, width: 0, height: 600),
+            CGRect(x: 10, y: 20, width: 800, height: 0),
+            CGRect(x: 10, y: 20, width: -1, height: 600),
+            CGRect(x: 10, y: 20, width: 800, height: -1)
+        ]
+
+        // when
+        let results = invalidFrames.map {
+            WindowSearchIndex.isSwitchableWindow(
+                role: kAXWindowRole,
+                subrole: kAXStandardWindowSubrole,
+                frame: $0
+            )
+        }
+
+        // then
+        XCTAssertTrue(results.allSatisfy { !$0 })
+    }
+
+    func test_isSwitchableWindow_finite하지_않은_frame은_false를_반환한다() {
+        // given
+        let invalidFrames = [
+            CGRect(x: CGFloat.infinity, y: 20, width: 800, height: 600),
+            CGRect(x: 10, y: -CGFloat.infinity, width: 800, height: 600),
+            CGRect(x: 10, y: 20, width: CGFloat.nan, height: 600),
+            CGRect(x: 10, y: 20, width: 800, height: CGFloat.infinity)
+        ]
+
+        // when
+        let results = invalidFrames.map {
+            WindowSearchIndex.isSwitchableWindow(
+                role: kAXWindowRole,
+                subrole: kAXStandardWindowSubrole,
+                frame: $0
+            )
+        }
+
+        // then
+        XCTAssertTrue(results.allSatisfy { !$0 })
+    }
+
+    func test_isSwitchableWindow_frame이_nil이면_false를_반환한다() {
+        // given
+        let frame: CGRect? = nil
+
+        // when
+        let result = WindowSearchIndex.isSwitchableWindow(
+            role: kAXWindowRole,
+            subrole: kAXStandardWindowSubrole,
+            frame: frame
+        )
+
+        // then
+        XCTAssertFalse(result)
+    }
+
+    func test_shouldIncludeApplicationOnlyEntry는_보고된창이없을때만_true다() {
+        // given
+        let cases = [
+            (didLoadWindows: true, reportedWindowCount: 0, switchableWindowCount: 0, expected: true),
+            (didLoadWindows: true, reportedWindowCount: 1, switchableWindowCount: 0, expected: false),
+            (didLoadWindows: true, reportedWindowCount: 2, switchableWindowCount: 1, expected: false),
+            (didLoadWindows: false, reportedWindowCount: 0, switchableWindowCount: 0, expected: false)
+        ]
+
+        // when
+        let results = cases.map { testCase in
+            WindowSearchIndex.shouldIncludeApplicationOnlyEntry(
+                didLoadWindows: testCase.didLoadWindows,
+                reportedWindowCount: testCase.reportedWindowCount,
+                switchableWindowCount: testCase.switchableWindowCount
+            )
+        }
+
+        // then
+        XCTAssertEqual(results, cases.map(\.expected))
     }
 
     private func entry(

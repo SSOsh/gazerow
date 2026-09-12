@@ -122,6 +122,16 @@ final class AppContentTests: XCTestCase {
         XCTAssertTrue(appText.privacyNotice.contains("화면 녹화"))
     }
 
+    func test_localized_한영은_windowOverview단축키_label을_제공한다() {
+        // given
+        let english = AppContent.localized(for: .english)
+        let korean = AppContent.localized(for: .korean)
+
+        // then
+        XCTAssertEqual(english.showWindowOverviewLabel, "Show window overview")
+        XCTAssertEqual(korean.showWindowOverviewLabel, "창 overview 표시")
+    }
+
     func test_tutorialContent는_한영모두동일한키정책을제공한다() {
         // given
         let english = AppContent.localized(for: .english)

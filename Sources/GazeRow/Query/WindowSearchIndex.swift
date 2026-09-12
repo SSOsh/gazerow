@@ -105,9 +105,17 @@ struct WindowSearchIndex: Equatable {
                 && !excludingBundleIDs.contains(app.bundleIdentifier ?? "") {
             let appName = app.localizedName ?? app.bundleIdentifier ?? "Unknown"
             let bundleID = app.bundleIdentifier ?? ""
-            let windows = Self.windowElements(for: app.processIdentifier)
+            let windowCollection = Self.windowElements(for: app.processIdentifier)
+            let windows = windowCollection.elements
 
             if windows.isEmpty {
+                guard Self.shouldIncludeApplicationOnlyEntry(
+                    didLoadWindows: windowCollection.didLoad,
+                    reportedWindowCount: windowCollection.reportedCount,
+                    switchableWindowCount: windows.count
+                ) else {
+                    continue
+                }
                 entries.append(
                     WindowEntry(
                         id: nextID,
@@ -240,9 +248,11 @@ struct WindowSearchIndex: Equatable {
         return "\(entry.appName) — \(title) · \(tabCount) tabs"
     }
 
-    private static func windowElements(for pid: pid_t) -> [AXUIElement] {
+    private static func windowElements(
+        for pid: pid_t
+    ) -> (elements: [AXUIElement], reportedCount: Int, didLoad: Bool) {
         guard AXIsProcessTrusted() else {
-            return []
+            return ([], 0, false)
         }
 
         let appElement = AXUIElementCreateApplication(pid)
@@ -254,22 +264,73 @@ struct WindowSearchIndex: Equatable {
         )
         guard error == .success,
               let values = value as? [AnyObject] else {
-            return []
+            return ([], 0, false)
         }
 
-        return values.compactMap { value in
+        let elements = values.compactMap { value in
             guard CFGetTypeID(value) == AXUIElementGetTypeID() else {
                 return nil
             }
             return (value as! AXUIElement)
         }
+        .filter { window in
+            isSwitchableWindow(
+                role: stringAttribute(kAXRoleAttribute as String, from: window),
+                subrole: stringAttribute(kAXSubroleAttribute as String, from: window),
+                frame: windowFrame(window)
+            )
+        }
+        return (elements, values.count, true)
+    }
+
+    static func shouldIncludeApplicationOnlyEntry(
+        didLoadWindows: Bool,
+        reportedWindowCount: Int,
+        switchableWindowCount: Int
+    ) -> Bool {
+        didLoadWindows
+            && reportedWindowCount <= 0
+            && switchableWindowCount <= 0
+    }
+
+    /// 창 오버뷰에서 실제 전환 대상으로 사용할 수 있는 AX 창인지 판정한다.
+    static func isSwitchableWindow(
+        role: String?,
+        subrole: String?,
+        frame: CGRect?
+    ) -> Bool {
+        guard role == kAXWindowRole as String,
+              let frame,
+              !frame.isNull,
+              !frame.isInfinite,
+              frame.origin.x.isFinite,
+              frame.origin.y.isFinite,
+              frame.size.width.isFinite,
+              frame.size.height.isFinite,
+              frame.size.width > 0,
+              frame.size.height > 0 else {
+            return false
+        }
+
+        let excludedSubroles = Set([
+            kAXFloatingWindowSubrole as String,
+            kAXSystemFloatingWindowSubrole as String
+        ])
+        return subrole.map { !excludedSubroles.contains($0) } ?? true
     }
 
     private static func windowTitle(_ window: AXUIElement) -> String? {
+        stringAttribute(kAXTitleAttribute as String, from: window)
+    }
+
+    private static func stringAttribute(
+        _ attribute: String,
+        from element: AXUIElement
+    ) -> String? {
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(
-            window,
-            kAXTitleAttribute as CFString,
+            element,
+            attribute as CFString,
             &value
         )
         guard error == .success else {

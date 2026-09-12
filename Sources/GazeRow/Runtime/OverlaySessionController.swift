@@ -130,6 +130,57 @@ final class OverlaySessionController {
         )
     }
 
+    /// clickable element scan 없이 창 overview session을 시작한다.
+    ///
+    /// @author suho.do
+    /// @since 2026-07-26
+    func startWindowOverview() -> OverlaySessionStartResult {
+        lastClickResult = nil
+        cancelProgressiveScan()
+        cancelWindowActivation()
+        let startedAt = dateProvider()
+        if let activeActivationID {
+            activationTracer.end(activationID: activeActivationID)
+        }
+        let activationID = activationTracer.begin(at: startedAt)
+        activeActivationID = activationID
+        trace(.shortcutReceived, activationID: activationID, at: startedAt)
+
+        guard isSessionEnabled() else {
+            close()
+            return .failure(.sessionDisabled)
+        }
+
+        let context: TargetContext
+        switch targetResolver.resolve() {
+        case .success(let resolvedContext):
+            context = resolvedContext
+        case .failure(let failure):
+            close()
+            return .failure(.targetResolutionFailed(failure))
+        }
+        let targetResolvedAt = dateProvider()
+        trace(.targetResolved, activationID: activationID, at: targetResolvedAt)
+
+        let emptyScanResult = AccessibilityScanResult(
+            candidates: [],
+            nodesVisited: 0,
+            scanDuration: 0,
+            didHitDepthLimit: false,
+            didHitNodeLimit: false,
+            didTimeout: false,
+            failedChildReadCount: 0
+        )
+        return completeStart(
+            context: context,
+            scanResult: emptyScanResult,
+            activationID: activationID,
+            startedAt: startedAt,
+            targetResolvedAt: targetResolvedAt,
+            startsInWindowOverview: true
+        )
+    }
+
     func startProgressively(
         onCompleted: @escaping @MainActor (OverlaySessionStartResult) -> Void
     ) {
@@ -239,7 +290,8 @@ final class OverlaySessionController {
         elementIndex: ElementSearchIndex? = nil,
         targetDescriptors: [AccessibilityTargetDescriptor?] = [],
         generation: AccessibilityTreeGeneration = .initial,
-        isChangeMonitoringActive: Bool = false
+        isChangeMonitoringActive: Bool = false,
+        startsInWindowOverview: Bool = false
     ) -> OverlaySessionStartResult {
         let scannedAt = dateProvider()
         trace(
@@ -256,10 +308,7 @@ final class OverlaySessionController {
             )
         )
 
-        guard !scanResult.candidates.isEmpty else {
-            close()
-            return .failure(.noCandidates(context: context, scanResult: scanResult))
-        }
+        let presentsWindowOverview = startsInWindowOverview || scanResult.candidates.isEmpty
 
         let layout = overlayPresenter.makeLayout(
             targetFrame: context.window.frame,
@@ -279,15 +328,25 @@ final class OverlaySessionController {
             scanResult: scanResult,
             layout: layout
         )
-        let session = OverlaySessionState(
+        var session = OverlaySessionState(
             snapshot: snapshot,
             focusEngine: FocusEngine(layout: layout),
+            queryInput: presentsWindowOverview
+                ? QueryInputState(pinnedScope: .windows, lastScope: .windows)
+                : QueryInputState(),
             elementIndex: elementIndex ?? makeFallbackElementIndex(scanResult: scanResult),
             didAttemptSearchableIndexBuild: elementIndex != nil,
             targetDescriptors: targetDescriptors,
             generation: generation,
             isChangeMonitoringActive: isChangeMonitoringActive
         )
+        let initialResolution: QueryResolution?
+        if presentsWindowOverview {
+            ensureWindowIndexIfNeeded(session: &session)
+            initialResolution = applyQueryResolution(to: &session)
+        } else {
+            initialResolution = nil
+        }
         activeSession = session
         trace(
             .sessionReady,
@@ -299,8 +358,8 @@ final class OverlaySessionController {
             layout: layout,
             initialStatus: status(
                 for: session,
-                resolution: nil,
-                message: content.overlayReadyText,
+                resolution: initialResolution,
+                message: presentsWindowOverview ? nil : content.overlayReadyText,
                 tone: .neutral
             ),
             onEscape: { [weak self] in
@@ -399,7 +458,17 @@ final class OverlaySessionController {
         guard var session = activeSession else {
             return nil
         }
-        guard !session.isScanInProgress else {
+        if session.isScanInProgress {
+            guard command == .pinScope(.windows) else {
+                return nil
+            }
+            traceKeyboardCommand(
+                .commandHandled,
+                command: command,
+                captureMode: captureMode,
+                hasActiveSession: true
+            )
+            switchToWindowOverviewDuringScan(session: &session)
             return nil
         }
         traceKeyboardCommand(
@@ -531,6 +600,17 @@ final class OverlaySessionController {
             traceKeyboardCommand(.focusStateChanged, command: command, hasActiveSession: true)
         }
         return event
+    }
+
+    /// 부분 요소 스캔을 기다리지 않고 현재 세션을 창 오버뷰로 전환한다.
+    private func switchToWindowOverviewDuringScan(
+        session: inout OverlaySessionState
+    ) {
+        cancelProgressiveScan()
+        session.isScanInProgress = false
+        sessionReducer.pinScope(.windows, in: &session)
+        ensureWindowIndexIfNeeded(session: &session)
+        resolveQueryAndPresent(&session)
     }
 
     @discardableResult

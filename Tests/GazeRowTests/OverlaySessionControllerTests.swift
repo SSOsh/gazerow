@@ -74,6 +74,44 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertEqual(snapshot.scanResult.candidates, finalCandidates)
     }
 
+    func test_startProgressively는_scan중_semicolon입력시_즉시창overview로전환한다() async {
+        // given
+        let scanner = SuspendingProgressiveOverlayScanner(
+            progress: AccessibilityScanProgress(
+                candidates: [makeCandidate(title: "First")],
+                nodesVisited: 12
+            )
+        )
+        let presenter = StubOverlayPresenter()
+        let windowEntry = makeWindowEntry(
+            id: 0,
+            appName: "Finder",
+            bundleID: "com.apple.finder"
+        )
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: scanner,
+            overlayPresenter: presenter,
+            windowSearchIndexProvider: {
+                WindowSearchIndex(entries: [windowEntry])
+            }
+        )
+        sut.startProgressively { _ in }
+        await waitForProgressiveScan()
+        XCTAssertTrue(sut.activeSession?.isScanInProgress == true)
+
+        // when
+        _ = sut.handleKeyboardCommand(.pinScope(.windows))
+        await waitForProgressiveScan()
+
+        // then
+        XCTAssertTrue(scanner.wasCancelled)
+        XCTAssertFalse(sut.activeSession?.isScanInProgress == true)
+        XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
+        XCTAssertEqual(sut.activeSession?.windowMatches.map(\.entryID), [0])
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+    }
+
     func test_startProgressively는_close후_늦은최종결과를무시한다() async {
         // given
         let firstCandidate = makeCandidate(title: "First")
@@ -566,7 +604,7 @@ final class OverlaySessionControllerTests: XCTestCase {
         XCTAssertTrue(presenter.showRequests.isEmpty)
     }
 
-    func test_start_candidate가_없으면_overlay를_닫고_noCandidates를_반환() {
+    func test_start_candidate가_없으면_windowOverview로_자동전환한다() {
         // given
         let context = makeContext()
         let scanResult = makeScanResult(candidates: [])
@@ -576,14 +614,146 @@ final class OverlaySessionControllerTests: XCTestCase {
         let sut = OverlaySessionController(
             targetResolver: resolver,
             scanner: scanner,
-            overlayPresenter: presenter
+            overlayPresenter: presenter,
+            windowSearchIndexProvider: {
+                WindowSearchIndex(entries: [
+                    self.makeWindowEntry(id: 0, appName: "Finder", bundleID: "com.apple.finder")
+                ])
+            }
         )
 
         // when
         let result = sut.start()
 
         // then
-        XCTAssertEqual(result, .failure(.noCandidates(context: context, scanResult: scanResult)))
+        guard case .success(let snapshot) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertTrue(snapshot.scanResult.candidates.isEmpty)
+        XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
+        XCTAssertEqual(presenter.closeCallCount, 0)
+        XCTAssertEqual(presenter.showRequests.count, 1)
+        XCTAssertEqual(presenter.statusUpdates.last?.windowOverviewItems.count, 1)
+    }
+
+    func test_startWindowOverview는_elementScan없이_windowsScope를_표시한다() {
+        // given
+        let scanner = StubOverlayScanner(result: .failure(.childrenUnavailable("must not scan")))
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: scanner,
+            overlayPresenter: presenter,
+            windowSearchIndexProvider: {
+                WindowSearchIndex(entries: [
+                    self.makeWindowEntry(id: 0, appName: "Finder", bundleID: "com.apple.finder")
+                ])
+            }
+        )
+
+        // when
+        let result = sut.startWindowOverview()
+
+        // then
+        guard case .success(let snapshot) = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertTrue(snapshot.scanResult.candidates.isEmpty)
+        XCTAssertEqual(scanner.scanCallCount, 0)
+        XCTAssertEqual(sut.activeSession?.queryInput.pinnedScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.windowOverviewItems.count, 1)
+    }
+
+    func test_startWindowOverview_windowIndex가비어도_noMatch상태를_표시한다() {
+        // given
+        let scanner = StubOverlayScanner(result: .failure(.childrenUnavailable("must not scan")))
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: scanner,
+            overlayPresenter: presenter,
+            windowSearchIndexProvider: { WindowSearchIndex(entries: []) }
+        )
+
+        // when
+        let result = sut.startWindowOverview()
+
+        // then
+        guard case .success = result else {
+            XCTFail("Expected success, got \(result).")
+            return
+        }
+        XCTAssertEqual(scanner.scanCallCount, 0)
+        XCTAssertEqual(presenter.statusUpdates.last?.activeScope, .windows)
+        XCTAssertEqual(presenter.statusUpdates.last?.matchCount, 0)
+        XCTAssertTrue(presenter.statusUpdates.last?.windowOverviewItems.isEmpty == true)
+    }
+
+    func test_startWindowOverview후_라벨과Return은_선택창을활성화한다() async {
+        // given
+        let entries = [
+            makeWindowEntry(id: 0, appName: "Finder", bundleID: "com.apple.finder"),
+            makeWindowEntry(id: 1, appName: "Safari", bundleID: "com.apple.Safari")
+        ]
+        let activator = StubWindowActivator(result: .failure(.appNotRunning))
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .success(makeContext())),
+            scanner: StubOverlayScanner(result: .failure(.childrenUnavailable("must not scan"))),
+            overlayPresenter: StubOverlayPresenter(),
+            windowSearchIndexProvider: { WindowSearchIndex(entries: entries) },
+            windowActivator: activator
+        )
+        _ = sut.startWindowOverview()
+        _ = sut.handleKeyboardCommand(.appendQuery("S"))
+
+        // when
+        _ = sut.handleKeyboardCommand(.dryRunConfirm)
+        await waitForWindowActivation()
+
+        // then
+        XCTAssertEqual(activator.activatedEntries.map(\.id), [1])
+    }
+
+    func test_startWindowOverview_sessionDisabled면_resolve와scan없이_닫는다() {
+        // given
+        let resolver = StubOverlayTargetResolver(result: .success(makeContext()))
+        let scanner = StubOverlayScanner(result: .success(makeScanResult(candidates: [])))
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: resolver,
+            scanner: scanner,
+            overlayPresenter: presenter,
+            isSessionEnabled: { false }
+        )
+
+        // when
+        let result = sut.startWindowOverview()
+
+        // then
+        XCTAssertEqual(result, .failure(.sessionDisabled))
+        XCTAssertEqual(resolver.resolveCallCount, 0)
+        XCTAssertEqual(scanner.scanCallCount, 0)
+        XCTAssertEqual(presenter.closeCallCount, 1)
+    }
+
+    func test_startWindowOverview_targetResolve실패면_scan하지않고_닫는다() {
+        // given
+        let scanner = StubOverlayScanner(result: .success(makeScanResult(candidates: [])))
+        let presenter = StubOverlayPresenter()
+        let sut = OverlaySessionController(
+            targetResolver: StubOverlayTargetResolver(result: .failure(.noFrontmostApplication)),
+            scanner: scanner,
+            overlayPresenter: presenter
+        )
+
+        // when
+        let result = sut.startWindowOverview()
+
+        // then
+        XCTAssertEqual(result, .failure(.targetResolutionFailed(.noFrontmostApplication)))
+        XCTAssertEqual(scanner.scanCallCount, 0)
         XCTAssertEqual(presenter.closeCallCount, 1)
         XCTAssertTrue(presenter.showRequests.isEmpty)
     }

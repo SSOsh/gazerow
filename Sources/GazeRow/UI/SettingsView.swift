@@ -578,6 +578,10 @@ struct SettingsView: View {
                 .font(.headline)
 
             labeledRow(content.showOverlayLabel, OverlayActivationShortcut.activationDisplayName)
+            labeledRow(
+                content.showWindowOverviewLabel,
+                WindowOverviewActivationShortcut.defaultShortcut.displayName
+            )
 
             ForEach(WindowControlShortcutSet.default.shortcuts, id: \.keyCode) { shortcut in
                 labeledRow(content.windowControlLabel(for: shortcut.action), shortcut.displayName)

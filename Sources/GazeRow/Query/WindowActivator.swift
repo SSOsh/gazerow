@@ -23,6 +23,35 @@ protocol WindowActivating {
     func activate(_ entry: WindowEntry) async -> Result<Void, WindowActivateFailure>
 }
 
+/// AX 객체 재생성 여부와 무관하게 실제 창을 식별하기 위한 공개 속성 조합.
+///
+/// @author suho.do
+/// @since 2026-07-26
+struct AXWindowFingerprint {
+    let identifier: String?
+    let title: String?
+    let frame: CGRect?
+
+    static let empty = AXWindowFingerprint(identifier: nil, title: nil, frame: nil)
+}
+
+/// 실제 AX 객체와 보수적 fallback fingerprint를 함께 보관한다.
+///
+/// @author suho.do
+/// @since 2026-07-26
+struct AXWindowReference {
+    let element: AXUIElement
+    let fingerprint: AXWindowFingerprint
+
+    init(
+        element: AXUIElement,
+        fingerprint: AXWindowFingerprint = .empty
+    ) {
+        self.element = element
+        self.fingerprint = fingerprint
+    }
+}
+
 /// NSRunningApplication/AX 기반 창 활성화기.
 ///
 /// @author suho.do
@@ -147,19 +176,20 @@ struct WindowActivator: WindowActivating {
         }
 
         let applicationElement = AXUIElementCreateApplication(entry.pid)
+        let selectedReference = windowReference(selectedWindow)
         return isSameWindow(
-            selectedWindow,
-            as: copyWindow(kAXFocusedWindowAttribute, from: applicationElement)
+            selectedReference,
+            as: copyWindowReference(kAXFocusedWindowAttribute, from: applicationElement)
         ) || isSameWindow(
-            selectedWindow,
-            as: copyWindow(kAXMainWindowAttribute, from: applicationElement)
+            selectedReference,
+            as: copyWindowReference(kAXMainWindowAttribute, from: applicationElement)
         )
     }
 
-    nonisolated private static func copyWindow(
+    nonisolated private static func copyWindowReference(
         _ attribute: String,
         from applicationElement: AXUIElement
-    ) -> AXUIElement? {
+    ) -> AXWindowReference? {
         var value: AnyObject?
         let error = AXUIElementCopyAttributeValue(
             applicationElement,
@@ -172,17 +202,129 @@ struct WindowActivator: WindowActivating {
             return nil
         }
 
-        return (value as! AXUIElement)
+        let window = value as! AXUIElement
+        return windowReference(window)
     }
 
-    nonisolated private static func isSameWindow(
-        _ selectedWindow: AXUIElement,
-        as activeWindow: AXUIElement?
+    nonisolated private static func windowReference(
+        _ window: AXUIElement
+    ) -> AXWindowReference {
+        AXWindowReference(
+            element: window,
+            fingerprint: AXWindowFingerprint(
+                identifier: stringAttribute(kAXIdentifierAttribute as String, from: window),
+                title: stringAttribute(kAXTitleAttribute as String, from: window),
+                frame: windowFrame(window)
+            )
+        )
+    }
+
+    nonisolated private static func stringAttribute(
+        _ attribute: String,
+        from element: AXUIElement
+    ) -> String? {
+        var value: AnyObject?
+        let error = AXUIElementCopyAttributeValue(
+            element,
+            attribute as CFString,
+            &value
+        )
+        guard error == .success else {
+            return nil
+        }
+        return value as? String
+    }
+
+    nonisolated private static func windowFrame(_ window: AXUIElement) -> CGRect? {
+        guard let origin = pointAttribute(kAXPositionAttribute as String, from: window),
+              let size = sizeAttribute(kAXSizeAttribute as String, from: window) else {
+            return nil
+        }
+        return CGRect(origin: origin, size: size)
+    }
+
+    nonisolated private static func pointAttribute(
+        _ attribute: String,
+        from element: AXUIElement
+    ) -> CGPoint? {
+        guard let value = axValue(attribute, from: element) else {
+            return nil
+        }
+        var point = CGPoint.zero
+        return AXValueGetValue(value, .cgPoint, &point) ? point : nil
+    }
+
+    nonisolated private static func sizeAttribute(
+        _ attribute: String,
+        from element: AXUIElement
+    ) -> CGSize? {
+        guard let value = axValue(attribute, from: element) else {
+            return nil
+        }
+        var size = CGSize.zero
+        return AXValueGetValue(value, .cgSize, &size) ? size : nil
+    }
+
+    nonisolated private static func axValue(
+        _ attribute: String,
+        from element: AXUIElement
+    ) -> AXValue? {
+        var value: AnyObject?
+        let error = AXUIElementCopyAttributeValue(element, attribute as CFString, &value)
+        guard error == .success,
+              let value,
+              CFGetTypeID(value) == AXValueGetTypeID() else {
+            return nil
+        }
+        return (value as! AXValue)
+    }
+
+    nonisolated static func isSameWindow(
+        _ selectedWindow: AXWindowReference,
+        as activeWindow: AXWindowReference?
     ) -> Bool {
         guard let activeWindow else {
             return false
         }
 
-        return CFEqual(selectedWindow, activeWindow)
+        if CFEqual(selectedWindow.element, activeWindow.element) {
+            return true
+        }
+
+        guard hasSameFrame(selectedWindow.fingerprint.frame, activeWindow.fingerprint.frame),
+              let selectedTitle = normalized(selectedWindow.fingerprint.title),
+              let activeTitle = normalized(activeWindow.fingerprint.title),
+              selectedTitle == activeTitle else {
+            return false
+        }
+
+        guard let selectedIdentifier = normalized(selectedWindow.fingerprint.identifier),
+              let activeIdentifier = normalized(activeWindow.fingerprint.identifier) else {
+            return false
+        }
+        return selectedIdentifier == activeIdentifier
+    }
+
+    nonisolated private static func normalized(_ value: String?) -> String? {
+        guard let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !normalized.isEmpty else {
+            return nil
+        }
+        return normalized
+    }
+
+    nonisolated private static func hasSameFrame(
+        _ selectedFrame: CGRect?,
+        _ activeFrame: CGRect?
+    ) -> Bool {
+        guard let selectedFrame,
+              let activeFrame else {
+            return false
+        }
+        let tolerance: CGFloat = 1
+        return abs(selectedFrame.origin.x - activeFrame.origin.x) <= tolerance
+            && abs(selectedFrame.origin.y - activeFrame.origin.y) <= tolerance
+            && abs(selectedFrame.size.width - activeFrame.size.width) <= tolerance
+            && abs(selectedFrame.size.height - activeFrame.size.height) <= tolerance
     }
 }

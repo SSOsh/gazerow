@@ -202,6 +202,183 @@ final class WindowActivatorTests: XCTestCase {
         XCTAssertTrue(didRunHeartbeat)
     }
 
+    func test_isSameWindow는_AX객체가달라도_identifier가같으면_true다() {
+        // given
+        let frame = CGRect(x: 10, y: 20, width: 800, height: 600)
+        let selectedWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(100),
+            fingerprint: AXWindowFingerprint(
+                identifier: "main-window",
+                title: "Document",
+                frame: frame
+            )
+        )
+        let activeWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(200),
+            fingerprint: AXWindowFingerprint(
+                identifier: "main-window",
+                title: "Document",
+                frame: frame
+            )
+        )
+
+        // when
+        let result = WindowActivator.isSameWindow(selectedWindow, as: activeWindow)
+
+        // then
+        XCTAssertTrue(result)
+    }
+
+    func test_isSameWindow는_identifier가다르면_frame이같아도_false다() {
+        // given
+        let frame = CGRect(x: 10, y: 20, width: 800, height: 600)
+        let selectedWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(100),
+            fingerprint: AXWindowFingerprint(
+                identifier: "first",
+                title: "Document",
+                frame: frame
+            )
+        )
+        let activeWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(200),
+            fingerprint: AXWindowFingerprint(
+                identifier: "second",
+                title: "Document",
+                frame: frame
+            )
+        )
+
+        // when
+        let result = WindowActivator.isSameWindow(selectedWindow, as: activeWindow)
+
+        // then
+        XCTAssertFalse(result)
+    }
+
+    func test_isSameWindow는_identifier가같아도_title이나frame이다르면_false다() {
+        // given
+        let selectedWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(100),
+            fingerprint: AXWindowFingerprint(
+                identifier: "main-window",
+                title: "First",
+                frame: CGRect(x: 10, y: 20, width: 800, height: 600)
+            )
+        )
+        let activeWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(200),
+            fingerprint: AXWindowFingerprint(
+                identifier: "main-window",
+                title: "Second",
+                frame: CGRect(x: 100, y: 200, width: 800, height: 600)
+            )
+        )
+
+        // when
+        let result = WindowActivator.isSameWindow(selectedWindow, as: activeWindow)
+
+        // then
+        XCTAssertFalse(result)
+    }
+
+    func test_isSameWindow는_identifier가없으면_title과frame이같아도_false다() {
+        // given
+        let selectedWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(100),
+            fingerprint: AXWindowFingerprint(
+                identifier: nil,
+                title: "Document",
+                frame: CGRect(x: 10, y: 20, width: 800, height: 600)
+            )
+        )
+        let activeWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(200),
+            fingerprint: AXWindowFingerprint(
+                identifier: nil,
+                title: "Document",
+                frame: CGRect(x: 10.5, y: 19.5, width: 800, height: 600)
+            )
+        )
+
+        // when
+        let result = WindowActivator.isSameWindow(selectedWindow, as: activeWindow)
+
+        // then
+        XCTAssertFalse(result)
+    }
+
+    func test_isSameWindow는_title이없으면_frame이같아도_false다() {
+        // given
+        let frame = CGRect(x: 10, y: 20, width: 800, height: 600)
+        let selectedWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(100),
+            fingerprint: AXWindowFingerprint(identifier: nil, title: nil, frame: frame)
+        )
+        let activeWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(200),
+            fingerprint: AXWindowFingerprint(identifier: nil, title: nil, frame: frame)
+        )
+
+        // when
+        let result = WindowActivator.isSameWindow(selectedWindow, as: activeWindow)
+
+        // then
+        XCTAssertFalse(result)
+    }
+
+    func test_isSameWindow는_fingerprint가다르고_AX객체도다르면_false다() {
+        // given
+        let selectedWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(100),
+            fingerprint: AXWindowFingerprint(
+                identifier: nil,
+                title: "First",
+                frame: CGRect(x: 10, y: 20, width: 800, height: 600)
+            )
+        )
+        let activeWindow = AXWindowReference(
+            element: AXUIElementCreateApplication(200),
+            fingerprint: AXWindowFingerprint(
+                identifier: nil,
+                title: "Second",
+                frame: CGRect(x: 100, y: 200, width: 800, height: 600)
+            )
+        )
+
+        // when
+        let result = WindowActivator.isSameWindow(selectedWindow, as: activeWindow)
+
+        // then
+        XCTAssertFalse(result)
+    }
+
+    func test_isSameWindow는_fingerprint가없어도_같은AX객체면_true다() {
+        // given
+        let element = AXUIElementCreateSystemWide()
+        let selectedWindow = AXWindowReference(element: element)
+        let activeWindow = AXWindowReference(element: element)
+
+        // when
+        let result = WindowActivator.isSameWindow(selectedWindow, as: activeWindow)
+
+        // then
+        XCTAssertTrue(result)
+    }
+
+    func test_isSameWindow는_activeWindow가없으면_false다() {
+        // given
+        let selectedWindow = AXWindowReference(
+            element: AXUIElementCreateSystemWide()
+        )
+
+        // when
+        let result = WindowActivator.isSameWindow(selectedWindow, as: nil)
+
+        // then
+        XCTAssertFalse(result)
+    }
+
     private var entry: WindowEntry {
         makeEntry(axWindow: nil)
     }

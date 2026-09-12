@@ -47,6 +47,19 @@ final class GlobalHotKeyDefinitionTests: XCTestCase {
         XCTAssertEqual(sut.identifier, 3)
     }
 
+    func test_windowOverviewActivation은_CommandShiftSemicolon을_CarbonModifier로_변환() {
+        // given
+        let sut = GlobalHotKeyDefinition.windowOverviewActivation
+
+        // then
+        XCTAssertEqual(sut.keyCode, OverlayActivationKeyCode.semicolon)
+        XCTAssertTrue((sut.carbonModifiers & UInt32(cmdKey)) != 0)
+        XCTAssertTrue((sut.carbonModifiers & UInt32(shiftKey)) != 0)
+        XCTAssertFalse((sut.carbonModifiers & UInt32(optionKey)) != 0)
+        XCTAssertFalse((sut.carbonModifiers & UInt32(controlKey)) != 0)
+        XCTAssertEqual(sut.identifier, 4)
+    }
+
     func test_overlayActivationDefinitions는_기본과_보조_단축키를_포함() {
         // when
         let result = GlobalHotKeyDefinition.overlayActivationDefinitions
@@ -63,6 +76,10 @@ final class GlobalHotKeyDefinitionTests: XCTestCase {
             "Control+Option+Command+Space"
         )
         XCTAssertEqual(GlobalHotKeyDefinition.gazeActivation.displayName, "Control+Shift+Space")
+        XCTAssertEqual(
+            GlobalHotKeyDefinition.windowOverviewActivation.displayName,
+            "Command+Shift+;"
+        )
     }
 
     func test_fourCharacterCode는_4글자_signature를_생성() {

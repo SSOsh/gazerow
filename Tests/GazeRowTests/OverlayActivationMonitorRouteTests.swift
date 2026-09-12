@@ -46,6 +46,22 @@ final class OverlayActivationMonitorRouteTests: XCTestCase {
         XCTAssertEqual(route, .consumeOverlayActivation)
     }
 
+    func test_windowOverview_activation_매칭이면_소비만_수행() {
+        // given
+        let input = spaceInput
+
+        // when
+        let route = overlayActivationMonitorRoute(
+            for: input,
+            gazeMatcher: { _ in false },
+            windowOverviewMatcher: { _ in true },
+            overlayMatcher: { _ in false }
+        )
+
+        // then
+        XCTAssertEqual(route, .consumeWindowOverviewActivation)
+    }
+
     func test_어느_activation에도_매칭되지_않으면_windowControl() {
         // given
         let input = spaceInput
@@ -102,6 +118,20 @@ final class OverlayActivationMonitorRouteTests: XCTestCase {
 
         // then
         XCTAssertEqual(route, .consumeOverlayActivation)
+    }
+
+    func test_기본_matcher로_CommandShiftSemicolon은_windowOverview_activation_소비() {
+        // given
+        let input = OverlayActivationShortcutInput(
+            keyCode: OverlayActivationKeyCode.semicolon,
+            modifiers: [.command, .shift]
+        )
+
+        // when
+        let route = overlayActivationMonitorRoute(for: input)
+
+        // then
+        XCTAssertEqual(route, .consumeWindowOverviewActivation)
     }
 
     func test_기본_matcher로_ControlShiftSpace는_gaze() {

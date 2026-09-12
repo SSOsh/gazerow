@@ -57,6 +57,7 @@ enum AppContent {
         let sessionKillSwitchNotice: String
         let shortcutsTitle: String
         let showOverlayLabel: String
+        let showWindowOverviewLabel: String
         let overlayAppearanceTitle: String
         let labelOpacityLabel: String
         let labelOpacityNotice: String
@@ -731,6 +732,7 @@ enum AppContent {
         sessionKillSwitchNotice: "Kill switch stops overlay activation immediately.",
         shortcutsTitle: "Shortcuts",
         showOverlayLabel: "Show overlay",
+        showWindowOverviewLabel: "Show window overview",
         overlayAppearanceTitle: "Overlay Appearance",
         labelOpacityLabel: "Label opacity",
         labelOpacityNotice: "Lower the label opacity to see more of the content behind the overlay.",
@@ -809,6 +811,7 @@ enum AppContent {
         sessionKillSwitchNotice: "Kill switch는 overlay 활성화를 즉시 중지합니다.",
         shortcutsTitle: "단축키",
         showOverlayLabel: "Overlay 표시",
+        showWindowOverviewLabel: "창 overview 표시",
         overlayAppearanceTitle: "Overlay 모양",
         labelOpacityLabel: "라벨 투명도",
         labelOpacityNotice: "라벨 투명도를 낮추면 overlay 뒤 콘텐츠가 더 잘 보입니다.",

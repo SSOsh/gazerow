@@ -69,6 +69,8 @@ struct OverlayActivationShortcut: Equatable {
 enum OverlayActivationMonitorRoute: Equatable {
     /// gaze focus activation. `showGazeOverlay()`로 이어진다.
     case gaze
+    /// 창 overview activation 입력. Carbon hotkey가 실행하므로 monitor는 소비만 한다.
+    case consumeWindowOverviewActivation
     /// overlay activation 입력. Carbon가 실행을 담당하므로 monitor는 소비만 한다.
     case consumeOverlayActivation
     /// activation과 무관한 입력. window control 처리로 넘긴다.
@@ -91,10 +93,14 @@ enum OverlayActivationMonitorRoute: Equatable {
 func overlayActivationMonitorRoute(
     for input: OverlayActivationShortcutInput,
     gazeMatcher: (OverlayActivationShortcutInput) -> Bool = GazeActivationShortcut.matches,
+    windowOverviewMatcher: (OverlayActivationShortcutInput) -> Bool = WindowOverviewActivationShortcut.matches,
     overlayMatcher: (OverlayActivationShortcutInput) -> Bool = OverlayActivationShortcut.matchesAny
 ) -> OverlayActivationMonitorRoute {
     if gazeMatcher(input) {
         return .gaze
+    }
+    if windowOverviewMatcher(input) {
+        return .consumeWindowOverviewActivation
     }
     if overlayMatcher(input) {
         return .consumeOverlayActivation
@@ -145,4 +151,42 @@ struct OverlayActivationShortcutInput: Equatable {
 /// @since 2026-07-02
 enum OverlayActivationKeyCode {
     static let space: UInt16 = 49
+    static let semicolon: UInt16 = 41
+}
+
+/// element scan 없이 창 overview를 여는 전역 단축키.
+///
+/// @author suho.do
+/// @since 2026-07-26
+struct WindowOverviewActivationShortcut: Equatable {
+    static let defaultShortcut = WindowOverviewActivationShortcut(
+        keyCode: OverlayActivationKeyCode.semicolon,
+        requiredModifiers: [.command, .shift]
+    )
+
+    let keyCode: UInt16
+    let requiredModifiers: NSEvent.ModifierFlags
+
+    func matches(_ input: OverlayActivationShortcutInput) -> Bool {
+        !input.isRepeat
+            && input.keyCode == keyCode
+            && input.normalizedModifiers == normalizedRequiredModifiers
+    }
+
+    static func matches(_ input: OverlayActivationShortcutInput) -> Bool {
+        defaultShortcut.matches(input)
+    }
+
+    var displayName: String {
+        "Command+Shift+;"
+    }
+
+    private var normalizedRequiredModifiers: NSEvent.ModifierFlags {
+        requiredModifiers.intersection([
+            .command,
+            .shift,
+            .option,
+            .control
+        ])
+    }
 }
