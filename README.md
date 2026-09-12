@@ -226,3 +226,32 @@ gazerow가 작업 흐름에 도움이 됐다면 메뉴바의 **Support gazerow**
 # 테스트 실행
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test
 ```
+
+### CI 검증 로컬 재현
+
+`push`·`pull_request`마다 `.github/workflows/ci.yml`이 아래 검증을 자동 실행합니다.
+동일한 검증을 로컬에서 그대로 재현하려면 (모든 커맨드 앞에
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 를 붙이세요):
+
+```bash
+# 1) clean build + 전체 테스트
+rm -rf .build
+swift build
+swift test
+
+# 2) Swift 6 language-mode 빌드 (호환성 게이트)
+swift build -Xswiftc -swift-version -Xswiftc 6
+
+# 3) 쉘 스크립트 문법 검사 + MVP freeze 검증
+for f in scripts/*.sh install.command; do bash -n "$f"; done
+scripts/verify_mvp_freeze.sh
+
+# 4) .app 번들 조립 검증 (ad-hoc 서명)
+scripts/build_local_app.sh
+
+# 5) 베타 배포 산출물까지 검증 (수동/태그 전용 release-dry-run.yml과 동일)
+scripts/package_beta_release.sh
+```
+
+> 손쉬운 사용·카메라 권한이 필요한 실기기 전용 통합 검증은 CI에서 실행할 수 없어
+> 로컬에서만 수행하는 후속 과제로 남아 있습니다.

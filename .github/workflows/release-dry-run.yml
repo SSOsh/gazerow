@@ -1,0 +1,39 @@
+# gazerow Release dry-run
+#
+# 베타 배포 성공 경로를 입력 검증만이 아니라 산출물까지 검증한다.
+# package_beta_release.sh가 Universal(arm64+x86_64) .app을 ad-hoc 서명으로 조립하고
+# ZIP·SHA-256을 만든 뒤 verify_beta_release.sh로 체크섬·구조·서명·아키텍처를 검증한다.
+# 빌드 시간이 길어 매 push가 아니라 수동 실행과 태그 푸시에서만 돈다.
+#
+# @author suho.do
+# @since 2026-09-12
+name: Release dry-run
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+
+jobs:
+  beta-package:
+    name: Beta package (ad-hoc, universal)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: swift --version && xcodebuild -version
+      - name: Clean build directory (reproducible clean build)
+        run: rm -rf .build
+      - name: Build, assemble, and verify beta ZIP
+        run: scripts/package_beta_release.sh
+      - name: Upload beta artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gazerow-beta-zip
+          path: |
+            .build/beta-release/*.zip
+            .build/beta-release/*.sha256
+          if-no-files-found: error

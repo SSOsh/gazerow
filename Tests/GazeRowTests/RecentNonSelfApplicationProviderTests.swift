@@ -130,6 +130,28 @@ final class RecentNonSelfApplicationProviderTests: XCTestCase {
         XCTAssertEqual(sut.lastNonSelfApplication, finder)
     }
 
+    func test_deinit하면_주기적_재확인_스케줄을_취소한다() {
+        // given: 스케줄러가 반환한 cancel 클로저 호출 횟수를 센다
+        var cancelCallCount = 0
+        let provider = StubFrontmostApplicationProvider(application: nil)
+        var sut: RecentNonSelfApplicationProvider? = RecentNonSelfApplicationProvider(
+            ownBundleIdentifier: "dev.local.gazerow",
+            currentApplicationProvider: provider,
+            notificationCenter: NotificationCenter(),
+            scheduleRepeatingTask: { _, _ in
+                { cancelCallCount += 1 }
+            }
+        )
+        XCTAssertNotNil(sut)
+        XCTAssertEqual(cancelCallCount, 0)
+
+        // when: main actor에서 마지막 참조를 해제하면 deinit이 동기 실행된다
+        sut = nil
+
+        // then
+        XCTAssertEqual(cancelCallCount, 1)
+    }
+
     private func makeApplication(bundleIdentifier: String) -> TargetApplication {
         TargetApplication(
             localizedName: bundleIdentifier,
