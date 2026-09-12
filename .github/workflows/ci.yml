@@ -1,0 +1,100 @@
+# gazerow CI
+#
+# push / pull_request마다 기본 build·test, Swift 6 language-mode 빌드, 쉘 스크립트
+# 문법 검사, MVP freeze 검증, .app 번들 조립 검증을 자동 실행한다.
+# 모든 job은 .build를 지워 cache 오염과 무관한 clean build를 보장한다.
+#
+# @author suho.do
+# @since 2026-09-12
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: swift --version && xcodebuild -version
+      - name: Clean build directory (reproducible clean build)
+        run: rm -rf .build
+      - name: Build
+        run: swift build
+      - name: Test (JUnit output)
+        run: swift test --xunit-output test-results.xml 2>&1 | tee test-console.log
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            test-results.xml
+            test-console.log
+          if-no-files-found: warn
+
+  swift6:
+    name: Swift 6 language-mode build
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clean build directory
+        run: rm -rf .build
+      - name: Swift 6 compatibility build
+        run: swift build -Xswiftc -swift-version -Xswiftc 6
+
+  scripts:
+    name: Shell scripts & MVP freeze
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax check (bash -n)
+        run: |
+          for f in scripts/*.sh install.command; do
+            echo "-- $f"
+            bash -n "$f"
+          done
+      - name: MVP freeze verification
+        run: scripts/verify_mvp_freeze.sh
+
+  bundle:
+    name: App bundle assembly
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clean build directory
+        run: rm -rf .build
+      - name: Assemble local .app bundle (ad-hoc signed)
+        run: scripts/build_local_app.sh
+      - name: Verify bundle structure, metadata, and signature
+        run: |
+          set -euo pipefail
+          APP=".build/local-app/gazerow.app"
+          PLIST="${APP}/Contents/Info.plist"
+          test -x "${APP}/Contents/MacOS/gazerow"
+          test -f "${APP}/Contents/Resources/AppIcon.icns"
+          test -f "${PLIST}"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${PLIST}")" = "dev.local.gazerow"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "${PLIST}")" = "gazerow"
+          # gaze는 opt-in이므로 카메라 usage description은 있어야 한다.
+          /usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "${PLIST}" >/dev/null
+          # Screen Recording / 마이크 / 입력 모니터링 usage description은 절대 포함되면 안 된다.
+          for forbidden in NSScreenCaptureUsageDescription NSMicrophoneUsageDescription NSInputMonitoringUsageDescription; do
+            if /usr/libexec/PlistBuddy -c "Print :${forbidden}" "${PLIST}" >/dev/null 2>&1; then
+              echo "Forbidden usage description present: ${forbidden}" >&2
+              exit 1
+            fi
+          done
+          codesign --verify --strict --verbose=2 "${APP}"

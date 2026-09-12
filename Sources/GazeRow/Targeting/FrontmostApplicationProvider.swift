@@ -60,7 +60,10 @@ final class RecentNonSelfApplicationProvider: FrontmostApplicationProviding {
     private let currentApplicationProvider: any FrontmostApplicationProviding
     private let notificationCenter: NotificationCenter
     private var observer: NSObjectProtocol?
-    private var cancelPeriodicRefresh: (() -> Void)?
+    // init(main actor)에서만 대입하고 deinit에서 한 번만 호출하는 teardown 전용 클로저다.
+    // non-Sendable 함수 타입이라 Swift 6 nonisolated deinit에서 그대로 접근하면 막히지만,
+    // 실제 접근 패턴(쓰기 1회 → 해제 시 읽기 1회)이 안전하므로 격리 검사를 명시적으로 끈다.
+    nonisolated(unsafe) private var cancelPeriodicRefresh: (() -> Void)?
     private(set) var lastNonSelfApplication: TargetApplication?
 
     init(
